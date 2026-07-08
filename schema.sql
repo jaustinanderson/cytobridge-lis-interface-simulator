@@ -26,17 +26,18 @@ CREATE TABLE IF NOT EXISTS panel (
 );
 
 -- Probes belonging to a panel. is_required drives finalize gating.
--- normal_cutoff is the percent-abnormal cutoff above the lab's normal range
--- (synthetic values for demonstration).
+-- abnormal_cutoff_percent is the percent-abnormal cutoff above the lab's normal
+-- range (synthetic values for demonstration).
 CREATE TABLE IF NOT EXISTS probe (
-    probe_id        INTEGER PRIMARY KEY,
-    panel_id        INTEGER NOT NULL REFERENCES panel(panel_id),
-    probe_code      TEXT    NOT NULL,
-    probe_name      TEXT    NOT NULL,
-    locus           TEXT    NOT NULL,
-    target          TEXT    NOT NULL,
-    is_required     INTEGER NOT NULL DEFAULT 1 CHECK (is_required IN (0, 1)),
-    normal_cutoff   REAL    NOT NULL DEFAULT 0.0 CHECK (normal_cutoff >= 0.0),
+    probe_id                 INTEGER PRIMARY KEY,
+    panel_id                 INTEGER NOT NULL REFERENCES panel(panel_id),
+    probe_code               TEXT    NOT NULL,
+    probe_name               TEXT    NOT NULL,
+    locus                    TEXT    NOT NULL,
+    target                   TEXT    NOT NULL,
+    is_required              INTEGER NOT NULL DEFAULT 1 CHECK (is_required IN (0, 1)),
+    abnormal_cutoff_percent  REAL    NOT NULL DEFAULT 0.0
+        CHECK (abnormal_cutoff_percent >= 0.0),
     UNIQUE (panel_id, probe_code)
 );
 
@@ -217,7 +218,8 @@ INSERT OR IGNORE INTO panel (panel_id, panel_code, panel_name, specimen_type)
 VALUES (1, 'AML_MDS_FISH', 'AML/MDS FISH Panel', 'BONE_MARROW');
 
 INSERT OR IGNORE INTO probe
-    (panel_id, probe_code, probe_name, locus, target, is_required, normal_cutoff)
+    (panel_id, probe_code, probe_name, locus, target, is_required,
+     abnormal_cutoff_percent)
 VALUES
     (1, 'RUNX1T1_RUNX1', 'RUNX1T1/RUNX1',       '8q22/21q22', 't(8;21)',              1, 2.0),
     (1, 'CBFB',          'CBFB break-apart',    '16q22',      'inv(16)/t(16;16)',     1, 2.5),

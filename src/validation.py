@@ -50,8 +50,8 @@ def validate_order(conn: sqlite3.Connection, order_id: int) -> list[Finding]:
       INTERP_CONSISTENCY interpretation matches percent-abnormal vs the probe cutoff
 
     The consistency check is cutoff-aware: a percent-abnormal at or above the
-    probe's normal_cutoff that is still called NORMAL is a blocking ERROR
-    (a missed abnormal), while an ABNORMAL call below cutoff is a WARNING
+    probe's abnormal_cutoff_percent that is still called NORMAL is a blocking
+    ERROR (a missed abnormal), while an ABNORMAL call below cutoff is a WARNING
     (background-level signal called abnormal).
     """
     findings: list[Finding] = []
@@ -90,7 +90,7 @@ def validate_order(conn: sqlite3.Connection, order_id: int) -> list[Finding]:
         r["probe_id"]: r
         for r in conn.execute(
             "SELECT fr.probe_id, fr.cells_scored, fr.cells_abnormal, "
-            "       fr.interpretation, pr.probe_code, pr.normal_cutoff "
+            "       fr.interpretation, pr.probe_code, pr.abnormal_cutoff_percent "
             "FROM fish_result fr "
             "JOIN probe pr ON pr.probe_id = fr.probe_id "
             "WHERE fr.order_id = ?",
@@ -114,7 +114,7 @@ def validate_order(conn: sqlite3.Connection, order_id: int) -> list[Finding]:
         scored = r["cells_scored"]
         abnormal = r["cells_abnormal"]
         interp = r["interpretation"]
-        cutoff = r["normal_cutoff"]
+        cutoff = r["abnormal_cutoff_percent"]
         pct = (100.0 * abnormal / scored) if scored else 0.0
 
         if scored < MIN_CELLS_SCORED:

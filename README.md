@@ -2,12 +2,17 @@
 
 A synthetic cytogenetics/FISH **Laboratory Information System (LIS) + interface
 simulator**. It demonstrates SQL schema design, an order/specimen/result
-workflow, validation rules, audit trails, HL7/FHIR-style interface thinking, an
-inbound error queue, and requirements-to-test traceability.
+workflow, audit trails, HL7/FHIR-style interface thinking, a schema-provisioned
+inbound error queue, validation logic, and pytest coverage.
 
-This is an **analyst-first portfolio project**, not a polished web app. It is
-"Beaker-adjacent" in spirit — it is **not** an Epic clone and contains no Epic
-content.
+This is an **analyst-first portfolio project**, not a polished web app.
+
+> **Not affiliated with Epic Systems.** This is a "Beaker-adjacent" learning
+> project. It is not affiliated with, endorsed by, or connected to Epic Systems
+> Corporation. It does not use Epic software, does not reproduce Epic build
+> content or configuration, and contains no proprietary Epic material. "Beaker"
+> is referenced only to describe the general category of laboratory information
+> system this project models.
 
 > **Data notice:** All data in this project is **synthetic**. No PHI. No real
 > patient data.
@@ -28,9 +33,13 @@ v1 models exactly one panel — **AML/MDS FISH** — end to end, headless:
 
 Steps 9–13 of the full vision — generating an HL7 ORU-style outbound message,
 a FHIR `DiagnosticReport`, and ingesting/routing inbound instrument messages —
-are **planned for a later session**. The database **schema already provisions**
-the `interface_message` and `interface_error_queue` tables and the matching
-analyst queries, but the Python for those interfaces is not in v1.
+are **planned for a later session**. In Session 1 the inbound interface
+error-queue handling is **schema-provisioned only**: the database defines the
+`interface_message` and `interface_error_queue` tables and the matching analyst
+queries, but the Python ingestion and routing implementation (parsing inbound
+messages, filing valid ones to open orders, and routing malformed/unmatched
+messages to the error queue) is **not implemented in v1** and is planned for a
+later session.
 
 ### Technology
 
@@ -86,8 +95,8 @@ tests/
 | `CELL_COUNT_LOW`     | WARNING    | Scored-cell count below the minimum threshold                    |
 
 The consistency check is **cutoff-aware**: a percent-abnormal at/above a probe's
-`normal_cutoff` that is still called `NORMAL` is a blocking error (missed
-abnormal), while an `ABNORMAL` call below cutoff is an advisory warning.
+`abnormal_cutoff_percent` that is still called `NORMAL` is a blocking error
+(missed abnormal), while an `ABNORMAL` call below cutoff is an advisory warning.
 
 ## Run the demo
 
