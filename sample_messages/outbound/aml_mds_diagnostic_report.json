@@ -1,0 +1,757 @@
+{
+  "resourceType": "Bundle",
+  "id": "cytobridge-ACC-2026-0001",
+  "type": "collection",
+  "entry": [
+    {
+      "fullUrl": "Patient/patient-SYN-1001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "patient-SYN-1001",
+        "identifier": [
+          {
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR",
+                  "display": "Medical record number"
+                }
+              ]
+            },
+            "system": "urn:cytobridge:mrn",
+            "value": "SYN-1001"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Doe",
+            "given": [
+              "Alex"
+            ]
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1970-05-14"
+      }
+    },
+    {
+      "fullUrl": "Specimen/specimen-ACC-2026-0001",
+      "resource": {
+        "resourceType": "Specimen",
+        "id": "specimen-ACC-2026-0001",
+        "accessionIdentifier": {
+          "system": "urn:cytobridge:accession",
+          "value": "ACC-2026-0001"
+        },
+        "type": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:specimen-type",
+              "code": "BMA",
+              "display": "Bone Marrow"
+            }
+          ],
+          "text": "Bone Marrow"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "receivedTime": "2026-07-07T10:05:00Z",
+        "collection": {
+          "collectedDateTime": "2026-07-07T09:15:00Z"
+        },
+        "identifier": [
+          {
+            "system": "urn:cytobridge:external-specimen-id",
+            "value": "BM-0001"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-RUNX1T1-RUNX1",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-RUNX1T1-RUNX1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "RUNX1T1_RUNX1",
+              "display": "RUNX1T1/RUNX1"
+            }
+          ],
+          "text": "RUNX1T1/RUNX1 (t(8;21)) [8q22/21q22]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 19.0,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "A",
+                "display": "Abnormal"
+              }
+            ],
+            "text": "ABNORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 2.0,
+              "unit": "%"
+            },
+            "text": "<2.0% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "38/200 nuclei scored; signal pattern 2F1R1G (fusion present)"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-CBFB",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-CBFB",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "CBFB",
+              "display": "CBFB break-apart"
+            }
+          ],
+          "text": "CBFB break-apart (inv(16)/t(16;16)) [16q22]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 0.5,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 2.5,
+              "unit": "%"
+            },
+            "text": "<2.5% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "1/200 nuclei scored; signal pattern 2 orange/green"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-PML-RARA",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-PML-RARA",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "PML_RARA",
+              "display": "PML/RARA"
+            }
+          ],
+          "text": "PML/RARA (t(15;17)) [15q24/17q21]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 1.0,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 2.0,
+              "unit": "%"
+            },
+            "text": "<2.0% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "2/200 nuclei scored; signal pattern 2R2G"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-KMT2A",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-KMT2A",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "KMT2A",
+              "display": "KMT2A (MLL) break-apart"
+            }
+          ],
+          "text": "KMT2A (MLL) break-apart (11q23 rearrangement) [11q23]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 0.5,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 2.5,
+              "unit": "%"
+            },
+            "text": "<2.5% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "1/200 nuclei scored; signal pattern 2 fusion"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-EGR1-5q",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-EGR1-5q",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "EGR1_5q",
+              "display": "EGR1 (5q31)"
+            }
+          ],
+          "text": "EGR1 (5q31) (-5/del(5q)) [5q31]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 1.5,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 3.0,
+              "unit": "%"
+            },
+            "text": "<3.0% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "3/200 nuclei scored; signal pattern 2 orange 2 green"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-D7S486-7q",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-D7S486-7q",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "D7S486_7q",
+              "display": "D7S486 (7q31)"
+            }
+          ],
+          "text": "D7S486 (7q31) (-7/del(7q)) [7q31]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 1.0,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 3.0,
+              "unit": "%"
+            },
+            "text": "<3.0% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "2/200 nuclei scored; signal pattern 2 signals"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-CEP8",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-CEP8",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "CEP8",
+              "display": "CEP8 (centromere 8)"
+            }
+          ],
+          "text": "CEP8 (centromere 8) (+8 (trisomy 8)) [8cen]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 2.0,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 2.5,
+              "unit": "%"
+            },
+            "text": "<2.5% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "4/200 nuclei scored; signal pattern 2 aqua"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-D20S108-20q",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-D20S108-20q",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "D20S108_20q",
+              "display": "D20S108 (20q12)"
+            }
+          ],
+          "text": "D20S108 (20q12) (del(20q)) [20q12]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 0.5,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 3.0,
+              "unit": "%"
+            },
+            "text": "<3.0% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "1/200 nuclei scored; signal pattern 2 signals"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-ACC-2026-0001-TP53-17p",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-ACC-2026-0001-TP53-17p",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:fish-probe",
+              "code": "TP53_17p",
+              "display": "TP53 (17p13)"
+            }
+          ],
+          "text": "TP53 (17p13) (del(17p)/TP53 loss) [17p13]"
+        },
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": {
+          "reference": "Specimen/specimen-ACC-2026-0001"
+        },
+        "valueQuantity": {
+          "value": 1.0,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                "code": "N",
+                "display": "Normal"
+              }
+            ],
+            "text": "NORMAL"
+          }
+        ],
+        "referenceRange": [
+          {
+            "high": {
+              "value": 2.5,
+              "unit": "%"
+            },
+            "text": "<2.5% abnormal nuclei"
+          }
+        ],
+        "note": [
+          {
+            "text": "2/200 nuclei scored; signal pattern 2R2G"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "DiagnosticReport/report-ACC-2026-0001",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "report-ACC-2026-0001",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                "code": "GE",
+                "display": "Genetics"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "urn:cytobridge:panel",
+              "code": "AML_MDS_FISH",
+              "display": "AML/MDS FISH Panel"
+            }
+          ],
+          "text": "AML/MDS FISH Panel"
+        },
+        "identifier": [
+          {
+            "system": "urn:cytobridge:accession",
+            "value": "ACC-2026-0001"
+          }
+        ],
+        "subject": {
+          "reference": "Patient/patient-SYN-1001"
+        },
+        "specimen": [
+          {
+            "reference": "Specimen/specimen-ACC-2026-0001"
+          }
+        ],
+        "performer": [
+          {
+            "display": "Dr. Synthetic"
+          }
+        ],
+        "result": [
+          {
+            "reference": "Observation/obs-ACC-2026-0001-RUNX1T1-RUNX1"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-CBFB"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-PML-RARA"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-KMT2A"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-EGR1-5q"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-D7S486-7q"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-CEP8"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-D20S108-20q"
+          },
+          {
+            "reference": "Observation/obs-ACC-2026-0001-TP53-17p"
+          }
+        ],
+        "conclusion": "AML/MDS FISH Panel \u2014 Accession ACC-2026-0001\nPatient: Doe, Alex (MRN SYN-1001)   Priority: ROUTINE\n\nProbe results:\n  - RUNX1T1/RUNX1 (t(8;21)): 38/200 cells (19.0%) \u2014 ABNORMAL\n  - CBFB break-apart (inv(16)/t(16;16)): 1/200 cells (0.5%) \u2014 NORMAL\n  - PML/RARA (t(15;17)): 2/200 cells (1.0%) \u2014 NORMAL\n  - KMT2A (MLL) break-apart (11q23 rearrangement): 1/200 cells (0.5%) \u2014 NORMAL\n  - EGR1 (5q31) (-5/del(5q)): 3/200 cells (1.5%) \u2014 NORMAL\n  - D7S486 (7q31) (-7/del(7q)): 2/200 cells (1.0%) \u2014 NORMAL\n  - CEP8 (centromere 8) (+8 (trisomy 8)): 4/200 cells (2.0%) \u2014 NORMAL\n  - D20S108 (20q12) (del(20q)): 1/200 cells (0.5%) \u2014 NORMAL\n  - TP53 (17p13) (del(17p)/TP53 loss): 2/200 cells (1.0%) \u2014 NORMAL\n\nOverall: ABNORMAL \u2014 t(8;21)",
+        "effectiveDateTime": "2026-07-07T09:15:00Z",
+        "issued": "2026-07-08T13:20:00Z"
+      }
+    }
+  ]
+}

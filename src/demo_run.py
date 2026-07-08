@@ -16,6 +16,7 @@ import sqlite3
 
 from . import workflow
 from .db import create_database, run_query
+from .interfaces import outbound_fhir, outbound_hl7
 
 # All nine required AML/MDS FISH probes with synthetic, plausible results.
 # One abnormal probe (t(8;21)) to exercise the ABNORMAL path.
@@ -107,10 +108,39 @@ def scenario_missing_probe(conn: sqlite3.Connection) -> int:
     return order_id
 
 
+def scenario_outbound_interfaces(conn: sqlite3.Connection, order_id: int) -> None:
+    _banner("Scenario 3: Outbound interfaces — HL7 ORU + FHIR DiagnosticReport")
+    # Educational, ORU^R01-style / FHIR R4-style output for a FINALIZED order.
+    # Only finalized orders can be exported; both messages are stored in the
+    # interface_message table (direction = OUTBOUND).
+    outbound_hl7.store_oru(conn, order_id)
+    outbound_fhir.store_diagnostic_report(conn, order_id)
+
+    hl7 = outbound_hl7.generate_oru(conn, order_id)
+    print("HL7 ORU^R01-style message (first 4 segments):")
+    for segment in hl7.split("\r")[:4]:
+        print(f"  {segment}")
+
+    print("\nFHIR DiagnosticReport-style Bundle (resource types):")
+    bundle = outbound_fhir.build_diagnostic_report(conn, order_id)
+    types = [e["resource"]["resourceType"] for e in bundle["entry"]]
+    print(f"  {', '.join(types)}")
+
+    print("\nStored interface messages (interface_message):")
+    for row in conn.execute(
+        "SELECT message_id, direction, format, message_type, status "
+        "FROM interface_message WHERE order_id = ? ORDER BY message_id",
+        (order_id,),
+    ).fetchall():
+        print(f"  [{row['message_id']}] {row['direction']} {row['format']} "
+              f"{row['message_type']} — {row['status']}")
+
+
 def main() -> None:
     conn = create_database(":memory:")
-    scenario_happy_path(conn)
+    finalized_order_id = scenario_happy_path(conn)
     scenario_missing_probe(conn)
+    scenario_outbound_interfaces(conn, finalized_order_id)
 
     _banner("Cross-order analyst views")
     print("Pending review (pending_review.sql):")
