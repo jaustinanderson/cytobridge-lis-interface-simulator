@@ -86,13 +86,13 @@ tests/
 
 ## Validation rules (v1)
 
-| rule_code            | severity   | meaning                                                          |
-|----------------------|------------|------------------------------------------------------------------|
-| `SPEC_ACCESSIONED`   | ERROR      | Specimen must be received and accessioned (not rejected/missing) |
-| `MISSING_PROBE`      | ERROR      | Every required probe must have a result                          |
-| `ABN_EXCEEDS_SCORED` | ERROR      | Abnormal cells cannot exceed scored cells                        |
-| `INTERP_CONSISTENCY` | ERROR/WARN | Interpretation must agree with percent-abnormal vs probe cutoff  |
-| `CELL_COUNT_LOW`     | WARNING    | Scored-cell count below the minimum threshold                    |
+| rule_code | severity | meaning |
+|---|---|---|
+| `SPEC_ACCESSIONED` | ERROR | Specimen must be received and accessioned (not rejected/missing) |
+| `MISSING_PROBE` | ERROR | Every required probe must have a result |
+| `ABN_EXCEEDS_SCORED` | ERROR | Abnormal cells cannot exceed scored cells |
+| `INTERP_CONSISTENCY` | ERROR/WARN | Interpretation must agree with percent-abnormal vs probe cutoff |
+| `CELL_COUNT_LOW` | WARNING | Scored-cell count below the minimum threshold |
 
 The consistency check is **cutoff-aware**: a percent-abnormal at/above a probe's
 `abnormal_cutoff_percent` that is still called `NORMAL` is a blocking error
