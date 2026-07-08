@@ -31,7 +31,7 @@ v1 models exactly one panel — **AML/MDS FISH** — end to end, headless:
 8. Finalize the report when validation passes.
 9. Audit every important state change.
 
-Steps 9–13 of the full vision — generating an HL7 ORU-style outbound message,
+The next planned milestones — generating an HL7 ORU-style outbound message,
 a FHIR `DiagnosticReport`, and ingesting/routing inbound instrument messages —
 are **planned for a later session**. In Session 1 the inbound interface
 error-queue handling is **schema-provisioned only**: the database defines the
