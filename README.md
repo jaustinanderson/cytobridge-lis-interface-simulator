@@ -234,17 +234,17 @@ build experience** - see [portfolio review](docs/portfolio-review.md).
 
 Done:
 
-- PASS HL7 ORU-style outbound message generation (Session 2).
-- PASS FHIR `DiagnosticReport` JSON generation (Session 2).
-- PASS Inbound instrument ORU-style ingestion: file valid messages to open orders;
+- [x] HL7 ORU-style outbound message generation (Session 2).
+- [x] FHIR `DiagnosticReport` JSON generation (Session 2).
+- [x] Inbound instrument ORU-style ingestion: file valid messages to open orders;
   route malformed/unmatched messages to the interface error queue with a clear
   reason (Session 3).
-- PASS Validation & portfolio documentation package: requirements, traceability
+- [x] Validation & portfolio documentation package: requirements, traceability
   matrix, UAT scripts, risk assessment, demo script, workflow diagram
   (Session 4).
 
 Still deferred:
 
-- ISCN nomenclature parser (seam already present in `reports.py`).
-- Resolution workflow for error-queue items (re-drive a corrected message).
-- Optional Streamlit UI once the workflow is proven.
+- [ ] ISCN nomenclature parser (seam already present in `reports.py`).
+- [ ] Resolution workflow for error-queue items (re-drive a corrected message).
+- [ ] Optional Streamlit UI once the workflow is proven.
