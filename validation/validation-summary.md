@@ -57,7 +57,7 @@ Validation is layered:
 | Audit (workflow + inbound) | R-007, R-016 | PASS |
 | Outbound interfaces (HL7, FHIR, finalized-only) | R-008, R-009 | PASS |
 | Inbound interfaces (store, file, error-queue routing) | R-010-R-015, R-017, R-018 | PASS |
-| Analyst SQL views | R-019 | PARTIAL partial |
+| Analyst SQL views | R-019 | PARTIAL |
 
 ## Known limitation affecting coverage
 

@@ -139,6 +139,7 @@ docs/
   demo-script.md               5-minute screen-share walkthrough (Session 4)
   workflow-diagram.md          Mermaid workflow + interface diagrams (Session 4)
   portfolio-review.md          what it proves / Epic boundary / resume (Session 4)
+  hiring-manager-review.md     scorecard + resume/interview framing (Session 5)
 validation/                    validation package (Session 4)
   requirements.md              numbered requirements (R-001...R-019)
   traceability-matrix.md       requirement -> code -> test -> UAT
@@ -222,7 +223,8 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
   [5-minute demo script](docs/demo-script.md) /
   [Mermaid workflow diagram](docs/workflow-diagram.md) /
   [portfolio review](docs/portfolio-review.md) (what it proves, the Epic/Beaker
-  boundary, resume bullets, and interview talking points)
+  boundary, resume bullets, and interview talking points) /
+  [hiring-manager review](docs/hiring-manager-review.md) (scorecard + resume/LinkedIn framing)
 
 Every requirement (`R-001`-`R-019`) traces to the code, an automated `pytest`
 test, and a manual UAT script. This is **Beaker-adjacent learning, not Epic

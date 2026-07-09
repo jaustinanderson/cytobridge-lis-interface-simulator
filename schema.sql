@@ -4,8 +4,9 @@
 --
 -- This file defines the full v1 data model (order/specimen/result workflow,
 -- validation, audit, and the interface message + error-queue tables). The
--- Python code for HL7/FHIR interfaces lands in a later session, but the schema
--- is provisioned now so the storage layer is stable.
+-- interface tables back outbound HL7/FHIR generation (Session 2) and inbound
+-- ORU ingestion (Session 3); the schema was provisioned up front so the storage
+-- layer stayed stable as those sessions were built.
 --
 -- All data is SYNTHETIC. No PHI. No real patient data.
 
@@ -174,8 +175,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_event_order ON audit_event(order_id);
 CREATE INDEX IF NOT EXISTS idx_audit_event_entity ON audit_event(entity_type, entity_id);
 
 -- ---------------------------------------------------------------------------
--- Interface messages (HL7 ORU / FHIR DiagnosticReport) — provisioned for a
--- later session. Kept here so the schema is stable now.
+-- Interface messages (HL7 ORU / FHIR DiagnosticReport): outbound generated
+-- messages and inbound received messages, keyed by direction, format, status.
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS interface_message (
