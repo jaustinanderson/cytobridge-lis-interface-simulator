@@ -17,8 +17,10 @@ interface messages.
 
 ## Scope
 
-- **Direction:** outbound only. Inbound instrument ingestion/routing remains
-  deferred to a later session.
+- **Direction:** outbound only in this section. Inbound instrument
+  ingestion/routing is covered in
+  [Inbound interface mapping](#inbound-interface-mapping-session-3) below
+  (Session 3).
 - **Precondition:** a message is generated **only for a `FINALIZED` order** that
   has a finalized `report`, a `specimen`, and per-probe `fish_result` rows.
   Any missing piece raises `interfaces.OutboundError` — the generator never
