@@ -1,10 +1,13 @@
 """Headless demo of the CytoBridge AML/MDS FISH workflow.
 
-Runs two scenarios against a fresh in-memory database:
+Runs several scenarios against a fresh in-memory database:
 
   1. Happy path — a complete order that passes validation and finalizes.
   2. Missing-probe failure — an order missing a required probe, whose
      finalization is blocked with recorded validation errors.
+  3. Outbound interfaces — HL7 ORU + FHIR DiagnosticReport export.
+  4. Inbound ingestion — a valid instrument message files probe results to an
+     open order, while an unmatched message lands in the interface error queue.
 
 Run with:  python -m src.demo_run
 All data is synthetic. No PHI.
@@ -13,10 +16,13 @@ All data is synthetic. No PHI.
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 from . import workflow
 from .db import create_database, run_query
-from .interfaces import outbound_fhir, outbound_hl7
+from .interfaces import inbound_hl7, outbound_fhir, outbound_hl7
+
+_INBOUND_SAMPLES = Path(__file__).resolve().parent.parent / "sample_messages" / "inbound"
 
 # All nine required AML/MDS FISH probes with synthetic, plausible results.
 # One abnormal probe (t(8;21)) to exercise the ABNORMAL path.
@@ -136,11 +142,59 @@ def scenario_outbound_interfaces(conn: sqlite3.Connection, order_id: int) -> Non
               f"{row['message_type']} — {row['status']}")
 
 
+def scenario_inbound_ingestion(conn: sqlite3.Connection) -> None:
+    _banner("Scenario 4: Inbound ingestion — file results + error queue")
+    # A synthetic instrument sends an ORU-style result message. A valid message
+    # matched to an open order files its per-probe results; an unmatched or
+    # malformed one is routed to interface_error_queue with a clear reason.
+
+    # An open (accessioned, not finalized) order matching the valid sample.
+    patient_id = workflow.create_patient(
+        conn, mrn="SYN-7001", last_name="Synthetic", first_name="Ingest",
+        date_of_birth="1966-03-12", sex="M",
+    )
+    order_id = workflow.create_order(
+        conn, patient_id, accession_number="ACC-INBOUND-0001",
+        ordering_provider="Dr. Synthetic",
+    )
+    specimen_id = workflow.receive_specimen(conn, order_id)
+    workflow.accession_specimen(conn, specimen_id)
+
+    valid = inbound_hl7.ingest_file(conn, _INBOUND_SAMPLES / "aml_mds_valid_oru.hl7")
+    print(f"Valid message   -> filed={valid.filed}  "
+          f"order_id={valid.order_id}  probes={len(valid.probe_codes_filed)}")
+
+    unmatched = inbound_hl7.ingest_file(
+        conn, _INBOUND_SAMPLES / "aml_mds_unmatched_accession.hl7"
+    )
+    print(f"Unmatched msg   -> filed={unmatched.filed}  "
+          f"queued (reason): {unmatched.reason}")
+
+    invalid = inbound_hl7.ingest_file(
+        conn, _INBOUND_SAMPLES / "aml_mds_invalid_result_value.hl7"
+    )
+    print(f"Invalid value   -> filed={invalid.filed}  "
+          f"queued (reason): {invalid.reason}")
+
+    print("\n--- Inbound messages (interface_message) ---")
+    for row in conn.execute(
+        "SELECT message_id, direction, message_type, status "
+        "FROM interface_message WHERE direction = 'INBOUND' ORDER BY message_id"
+    ).fetchall():
+        print(f"  [{row['message_id']}] {row['direction']} "
+              f"{row['message_type']} — {row['status']}")
+
+    print("\n--- Open interface error queue (interface_error_queue.sql) ---")
+    for row in run_query(conn, "interface_error_queue"):
+        print(f"  [{row['queue_id']}] {row['status']} — {row['reason']}")
+
+
 def main() -> None:
     conn = create_database(":memory:")
     finalized_order_id = scenario_happy_path(conn)
     scenario_missing_probe(conn)
     scenario_outbound_interfaces(conn, finalized_order_id)
+    scenario_inbound_ingestion(conn)
 
     _banner("Cross-order analyst views")
     print("Pending review (pending_review.sql):")
