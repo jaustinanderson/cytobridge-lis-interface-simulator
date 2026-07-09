@@ -2,8 +2,9 @@
 
 A synthetic cytogenetics/FISH **Laboratory Information System (LIS) + interface
 simulator**. It demonstrates SQL schema design, an order/specimen/result
-workflow, audit trails, HL7/FHIR-style interface thinking, a schema-provisioned
-inbound error queue, validation logic, and pytest coverage.
+workflow, audit trails, outbound HL7/FHIR-style interface generation, inbound
+ORU-style ingestion with an interface error queue, validation logic, and pytest
+coverage.
 
 This is an **analyst-first portfolio project**, not a polished web app.
 
@@ -36,13 +37,11 @@ can now be exported as an HL7 ORU^R01-style message and a FHIR
 `DiagnosticReport`-style JSON Bundle, both stored in the existing
 `interface_message` table.
 
-**Inbound ingestion remains deferred.** The inbound interface error-queue
-handling is still **schema-provisioned only**: the database defines the
-`interface_message` and `interface_error_queue` tables and the matching analyst
-queries, but the Python ingestion and routing implementation (parsing inbound
-instrument messages, filing valid ones to open orders, and routing
-malformed/unmatched messages to the error queue) is **not implemented** and is
-planned for a later session.
+**Session 3 adds inbound ingestion + the interface error queue** (see below):
+a synthetic instrument ORU-style message can now be parsed, matched to an open
+order by accession number, and either **filed** as per-probe results or routed
+to the **`interface_error_queue`** with a clear reason. Every inbound message is
+stored in `interface_message` (`direction = 'INBOUND'`).
 
 ## Outbound interfaces (Session 2)
 
@@ -64,6 +63,36 @@ missing report/specimen/result data) raises `interfaces.OutboundError` rather
 than emitting an incomplete message. The field-by-field mapping is documented in
 [`docs/interface-mapping.md`](docs/interface-mapping.md), with runnable samples
 under [`sample_messages/outbound/`](sample_messages/outbound/).
+
+## Inbound interfaces + error queue (Session 3)
+
+An inbound, pipe-delimited **ORU-*style*** result message from a synthetic FISH
+instrument (segments `MSH`/`PID`/`OBR`/`SPM`/`OBX`) is ingested by
+`interfaces.inbound_hl7.ingest_message`:
+
+1. The raw message is **always** stored in `interface_message`
+   (`direction = 'INBOUND'`).
+2. The `OBR-3` accession number is matched to an existing, **non-finalized**
+   order.
+3. If it matches and every `OBX` validates, the per-probe results are **filed**
+   to the order (updating in place; one `INBOUND_RESULT_FILED` audit event
+   records the source message).
+4. If it is invalid, unmatched, or not fileable, the whole message is routed to
+   **`interface_error_queue`** (`status = 'OPEN'`) with a clear reason, and
+   **nothing** is filed (all-or-nothing).
+
+Messages route to the error queue when the accession is missing, does not match
+an order, or the order is already finalized; when a required segment or all
+`OBX` segments are absent; when a probe code is unknown for the AML/MDS panel;
+when `cells_abnormal` exceeds `cells_scored` or a numeric field is malformed; or
+when the specimen type is incompatible with the panel. The inbound mapping is in
+[`docs/interface-mapping.md`](docs/interface-mapping.md), an analyst runbook in
+[`docs/interface-troubleshooting.md`](docs/interface-troubleshooting.md), and
+runnable samples under [`sample_messages/inbound/`](sample_messages/inbound/).
+
+> This is an **educational HL7-*style* parser** — not a certified HL7 engine
+> (no MLLP framing, ACKs, or conformance validation). Line endings are lenient.
+> All data is synthetic; no PHI.
 
 ### Technology
 
@@ -89,19 +118,23 @@ src/
   workflow.py           patient/order/specimen/result/finalize + audit
   validation.py         validation rules (returns typed findings)
   reports.py            report summary + seam for a future ISCN parser
-  interfaces/           outbound interface generation (Session 2)
+  interfaces/           interface generation + ingestion
     __init__.py             collect_report_data + store_message + shared types
-    outbound_hl7.py         HL7 ORU^R01-style message generation
-    outbound_fhir.py        FHIR DiagnosticReport-style JSON Bundle generation
-  demo_run.py           happy path + missing-probe failure + outbound export
+    outbound_hl7.py         HL7 ORU^R01-style message generation (Session 2)
+    outbound_fhir.py        FHIR DiagnosticReport-style JSON Bundle (Session 2)
+    inbound_hl7.py          inbound ORU-style ingestion + error queue (Session 3)
+  demo_run.py           happy path + missing-probe + outbound export + inbound
 sample_messages/
   outbound/             sample generated HL7 + FHIR messages
+  inbound/              sample inbound instrument ORU-style messages
 docs/
-  interface-mapping.md  outbound field-by-field HL7/FHIR mapping
+  interface-mapping.md         outbound + inbound field-by-field mapping
+  interface-troubleshooting.md analyst runbook for inbound error-queue cases
 tests/
   test_workflow.py      workflow lifecycle + audit + constraints
   test_validation.py    validation rules
   test_outbound_interfaces.py  outbound HL7/FHIR generation + export gating
+  test_inbound_interfaces.py   inbound ingestion + error-queue routing
 ```
 
 ## Data model highlights
@@ -139,11 +172,14 @@ From the repo root:
 python -m src.demo_run
 ```
 
-This runs three scenarios against a fresh in-memory database: a complete order
+This runs four scenarios against a fresh in-memory database: a complete order
 that passes validation and finalizes (with report summary and audit trail
 printed); an order missing a required probe whose finalization is **blocked**
-with the validation findings shown; and outbound export of the finalized order
-to HL7 ORU + FHIR `DiagnosticReport` messages stored in `interface_message`.
+with the validation findings shown; outbound export of the finalized order to
+HL7 ORU + FHIR `DiagnosticReport` messages stored in `interface_message`; and
+inbound ingestion — a valid instrument message filing probe results to an open
+order, alongside unmatched/malformed messages landing in the interface error
+queue.
 
 ## Run the tests
 
@@ -158,10 +194,12 @@ Done:
 
 - ✅ HL7 ORU-style outbound message generation (Session 2).
 - ✅ FHIR `DiagnosticReport` JSON generation (Session 2).
+- ✅ Inbound instrument ORU-style ingestion: file valid messages to open orders;
+  route malformed/unmatched messages to the interface error queue with a clear
+  reason (Session 3).
 
 Still deferred:
 
-- Inbound instrument ORU ingestion: file valid messages to open orders; route
-  malformed/unmatched messages to the interface error queue with a clear reason.
 - ISCN nomenclature parser (seam already present in `reports.py`).
+- Resolution workflow for error-queue items (re-drive a corrected message).
 - Optional Streamlit UI once the workflow is proven.

@@ -275,6 +275,13 @@ from .outbound_fhir import (  # noqa: E402
     generate_diagnostic_report_json,
     store_diagnostic_report,
 )
+from .inbound_hl7 import (  # noqa: E402
+    InboundError,
+    IngestResult,
+    ingest_file,
+    ingest_message,
+    parse_message,
+)
 
 __all__ = [
     "OutboundError",
@@ -289,4 +296,9 @@ __all__ = [
     "build_diagnostic_report",
     "generate_diagnostic_report_json",
     "store_diagnostic_report",
+    "InboundError",
+    "IngestResult",
+    "ingest_file",
+    "ingest_message",
+    "parse_message",
 ]
