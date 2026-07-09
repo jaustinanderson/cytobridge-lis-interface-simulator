@@ -31,15 +31,39 @@ v1 models exactly one panel — **AML/MDS FISH** — end to end, headless:
 8. Finalize the report when validation passes.
 9. Audit every important state change.
 
-The next planned milestones — generating an HL7 ORU-style outbound message,
-a FHIR `DiagnosticReport`, and ingesting/routing inbound instrument messages —
-are **planned for a later session**. In Session 1 the inbound interface
-error-queue handling is **schema-provisioned only**: the database defines the
+**Session 2 adds outbound interface generation** (see below): a finalized order
+can now be exported as an HL7 ORU^R01-style message and a FHIR
+`DiagnosticReport`-style JSON Bundle, both stored in the existing
+`interface_message` table.
+
+**Inbound ingestion remains deferred.** The inbound interface error-queue
+handling is still **schema-provisioned only**: the database defines the
 `interface_message` and `interface_error_queue` tables and the matching analyst
 queries, but the Python ingestion and routing implementation (parsing inbound
-messages, filing valid ones to open orders, and routing malformed/unmatched
-messages to the error queue) is **not implemented in v1** and is planned for a
-later session.
+instrument messages, filing valid ones to open orders, and routing
+malformed/unmatched messages to the error queue) is **not implemented** and is
+planned for a later session.
+
+## Outbound interfaces (Session 2)
+
+A **finalized** AML/MDS FISH order can be rendered as outbound messages:
+
+- **HL7 ORU^R01-style** pipe-delimited text (`MSH`/`PID`/`OBR`/`SPM`/`OBX`).
+- **FHIR R4-style** `DiagnosticReport` JSON `Bundle` (Patient, Specimen,
+  per-probe Observations, DiagnosticReport).
+
+Both are generated from a single snapshot so they always agree, and both can be
+stored in `interface_message` (`direction = 'OUTBOUND'`) with no schema change.
+
+> These are **educational, HL7/FHIR-*style* outputs — not certified or
+> conformance-validated** implementations. They use synthetic local codes and
+> must not be sent to a production interface. All data is synthetic; no PHI.
+
+Generation is **finalized-only**: exporting a non-finalized order (or one with
+missing report/specimen/result data) raises `interfaces.OutboundError` rather
+than emitting an incomplete message. The field-by-field mapping is documented in
+[`docs/interface-mapping.md`](docs/interface-mapping.md), with runnable samples
+under [`sample_messages/outbound/`](sample_messages/outbound/).
 
 ### Technology
 
@@ -65,10 +89,19 @@ src/
   workflow.py           patient/order/specimen/result/finalize + audit
   validation.py         validation rules (returns typed findings)
   reports.py            report summary + seam for a future ISCN parser
-  demo_run.py           headless happy path + missing-probe failure
+  interfaces/           outbound interface generation (Session 2)
+    __init__.py             collect_report_data + store_message + shared types
+    outbound_hl7.py         HL7 ORU^R01-style message generation
+    outbound_fhir.py        FHIR DiagnosticReport-style JSON Bundle generation
+  demo_run.py           happy path + missing-probe failure + outbound export
+sample_messages/
+  outbound/             sample generated HL7 + FHIR messages
+docs/
+  interface-mapping.md  outbound field-by-field HL7/FHIR mapping
 tests/
   test_workflow.py      workflow lifecycle + audit + constraints
   test_validation.py    validation rules
+  test_outbound_interfaces.py  outbound HL7/FHIR generation + export gating
 ```
 
 ## Data model highlights
@@ -106,10 +139,11 @@ From the repo root:
 python -m src.demo_run
 ```
 
-This runs two scenarios against a fresh in-memory database: a complete order that
-passes validation and finalizes (with report summary and audit trail printed),
-and an order missing a required probe whose finalization is **blocked** with the
-validation findings shown.
+This runs three scenarios against a fresh in-memory database: a complete order
+that passes validation and finalizes (with report summary and audit trail
+printed); an order missing a required probe whose finalization is **blocked**
+with the validation findings shown; and outbound export of the finalized order
+to HL7 ORU + FHIR `DiagnosticReport` messages stored in `interface_message`.
 
 ## Run the tests
 
@@ -118,10 +152,15 @@ pip install -r requirements-dev.txt   # pytest only
 pytest
 ```
 
-## Roadmap (not in v1)
+## Roadmap
 
-- HL7 ORU-style outbound message generation.
-- FHIR `DiagnosticReport` JSON generation.
+Done:
+
+- ✅ HL7 ORU-style outbound message generation (Session 2).
+- ✅ FHIR `DiagnosticReport` JSON generation (Session 2).
+
+Still deferred:
+
 - Inbound instrument ORU ingestion: file valid messages to open orders; route
   malformed/unmatched messages to the interface error queue with a clear reason.
 - ISCN nomenclature parser (seam already present in `reports.py`).
