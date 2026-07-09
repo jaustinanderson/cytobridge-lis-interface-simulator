@@ -44,6 +44,12 @@ SYS_OBS_CATEGORY = (
 )
 UCUM = "http://unitsofmeasure.org"
 
+# Synthetic lab identity for DiagnosticReport.performer. The ordering provider is
+# deliberately NOT used here: in FHIR the ordering provider belongs on an order
+# resource (ServiceRequest.requester), which is out of scope for Session 2, so
+# DiagnosticReport.performer names only the (synthetic) performing lab.
+PERFORMER_DISPLAY = "CytoBridge Synthetic Cytogenetics Laboratory"
+
 _SEX_TO_GENDER = {"M": "male", "F": "female", "U": "unknown"}
 _INTERP_DISPLAY = {"N": "Normal", "A": "Abnormal", "I": "Indeterminate"}
 
@@ -205,7 +211,9 @@ def _diagnostic_report_resource(
         }],
         "subject": {"reference": patient_ref},
         "specimen": [{"reference": specimen_ref}],
-        "performer": [{"display": data.ordering_provider}],
+        # Performing lab only (synthetic). Ordering-provider modeling is deferred
+        # to a future ServiceRequest/order-resource layer; see interface-mapping.md.
+        "performer": [{"display": PERFORMER_DISPLAY}],
         "result": [{"reference": ref} for ref in result_refs],
         "conclusion": data.summary_text,
     }

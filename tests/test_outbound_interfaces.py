@@ -76,6 +76,14 @@ def test_hl7_includes_accession_and_mrn(conn, finalized_order):
     assert "SYN-9001" in pid
 
 
+def test_hl7_carries_ordering_provider_in_obr16(conn, finalized_order):
+    # Ordering provider stays in the HL7 ORU-style mapping (OBR-16), even though
+    # it is intentionally not modeled on the FHIR DiagnosticReport.
+    message = generate_oru(conn, finalized_order, generated_at=MSG_TIME)
+    obr = next(s for s in _hl7_segments(message) if s.startswith("OBR|"))
+    assert "Dr. Test" in obr.split("|")[16]
+
+
 def test_hl7_has_one_obx_per_probe_plus_summary(conn, finalized_order):
     message = generate_oru(conn, finalized_order, generated_at=MSG_TIME)
     obx = [s for s in _hl7_segments(message) if s.startswith("OBX|")]
@@ -121,6 +129,23 @@ def test_fhir_diagnostic_report_fields(conn, finalized_order):
     assert report["identifier"][0]["value"] == "ACC-TEST-0001"
     assert report["code"]["coding"][0]["code"] == "AML_MDS_FISH"
     assert "AML/MDS FISH Panel" in report["conclusion"]
+
+
+def test_fhir_performer_is_synthetic_lab_not_ordering_provider(conn, finalized_order):
+    # The accessioned_order fixture orders under provider "Dr. Test". FHIR
+    # DiagnosticReport.performer must be the synthetic performing lab, NOT the
+    # ordering provider (which stays in HL7 OBR-16); ordering-provider modeling
+    # in FHIR is deferred to a future ServiceRequest layer.
+    bundle = build_diagnostic_report(conn, finalized_order)
+    report = next(
+        e["resource"] for e in bundle["entry"]
+        if e["resource"]["resourceType"] == "DiagnosticReport"
+    )
+    performers = [p.get("display") for p in report["performer"]]
+    assert performers == [outbound_fhir.PERFORMER_DISPLAY]
+    assert "Synthetic" in outbound_fhir.PERFORMER_DISPLAY
+    # Ordering provider must not leak into the FHIR report anywhere.
+    assert "Dr. Test" not in json.dumps(bundle)
 
 
 def test_fhir_has_probe_level_observations(conn, finalized_order):

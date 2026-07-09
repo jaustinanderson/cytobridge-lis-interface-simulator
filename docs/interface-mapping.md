@@ -63,6 +63,14 @@ simulator, not production).
 Timestamps are HL7-style digit strings (`YYYYMMDDHHMMSS`; DOB `YYYYMMDD`). The
 reserved separator characters `| ^ ~ \ &` are escaped in field values.
 
+> **Note on HL7 segment separators.** HL7 v2 terminates each segment with a
+> **carriage return** (`\r`, `0x0D`), not a line feed — so the
+> `aml_mds_oru.hl7` sample contains bare CR characters by design. GitHub may
+> flag such a file as containing "hidden or bidirectional Unicode text" because
+> a lone CR is an unusual control character; this is expected. The canonical CR
+> segment terminator is kept intact rather than rewritten to `\n`. There are no
+> bidirectional or invisible Unicode characters in this project.
+
 ## FHIR R4-style mapping
 
 A `Bundle` (`type = collection`) whose entries are, in order: `Patient`,
@@ -73,11 +81,23 @@ A `Bundle` (`type = collection`) whose entries are, in order: `Patient`,
 | `Patient` | `identifier` (MR), `name`, `gender`, `birthDate` | `patient.*` (sex → `male`/`female`/`unknown`) |
 | `Specimen` | `accessionIdentifier`, `type`, `receivedTime`, `collection` | `lab_order.accession_number`, `specimen.*` |
 | `Observation` | `code` (probe), `valueQuantity` (% abnormal), `interpretation`, `referenceRange.high` (cutoff), `note` (counts + signal) | `probe.*`, `fish_result.*` |
-| `DiagnosticReport` | `status` `final`, `category` GE, `code` (panel), `identifier` (accession), `subject`, `specimen`, `result[]` → Observations, `conclusion` = summary, `issued` = finalized | `lab_order.*`, `panel.*`, `report.*` |
+| `DiagnosticReport` | `status` `final`, `category` GE, `code` (panel), `identifier` (accession), `subject`, `specimen`, `result[]` → Observations, `performer` (synthetic lab), `conclusion` = summary, `issued` = finalized | `lab_order.*`, `panel.*`, `report.*` |
 
 Local code systems are namespaced `urn:cytobridge:*` to make clear they are
 synthetic, not real value sets. FHIR `dateTime` values carry a `Z` (UTC) offset
 when a time component is present; `birthDate` is a bare date.
+
+### Ordering provider (HL7 vs FHIR)
+
+The **ordering provider** (`lab_order.ordering_provider`) is represented in the
+HL7 ORU-style mapping at **OBR-16**. It is intentionally **not** placed on
+`DiagnosticReport.performer`: in FHIR, `performer` names who *produced* the
+result, while the ordering provider is the *requester* and belongs on an order
+resource (`ServiceRequest.requester`). Session 2 does not model a
+`ServiceRequest`/order-resource layer, so `DiagnosticReport.performer` carries
+only a clearly synthetic performing-lab display
+(`CytoBridge Synthetic Cytogenetics Laboratory`), and **FHIR ordering-provider
+modeling is deferred** to that future layer.
 
 ## Sample output
 
