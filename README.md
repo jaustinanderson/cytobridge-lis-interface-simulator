@@ -43,6 +43,12 @@ order by accession number, and either **filed** as per-probe results or routed
 to the **`interface_error_queue`** with a clear reason. Every inbound message is
 stored in `interface_message` (`direction = 'INBOUND'`).
 
+**Session 4 adds a validation & portfolio documentation package** (no code
+changes): numbered requirements, a requirements-to-test traceability matrix, UAT
+scripts, a validation summary, risk assessment, known-issues, a change-control
+log, a demo script, a Mermaid workflow diagram, and a portfolio review. See
+[Validation & portfolio docs](#validation--portfolio-docs-session-4).
+
 ## Outbound interfaces (Session 2)
 
 A **finalized** AML/MDS FISH order can be rendered as outbound messages:
@@ -130,6 +136,17 @@ sample_messages/
 docs/
   interface-mapping.md         outbound + inbound field-by-field mapping
   interface-troubleshooting.md analyst runbook for inbound error-queue cases
+  demo-script.md               5-minute screen-share walkthrough (Session 4)
+  workflow-diagram.md          Mermaid workflow + interface diagrams (Session 4)
+  portfolio-review.md          what it proves / Epic boundary / resume (Session 4)
+validation/                    validation package (Session 4)
+  requirements.md              numbered requirements (R-001…R-019)
+  traceability-matrix.md       requirement → code → test → UAT
+  uat-test-scripts.md          manual analyst UAT scripts (UAT-001…UAT-010)
+  validation-summary.md        approach + results summary
+  known-issues.md              limitations and tracked issues
+  change-control-log.md        per-session change history (S1–S4)
+  risk-assessment.md           synthetic LIS/interface workflow risks
 tests/
   test_workflow.py      workflow lifecycle + audit + constraints
   test_validation.py    validation rules
@@ -188,6 +205,29 @@ pip install -r requirements-dev.txt   # pytest only
 pytest
 ```
 
+## Validation & portfolio docs (Session 4)
+
+A documentation package demonstrating a validation mindset over Sessions 1–3
+(no code changes):
+
+- **Validation package** ([`validation/`](validation/)):
+  [requirements](validation/requirements.md) ·
+  [traceability matrix](validation/traceability-matrix.md) ·
+  [UAT scripts](validation/uat-test-scripts.md) ·
+  [validation summary](validation/validation-summary.md) ·
+  [known issues](validation/known-issues.md) ·
+  [change-control log](validation/change-control-log.md) ·
+  [risk assessment](validation/risk-assessment.md)
+- **Walkthrough & review** ([`docs/`](docs/)):
+  [5-minute demo script](docs/demo-script.md) ·
+  [Mermaid workflow diagram](docs/workflow-diagram.md) ·
+  [portfolio review](docs/portfolio-review.md) (what it proves, the Epic/Beaker
+  boundary, resume bullets, and interview talking points)
+
+Every requirement (`R-001`–`R-019`) traces to the code, an automated `pytest`
+test, and a manual UAT script. This is **Beaker-adjacent learning, not Epic
+build experience** — see [portfolio review](docs/portfolio-review.md).
+
 ## Roadmap
 
 Done:
@@ -197,6 +237,9 @@ Done:
 - ✅ Inbound instrument ORU-style ingestion: file valid messages to open orders;
   route malformed/unmatched messages to the interface error queue with a clear
   reason (Session 3).
+- ✅ Validation & portfolio documentation package: requirements, traceability
+  matrix, UAT scripts, risk assessment, demo script, workflow diagram
+  (Session 4).
 
 Still deferred:
 
