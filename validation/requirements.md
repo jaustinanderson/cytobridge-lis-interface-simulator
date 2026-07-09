@@ -1,15 +1,15 @@
 # Requirements specification
 
 Numbered, testable requirements for the CytoBridge LIS Interface Simulator
-(Sessions 1–3). Each requirement has a stable ID (`R-0xx`) used throughout the
-validation package — the [traceability matrix](traceability-matrix.md) maps every
+(Sessions 1-3). Each requirement has a stable ID (`R-0xx`) used throughout the
+validation package - the [traceability matrix](traceability-matrix.md) maps every
 ID to the code that implements it, its automated (`pytest`) coverage, and a
 manual [UAT script](uat-test-scripts.md).
 
 > **Scope of these requirements.** This is a **synthetic, analyst-first learning
 > project**, not a validated medical device or production LIS. "Requirement"
 > here means *a behavior the simulator is expected to demonstrate*, not a
-> regulatory or clinical requirement. All data is synthetic — **no PHI**. This
+> regulatory or clinical requirement. All data is synthetic - **no PHI**. This
 > is **Beaker-adjacent learning, not Epic build experience**; see
 > [`docs/portfolio-review.md`](../docs/portfolio-review.md).
 
@@ -17,7 +17,7 @@ manual [UAT script](uat-test-scripts.md).
 
 | Field | Meaning |
 |---|---|
-| **ID** | Stable identifier (`R-001` …) |
+| **ID** | Stable identifier (`R-001` ...) |
 | **Statement** | The behavior expected of the simulator |
 | **Source** | Which session introduced it |
 | **Type** | `Workflow`, `Validation`, `Interface (outbound)`, `Interface (inbound)`, `Audit`, or `Analyst query` |
@@ -34,7 +34,7 @@ manual [UAT script](uat-test-scripts.md).
 | ID | Statement | Source | Type |
 |---|---|---|---|
 | **R-003** | Validation raises a blocking `MISSING_PROBE` error when any required panel probe has no result. | S1 | Validation |
-| **R-004** | The number of abnormal cells can never exceed the number of scored cells — enforced by a schema `CHECK` and re-checked by validation (`ABN_EXCEEDS_SCORED`). | S1 | Validation |
+| **R-004** | The number of abnormal cells can never exceed the number of scored cells - enforced by a schema `CHECK` and re-checked by validation (`ABN_EXCEEDS_SCORED`). | S1 | Validation |
 | **R-005** | Interpretation consistency is **cutoff-aware**: a percent-abnormal at/above a probe's cutoff called `NORMAL` is a blocking error; an `ABNORMAL` call below cutoff is an advisory warning (`INTERP_CONSISTENCY`). | S1 | Validation |
 | **R-006** | Finalization is **blocked** whenever validation produces any `ERROR`-severity finding; the findings are persisted to `validation_error` and the order is not finalized. | S1 | Validation |
 
@@ -69,7 +69,7 @@ manual [UAT script](uat-test-scripts.md).
 | **R-016** | Successful inbound filing records an `INBOUND_RESULT_FILED` audit event on the order naming the source `interface_message.message_id`. | S3 | Audit |
 | **R-017** | An inbound `OBX` whose probe code is not part of the AML/MDS panel is routed to `interface_error_queue`. | S3 | Interface (inbound) |
 | **R-018** | Each error-queue entry carries `message_id`, `direction`, a clear `reason`, `status = 'OPEN'`, and a created timestamp. | S3 | Interface (inbound) |
-| **R-019** | Analyst SQL views exist for the common worklists (pending review, STAT aging, turnaround, validation error rate, audit lookup, open interface errors). | S1–S3 | Analyst query |
+| **R-019** | Analyst SQL views exist for the common worklists (pending review, STAT aging, turnaround, validation error rate, audit lookup, open interface errors). | S1-S3 | Analyst query |
 
 See the [traceability matrix](traceability-matrix.md) for the full
-requirement → code → test → UAT mapping and current status.
+requirement -> code -> test -> UAT mapping and current status.

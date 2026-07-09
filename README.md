@@ -1,4 +1,4 @@
-# CytoBridge — LIS Interface Simulator
+# CytoBridge - LIS Interface Simulator
 
 A synthetic cytogenetics/FISH **Laboratory Information System (LIS) + interface
 simulator**. It demonstrates SQL schema design, an order/specimen/result
@@ -20,7 +20,7 @@ This is an **analyst-first portfolio project**, not a polished web app.
 
 ## Scope (v1)
 
-v1 models exactly one panel — **AML/MDS FISH** — end to end, headless:
+v1 models exactly one panel - **AML/MDS FISH** - end to end, headless:
 
 1. Create a synthetic patient.
 2. Create an AML/MDS FISH order.
@@ -60,7 +60,7 @@ A **finalized** AML/MDS FISH order can be rendered as outbound messages:
 Both are generated from a single snapshot so they always agree, and both can be
 stored in `interface_message` (`direction = 'OUTBOUND'`) with no schema change.
 
-> These are **educational, HL7/FHIR-*style* outputs — not certified or
+> These are **educational, HL7/FHIR-*style* outputs - not certified or
 > conformance-validated** implementations. They use synthetic local codes and
 > must not be sent to a production interface. All data is synthetic; no PHI.
 
@@ -96,7 +96,7 @@ when the specimen type is incompatible with the panel. The inbound mapping is in
 [`docs/interface-troubleshooting.md`](docs/interface-troubleshooting.md), and
 runnable samples under [`sample_messages/inbound/`](sample_messages/inbound/).
 
-> This is an **educational HL7-*style* parser** — not a certified HL7 engine
+> This is an **educational HL7-*style* parser** - not a certified HL7 engine
 > (no MLLP framing, ACKs, or conformance validation). Line endings are lenient.
 > All data is synthetic; no PHI.
 
@@ -106,7 +106,7 @@ runnable samples under [`sample_messages/inbound/`](sample_messages/inbound/).
 - **SQLite** via the stdlib `sqlite3` module.
 - Raw, hand-written SQL in `schema.sql` and `queries/`. **No ORM.**
 - **pytest** for tests.
-- Headless workflow first — no Streamlit UI until the workflow is solid.
+- Headless workflow first - no Streamlit UI until the workflow is solid.
 
 ## Repository layout
 
@@ -140,12 +140,12 @@ docs/
   workflow-diagram.md          Mermaid workflow + interface diagrams (Session 4)
   portfolio-review.md          what it proves / Epic boundary / resume (Session 4)
 validation/                    validation package (Session 4)
-  requirements.md              numbered requirements (R-001…R-019)
-  traceability-matrix.md       requirement → code → test → UAT
-  uat-test-scripts.md          manual analyst UAT scripts (UAT-001…UAT-010)
+  requirements.md              numbered requirements (R-001...R-019)
+  traceability-matrix.md       requirement -> code -> test -> UAT
+  uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-010)
   validation-summary.md        approach + results summary
   known-issues.md              limitations and tracked issues
-  change-control-log.md        per-session change history (S1–S4)
+  change-control-log.md        per-session change history (S1-S4)
   risk-assessment.md           synthetic LIS/interface workflow risks
 tests/
   test_workflow.py      workflow lifecycle + audit + constraints
@@ -157,7 +157,7 @@ tests/
 ## Data model highlights
 
 - **Real constraints:** primary keys, foreign keys (`PRAGMA foreign_keys = ON`),
-  and `CHECK` constraints — e.g. `cells_abnormal <= cells_scored`, enumerated
+  and `CHECK` constraints - e.g. `cells_abnormal <= cells_scored`, enumerated
   order/specimen/interpretation statuses, and a rejected specimen must carry a
   reason.
 - **One result per probe per order** (`UNIQUE (order_id, probe_id)`);
@@ -194,7 +194,7 @@ that passes validation and finalizes (with report summary and audit trail
 printed); an order missing a required probe whose finalization is **blocked**
 with the validation findings shown; outbound export of the finalized order to
 HL7 ORU + FHIR `DiagnosticReport` messages stored in `interface_message`; and
-inbound ingestion — a valid instrument message filing probe results to an open
+inbound ingestion - a valid instrument message filing probe results to an open
 order, alongside unmatched/malformed messages landing in the interface error
 queue.
 
@@ -207,37 +207,37 @@ pytest
 
 ## Validation & portfolio docs (Session 4)
 
-A documentation package demonstrating a validation mindset over Sessions 1–3
+A documentation package demonstrating a validation mindset over Sessions 1-3
 (no code changes):
 
 - **Validation package** ([`validation/`](validation/)):
-  [requirements](validation/requirements.md) ·
-  [traceability matrix](validation/traceability-matrix.md) ·
-  [UAT scripts](validation/uat-test-scripts.md) ·
-  [validation summary](validation/validation-summary.md) ·
-  [known issues](validation/known-issues.md) ·
-  [change-control log](validation/change-control-log.md) ·
+  [requirements](validation/requirements.md) /
+  [traceability matrix](validation/traceability-matrix.md) /
+  [UAT scripts](validation/uat-test-scripts.md) /
+  [validation summary](validation/validation-summary.md) /
+  [known issues](validation/known-issues.md) /
+  [change-control log](validation/change-control-log.md) /
   [risk assessment](validation/risk-assessment.md)
 - **Walkthrough & review** ([`docs/`](docs/)):
-  [5-minute demo script](docs/demo-script.md) ·
-  [Mermaid workflow diagram](docs/workflow-diagram.md) ·
+  [5-minute demo script](docs/demo-script.md) /
+  [Mermaid workflow diagram](docs/workflow-diagram.md) /
   [portfolio review](docs/portfolio-review.md) (what it proves, the Epic/Beaker
   boundary, resume bullets, and interview talking points)
 
-Every requirement (`R-001`–`R-019`) traces to the code, an automated `pytest`
+Every requirement (`R-001`-`R-019`) traces to the code, an automated `pytest`
 test, and a manual UAT script. This is **Beaker-adjacent learning, not Epic
-build experience** — see [portfolio review](docs/portfolio-review.md).
+build experience** - see [portfolio review](docs/portfolio-review.md).
 
 ## Roadmap
 
 Done:
 
-- ✅ HL7 ORU-style outbound message generation (Session 2).
-- ✅ FHIR `DiagnosticReport` JSON generation (Session 2).
-- ✅ Inbound instrument ORU-style ingestion: file valid messages to open orders;
+- PASS HL7 ORU-style outbound message generation (Session 2).
+- PASS FHIR `DiagnosticReport` JSON generation (Session 2).
+- PASS Inbound instrument ORU-style ingestion: file valid messages to open orders;
   route malformed/unmatched messages to the interface error queue with a clear
   reason (Session 3).
-- ✅ Validation & portfolio documentation package: requirements, traceability
+- PASS Validation & portfolio documentation package: requirements, traceability
   matrix, UAT scripts, risk assessment, demo script, workflow diagram
   (Session 4).
 

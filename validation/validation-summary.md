@@ -3,7 +3,7 @@
 A one-page summary of how the CytoBridge LIS Interface Simulator is validated,
 what the current results are, and what "validated" does and does not mean here.
 
-> **Synthetic, analyst-first learning project — no PHI, not a medical device.**
+> **Synthetic, analyst-first learning project - no PHI, not a medical device.**
 > This summary demonstrates a *validation mindset* (numbered requirements,
 > traceability, automated + manual coverage, documented limitations). It is
 > **not** a regulatory validation deliverable and confers no clinical fitness.
@@ -15,7 +15,7 @@ what the current results are, and what "validated" does and does not mean here.
 | Item | Value |
 |---|---|
 | System | CytoBridge LIS Interface Simulator |
-| Scope | AML/MDS FISH order → result → validation → finalize → outbound HL7/FHIR → inbound ORU ingestion + error queue |
+| Scope | AML/MDS FISH order -> result -> validation -> finalize -> outbound HL7/FHIR -> inbound ORU ingestion + error queue |
 | Sessions covered | 1 (workflow/validation/audit), 2 (outbound HL7/FHIR), 3 (inbound + error queue) |
 | Platform | Python (stdlib), SQLite (`sqlite3`), raw SQL, `pytest` |
 | Data | 100% synthetic; no PHI |
@@ -24,16 +24,16 @@ what the current results are, and what "validated" does and does not mean here.
 
 Validation is layered:
 
-1. **Requirements** — 19 numbered, testable requirements (`R-001`–`R-019`) in
+1. **Requirements** - 19 numbered, testable requirements (`R-001`-`R-019`) in
    [`requirements.md`](requirements.md).
-2. **Automated tests** — `pytest` across four suites (`test_workflow.py`,
+2. **Automated tests** - `pytest` across four suites (`test_workflow.py`,
    `test_validation.py`, `test_outbound_interfaces.py`,
    `test_inbound_interfaces.py`).
-3. **Manual UAT** — 10 analyst-style acceptance scripts (`UAT-001`–`UAT-010`)
+3. **Manual UAT** - 10 analyst-style acceptance scripts (`UAT-001`-`UAT-010`)
    in [`uat-test-scripts.md`](uat-test-scripts.md).
-4. **Traceability** — every requirement mapped to code, test, and UAT in the
+4. **Traceability** - every requirement mapped to code, test, and UAT in the
    [traceability matrix](traceability-matrix.md).
-5. **Executable demonstration** — `python -m src.demo_run` exercises the happy
+5. **Executable demonstration** - `python -m src.demo_run` exercises the happy
    path, a blocked finalize, outbound export, and inbound ingestion/error queue
    against a fresh in-memory database.
 
@@ -43,21 +43,21 @@ Validation is layered:
 |---|---|
 | Automated tests | **56 passed** (`pytest`) |
 | Requirements traced | 19 / 19 mapped to code + test + UAT |
-| Requirements fully verified (✅) | 18 / 19 |
-| Requirements partial (🟡) | 1 / 19 (R-019 — see below) |
+| Requirements fully verified (PASS) | 18 / 19 |
+| Requirements partial (PARTIAL) | 1 / 19 (R-019 - see below) |
 | Demo scenarios | 4 / 4 run clean (`python -m src.demo_run`, exit 0) |
-| Reproducibility | Deterministic — in-memory DB seeded from `schema.sql`; fixed sample messages |
+| Reproducibility | Deterministic - in-memory DB seeded from `schema.sql`; fixed sample messages |
 
 ### Requirement-category coverage
 
 | Category | Requirements | Status |
 |---|---|---|
-| Workflow (create, accession) | R-001, R-002 | ✅ |
-| Validation (probe, counts, cutoff, blocking) | R-003–R-006 | ✅ |
-| Audit (workflow + inbound) | R-007, R-016 | ✅ |
-| Outbound interfaces (HL7, FHIR, finalized-only) | R-008, R-009 | ✅ |
-| Inbound interfaces (store, file, error-queue routing) | R-010–R-015, R-017, R-018 | ✅ |
-| Analyst SQL views | R-019 | 🟡 partial |
+| Workflow (create, accession) | R-001, R-002 | PASS |
+| Validation (probe, counts, cutoff, blocking) | R-003-R-006 | PASS |
+| Audit (workflow + inbound) | R-007, R-016 | PASS |
+| Outbound interfaces (HL7, FHIR, finalized-only) | R-008, R-009 | PASS |
+| Inbound interfaces (store, file, error-queue routing) | R-010-R-015, R-017, R-018 | PASS |
+| Analyst SQL views | R-019 | PARTIAL partial |
 
 ## Known limitation affecting coverage
 

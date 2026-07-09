@@ -1,13 +1,13 @@
 # Workflow diagram
 
 The CytoBridge AML/MDS FISH lifecycle and its interface paths, in Mermaid. Three
-views: the **order lifecycle → finalize → outbound**, the **inbound ingestion**
+views: the **order lifecycle -> finalize -> outbound**, the **inbound ingestion**
 path, and the cross-cutting **audit trail**. GitHub renders the ```mermaid```
 blocks below.
 
-> **Synthetic learning project — no PHI.** Educational, HL7/FHIR-*style* only.
+> **Synthetic learning project - no PHI.** Educational, HL7/FHIR-*style* only.
 
-## 1. Order lifecycle → validation → finalization → outbound
+## 1. Order lifecycle -> validation -> finalization -> outbound
 
 ```mermaid
 flowchart TD
@@ -28,10 +28,10 @@ flowchart TD
     G -.writes.-> AUD
 ```
 
-Non-finalized or data-incomplete orders cannot be exported — `collect_report_data`
+Non-finalized or data-incomplete orders cannot be exported - `collect_report_data`
 raises `OutboundError` (requirements R-008, R-009).
 
-## 2. Inbound ORU ingestion → filing or error queue
+## 2. Inbound ORU ingestion -> filing or error queue
 
 ```mermaid
 flowchart TD
@@ -41,14 +41,14 @@ flowchart TD
     P -->|"matched"| V{"Validate every OBX<br/>(all-or-nothing)"}
     V -->|"unknown probe, bad number,<br/>abnormal > scored,<br/>incompatible specimen"| Q
     V -->|"all OBX valid"| FILE["File per-probe results<br/>to the open order"]
-    FILE --> MSGF["interface_message → FILED"]
+    FILE --> MSGF["interface_message -> FILED"]
     FILE -.writes.-> AUD2[("audit_event<br/>INBOUND_RESULT_FILED")]
     Q --> EQ[("interface_error_queue<br/>status = OPEN + clear reason")]
-    Q --> MSGE["interface_message → ERRORED"]
+    Q --> MSGE["interface_message -> ERRORED"]
 ```
 
 Because filing is **all-or-nothing**, a message with any invalid OBX files
-*nothing* — the order is never left half-updated (requirements R-010–R-018).
+*nothing* - the order is never left half-updated (requirements R-010-R-018).
 
 ## 3. Audit trail (cross-cutting)
 

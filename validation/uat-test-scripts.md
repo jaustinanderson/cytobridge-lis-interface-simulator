@@ -2,11 +2,11 @@
 
 Manual, analyst-style acceptance tests for the CytoBridge LIS Interface
 Simulator. Each script is written so a reviewer can execute it by hand and record
-the outcome — they map to the same behavior covered by the automated `pytest`
+the outcome - they map to the same behavior covered by the automated `pytest`
 suite (see the [traceability matrix](traceability-matrix.md)) and to the four
 scenarios in `python -m src.demo_run`.
 
-> **Synthetic learning project — no PHI.** These are demonstration acceptance
+> **Synthetic learning project - no PHI.** These are demonstration acceptance
 > tests, not clinical/regulatory validation. Accession numbers, MRNs, and
 > results are synthetic. This is **Beaker-adjacent learning, not Epic build
 > experience.**
@@ -15,10 +15,10 @@ scenarios in `python -m src.demo_run`.
 
 Two ways to produce evidence:
 
-- **Guided demo** — `python -m src.demo_run` runs UAT-001, -002, -003, -004,
+- **Guided demo** - `python -m src.demo_run` runs UAT-001, -002, -003, -004,
   -005, -006, -008, -009, and -010 end-to-end and prints the evidence. Capture
   its console output.
-- **Interactive** — start `python` from the repo root and drive the workflow
+- **Interactive** - start `python` from the repo root and drive the workflow
   directly (each script gives the calls). A fresh in-memory database is created
   with:
 
@@ -33,7 +33,7 @@ Two ways to produce evidence:
 
 ---
 
-## UAT-001 — Happy-path order finalization
+## UAT-001 - Happy-path order finalization
 
 **Requirements:** R-001, R-002, R-006, R-007
 
@@ -55,15 +55,15 @@ blocking errors.
 **Evidence to capture:** `FinalizeResult` value (`finalized=True`, `report_id`);
 the printed report summary; the order status query.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-002 — Missing required probe blocks finalization
+## UAT-002 - Missing required probe blocks finalization
 
 **Requirements:** R-003, R-004, R-005, R-006
 
-**Precondition:** A patient + accessioned order (as UAT-001 steps 1–3).
+**Precondition:** A patient + accessioned order (as UAT-001 steps 1-3).
 
 **Steps:**
 1. Enter results for **8 of 9** required probes (omit `TP53_17p`).
@@ -75,14 +75,14 @@ the printed report summary; the order status query.
 `MISSING_PROBE` **ERROR** for `TP53_17p`; the order is **not** `FINALIZED`; the
 findings are persisted in `validation_error`.
 
-**Evidence to capture:** `finalized=False`; the `[ERROR] MISSING_PROBE …` finding
+**Evidence to capture:** `finalized=False`; the `[ERROR] MISSING_PROBE ...` finding
 line; the `validation_error` rows.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-003 — Outbound HL7 export from a finalized order
+## UAT-003 - Outbound HL7 export from a finalized order
 
 **Requirements:** R-008
 
@@ -105,11 +105,11 @@ order.
 **Evidence to capture:** First ~4 segments of the message; the stored
 `interface_message` row; the `OutboundError` from the negative step.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-004 — Outbound FHIR DiagnosticReport export from a finalized order
+## UAT-004 - Outbound FHIR DiagnosticReport export from a finalized order
 
 **Requirements:** R-009
 
@@ -132,11 +132,11 @@ every probe Observation; export refused for a non-finalized order.
 **Evidence to capture:** The list of resource types; `status = final`; the stored
 FHIR `interface_message` row; the `OutboundError` from the negative step.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-005 — Inbound valid ORU files results
+## UAT-005 - Inbound valid ORU files results
 
 **Requirements:** R-010, R-011
 
@@ -155,14 +155,14 @@ scenario 4 sets this up automatically.
 filed; `fish_result` now holds 9 rows for the order; the `interface_message` row
 is `direction = INBOUND`, `status = FILED`, linked to the order.
 
-**Evidence to capture:** `filed=True … probes=9`; the `fish_result` count; the
+**Evidence to capture:** `filed=True ... probes=9`; the `fish_result` count; the
 `interface_message` row (`INBOUND / ORU / FILED`).
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-006 — Unmatched accession goes to the error queue
+## UAT-006 - Unmatched accession goes to the error queue
 
 **Requirements:** R-012, R-015, R-018
 
@@ -186,11 +186,11 @@ rejected with a reason containing "finalized". No `fish_result` rows are created
 **Evidence to capture:** The `reason` string; the error-queue query output
 (`OPEN`, `INBOUND`); the finalized-order rejection reason.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-007 — Missing OBX goes to the error queue
+## UAT-007 - Missing OBX goes to the error queue
 
 **Requirements:** R-013, R-018
 
@@ -208,14 +208,14 @@ succeeds and the *only* problem is the absent OBX).
 mentions the absent OBX result segments; `fish_result` for the order is unchanged
 (empty).
 
-**Evidence to capture:** The `reason` ("No OBX result segments…"); the empty
+**Evidence to capture:** The `reason` ("No OBX result segments..."); the empty
 `fish_result` count for the order.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-008 — Invalid numeric value goes to the error queue
+## UAT-008 - Invalid numeric value goes to the error queue
 
 **Requirements:** R-014, R-017, R-018
 
@@ -238,11 +238,11 @@ unknown-probe variant queues with a reason naming `NOTAPROBE`.
 **Evidence to capture:** The malformed-value `reason`; proof nothing was filed;
 the unknown-probe `reason`.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-009 — Audit trail review
+## UAT-009 - Audit trail review
 
 **Requirements:** R-007, R-016
 
@@ -264,23 +264,23 @@ filing is attributable to its `interface_message`.
 **Evidence to capture:** The audit-lookup rows; the `INBOUND_RESULT_FILED` detail
 string.
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
-## UAT-010 — Analyst query review
+## UAT-010 - Analyst query review
 
 **Requirements:** R-019
 
 **Precondition:** A database with a mix of orders (finalized, pending, and an
-open error-queue item) — the state at the end of `python -m src.demo_run`.
+open error-queue item) - the state at the end of `python -m src.demo_run`.
 
 **Steps:**
-1. Run `pending_review.sql` — orders awaiting review, STAT first.
-2. Run `stat_pending.sql` — un-finalized STAT orders, aging.
-3. Run `turnaround_time.sql` — TAT for finalized orders.
-4. Run `validation_error_rate.sql` — share of orders with blocking errors.
-5. Run `interface_error_queue.sql` — open inbound interface errors.
+1. Run `pending_review.sql` - orders awaiting review, STAT first.
+2. Run `stat_pending.sql` - un-finalized STAT orders, aging.
+3. Run `turnaround_time.sql` - TAT for finalized orders.
+4. Run `validation_error_rate.sql` - share of orders with blocking errors.
+5. Run `interface_error_queue.sql` - open inbound interface errors.
 6. Run `audit_lookup.sql` for one order.
 
 **Expected result:** Each query returns a sensible, human-readable worklist
@@ -291,7 +291,7 @@ failures with their reasons).
 `validation_error_rate`, and `interface_error_queue`; run the remaining ones
 interactively).
 
-**Pass / Fail:** ☐ Pass ☐ Fail  Notes: ________________________________
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 
 ---
 
@@ -299,13 +299,13 @@ interactively).
 
 | UAT | Title | Requirements | Result |
 |---|---|---|---|
-| UAT-001 | Happy-path finalization | R-001, R-002, R-006, R-007 | ☐ P ☐ F |
-| UAT-002 | Missing probe blocks finalize | R-003, R-004, R-005, R-006 | ☐ P ☐ F |
-| UAT-003 | Outbound HL7 export | R-008 | ☐ P ☐ F |
-| UAT-004 | Outbound FHIR export | R-009 | ☐ P ☐ F |
-| UAT-005 | Inbound valid ORU files results | R-010, R-011 | ☐ P ☐ F |
-| UAT-006 | Unmatched accession → queue | R-012, R-015, R-018 | ☐ P ☐ F |
-| UAT-007 | Missing OBX → queue | R-013, R-018 | ☐ P ☐ F |
-| UAT-008 | Invalid numeric → queue | R-014, R-017, R-018 | ☐ P ☐ F |
-| UAT-009 | Audit trail review | R-007, R-016 | ☐ P ☐ F |
-| UAT-010 | Analyst query review | R-019 | ☐ P ☐ F |
+| UAT-001 | Happy-path finalization | R-001, R-002, R-006, R-007 | [ ] P [ ] F |
+| UAT-002 | Missing probe blocks finalize | R-003, R-004, R-005, R-006 | [ ] P [ ] F |
+| UAT-003 | Outbound HL7 export | R-008 | [ ] P [ ] F |
+| UAT-004 | Outbound FHIR export | R-009 | [ ] P [ ] F |
+| UAT-005 | Inbound valid ORU files results | R-010, R-011 | [ ] P [ ] F |
+| UAT-006 | Unmatched accession -> queue | R-012, R-015, R-018 | [ ] P [ ] F |
+| UAT-007 | Missing OBX -> queue | R-013, R-018 | [ ] P [ ] F |
+| UAT-008 | Invalid numeric -> queue | R-014, R-017, R-018 | [ ] P [ ] F |
+| UAT-009 | Audit trail review | R-007, R-016 | [ ] P [ ] F |
+| UAT-010 | Analyst query review | R-019 | [ ] P [ ] F |
