@@ -1,5 +1,7 @@
 # CytoBridge - LIS Interface Simulator
 
+![CI](https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/actions/workflows/ci.yml/badge.svg)
+
 A synthetic cytogenetics/FISH **Laboratory Information System (LIS) + interface
 simulator**. It demonstrates SQL schema design, an order/specimen/result
 workflow, audit trails, outbound HL7/FHIR-style interface generation, inbound
@@ -206,6 +208,17 @@ pip install -r requirements-dev.txt   # pytest only
 pytest
 ```
 
+GitHub Actions runs the full test suite and demonstration scenarios on Python
+3.11 and 3.12 for every push and pull request.
+
+## Repository maintenance
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) defines development, validation, synthetic-data, and scope-control expectations.
+- [`SECURITY.md`](SECURITY.md) defines vulnerability reporting and data-safety response.
+- [`LICENSE`](LICENSE) makes the project available under the MIT License.
+- [`.github/dependabot.yml`](.github/dependabot.yml) schedules monthly Python and GitHub Actions dependency updates.
+- [`.github/pull_request_template.md`](.github/pull_request_template.md) provides a validation and safety checklist for proposed changes.
+
 ## Validation & portfolio docs (Session 4)
 
 A documentation package demonstrating a validation mindset over Sessions 1-3
@@ -242,6 +255,8 @@ Done:
 - [x] Validation & portfolio documentation package: requirements, traceability
   matrix, UAT scripts, risk assessment, demo script, workflow diagram
   (Session 4).
+- [x] Repository CI and maintenance baseline: automated tests/demo, licensing,
+  security policy, contribution guidance, Dependabot, and PR checklist.
 
 Still deferred:
 
