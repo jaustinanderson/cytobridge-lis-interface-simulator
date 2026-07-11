@@ -53,7 +53,7 @@ data is ever involved.
 
 | ID | Risk | Likelihood | Impact | Severity | Mitigation (in place) | Residual |
 |---|---|---|---|---|---|---|
-| RA-14 | Regression in an analyst query goes unnoticed | Med | Low | **Low** | Queries run in `demo_run.py`; error-queue query asserted by a test. Gap tracked as **KI-01**. | Med (accepted) |
+| RA-14 | Regression in an analyst query goes unnoticed | Low | Low | **Low** | Every `queries/*.sql` view has a deterministic result-level assertion across `tests/test_queries.py` and `tests/test_inbound_interfaces.py`; representative views also run in `demo_run.py`. | Low |
 | RA-15 | Behavior changes without documentation keeping up | Med | Med | **Med** | One-session-one-PR change control; docs updated each session; this validation package + traceability matrix make drift visible. | Low |
 | RA-16 | Demo not reproducible on a reviewer's machine | Low | Med | **Low** | Stdlib + SQLite only; `pytest` sole dev dependency; in-memory DB seeded from `schema.sql`; deterministic sample messages. | Low |
 
@@ -70,8 +70,9 @@ loud to a reviewer are:
 2. **RA-07 (all-or-nothing inbound).** The design choice that a partial/invalid
    instrument message never half-updates an order is the key interface-integrity
    control and is directly tested.
-3. **RA-14 (KI-01).** The one accepted engineering gap - add `test_queries.py` in
-   a future session to close it.
+
+The former RA-14 / KI-01 coverage gap is closed: every analyst query now has a
+result-level automated test.
 
 ## Risk-acceptance statement
 

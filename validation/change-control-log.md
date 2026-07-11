@@ -10,12 +10,15 @@ development session. Each session was developed on its own branch and merged to
 
 ## Summary
 
-| Session | Theme | Key additions | Merge commit |
+| Session | Theme | Key additions | Reference |
 |---|---|---|---|
 | S1 | Workflow foundation | Schema, order/specimen/result/finalize workflow, validation rules, audit trail, analyst queries | `d71ad7f` (Merge Session 1) |
 | S2 | Outbound interfaces | HL7 ORU^R01-style + FHIR DiagnosticReport-style generation, finalized-only gating | `5a0fd69` (Merge Session 2) |
 | S3 | Inbound + error queue | Inbound ORU-style ingestion, accession matching, error-queue routing | `19bf8da` (Merge Session 3) |
-| S4 | Validation package | This documentation set (requirements, traceability, UAT, risk, demo/diagram/portfolio) | *(this PR)* |
+| S4 | Validation package | Requirements, traceability, UAT, risk, demo/diagram/portfolio documentation | `92b06ad` (Merge Session 4) |
+| S5 | Hiring-manager review | Portfolio scorecard, interview framing, and documentation-accuracy fixes | `bf7da52` (Merge Session 5) |
+| S6 | Repository maintenance | CI on Python 3.11/3.12, licensing, security/contribution guidance, Dependabot, PR checklist | `f15cef1` |
+| S7 | Analyst-query verification | Result-level tests for every analyst SQL view; R-019 moved from PARTIAL to PASS | 2026-07-11 validation maintenance |
 
 ---
 
@@ -112,12 +115,61 @@ validation package.
 would be limited to fixing a broken documentation reference and called out
 explicitly in the PR.
 
+---
+
+## Session 5 - Hiring-manager review and portfolio polish
+
+**Requirements introduced:** none (documentation only).
+
+**What changed:**
+- Added `docs/hiring-manager-review.md` with a scorecard, strengths, limitations,
+  interview walkthrough, resume bullet, and LinkedIn framing.
+- Corrected stale comments and documentation that still described implemented
+  interface work as deferred.
+- Linked the review from the README and repository layout.
+
+**Representative merge:** `bf7da52`.
+
+---
+
+## Session 6 - CI and repository maintenance baseline
+
+**Requirements introduced:** none; application and validated behavior unchanged.
+
+**What changed:**
+- Added GitHub Actions CI on Python 3.11 and 3.12 for the full pytest suite and
+  four-scenario demo.
+- Added the MIT license, security policy, contribution guide, Dependabot
+  configuration, and pull-request checklist.
+- Added the live CI badge and maintenance links to the README.
+
+**Representative commit:** `f15cef1`.
+
+---
+
+## Session 7 - Analyst-query verification closure
+
+**Requirements introduced:** none; R-019 was strengthened from view existence
+to expected worklist and metric behavior.
+
+**What changed:**
+- Added `tests/test_queries.py` with deterministic result assertions for pending
+  review, STAT aging, turnaround time, validation error rate, and audit lookup.
+- Retained the existing direct assertion for `interface_error_queue.sql` in the
+  inbound interface suite, giving all six analyst views result-level coverage.
+- Updated traceability, risk, known-issue, demo, portfolio, and validation
+  summaries; KI-01 is resolved and R-019 is PASS.
+- Increased the current suite from 56 to 61 passing tests without changing
+  application behavior or schema.
+
 ## Change-control principles used
 
 - **One session = one branch = one PR**, never committed straight to `main`.
-- **Tests accompany behavior** - every code session added a matching `tests/`
-  suite; the suite is green before merge (`pytest` -> 56 passed at S3).
-- **Scope guardrails** honored every session (no UI/Docker/CI/ORM/new
-  panels/new DB/real HL7-FHIR deps/Epic content; synthetic data only).
+- **Tests accompany behavior** - every code session added matching coverage;
+  the current suite has 61 passing tests, including result assertions for all
+  analyst SQL views.
+- **Scope guardrails** honored every session (no UI/Docker/ORM/new panels/new
+  DB/real HL7-FHIR deps/Epic content; synthetic data only). CI was later added
+  as a maintenance gate without changing application behavior.
 - **Docs kept in step** - `README.md`, `docs/interface-mapping.md`, and (S4) the
   validation package track the code as it grows.

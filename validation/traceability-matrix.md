@@ -6,11 +6,11 @@ that implements it, its automated `pytest` coverage, the manual
 
 > **Synthetic learning project - no PHI, not a validated device.** "Verified"
 > below means the mapped `pytest` test passes and the UAT script has a defined
-> manual procedure - not regulatory validation. Test names are as of the
-> Session 4 branch (`pytest` -> **56 passed**).
+> manual procedure - not regulatory validation. Test names match current
+> `main` (`pytest` -> **61 passed**).
 
-**Status legend:** PASS = verified (automated test passing + UAT defined).
-PARTIAL = covered but see note.
+**Status legend:** PASS = verified (result-level automated test passing + UAT
+defined).
 
 ## Matrix
 
@@ -34,19 +34,18 @@ PARTIAL = covered but see note.
 | **R-016** | `INBOUND_RESULT_FILED` audit event on successful filing | `src/interfaces/inbound_hl7.py` / `_file_results`; `workflow.record_audit` | `test_inbound_interfaces.py::test_audit_event_recorded_for_inbound_filing` | UAT-009 | PASS |
 | **R-017** | Unknown probe code for panel -> error queue | `src/interfaces/inbound_hl7.py` / `_validate_obx` | `test_inbound_interfaces.py::test_unknown_probe_code_goes_to_error_queue` | UAT-008 | PASS |
 | **R-018** | Error-queue entry has message_id/direction/reason/OPEN/created | `src/interfaces/inbound_hl7.py` / `_route_to_error_queue`; `schema.sql` (`interface_error_queue`) | `test_inbound_interfaces.py::test_error_queue_entry_has_expected_fields` | UAT-006, UAT-007, UAT-008 | PASS |
-| **R-019** | Analyst SQL worklist views | `queries/*.sql`; `src/db.py::run_query` | `test_inbound_interfaces.py::test_error_queue_query_lists_open_items` | UAT-010 | PARTIAL |
+| **R-019** | Analyst SQL worklist views | `queries/*.sql`; `src/db.py::run_query` | `test_queries.py` (pending review, STAT aging, turnaround, error rate, audit lookup); `test_inbound_interfaces.py::test_error_queue_query_lists_open_items` | UAT-010 | PASS |
 
-### Note on R-019 (PARTIAL)
+### Note on R-019
 
 Six analyst queries ship under `queries/` (`pending_review.sql`,
 `stat_pending.sql`, `turnaround_time.sql`, `validation_error_rate.sql`,
-`audit_lookup.sql`, `interface_error_queue.sql`). Only
-`interface_error_queue.sql` has a direct assertion
-(`test_error_queue_query_lists_open_items`); the others are exercised for
-runnability by `src/demo_run.py` (which prints `pending_review`,
-`validation_error_rate`, and `audit_lookup`) but do not each have a dedicated
-result-asserting `pytest`. This is tracked in
-[`known-issues.md`](known-issues.md) (KI-01).
+`audit_lookup.sql`, `interface_error_queue.sql`).
+`interface_error_queue.sql` is asserted in `test_inbound_interfaces.py`; the
+other five views have deterministic result assertions in `test_queries.py`.
+Together they verify row selection, priority/order behavior, counts, calculated
+metrics, and parameterized order scoping. The original KI-01 gap is recorded as
+resolved in [`known-issues.md`](known-issues.md).
 
 ## Coverage summary
 
@@ -57,8 +56,8 @@ result-asserting `pytest`. This is tracked in
 | Audit | R-007, R-016 | 2 | 0 |
 | Interface (outbound) | R-008, R-009 | 2 | 0 |
 | Interface (inbound) | R-010 - R-015, R-017, R-018 | 8 | 0 |
-| Analyst query | R-019 | 0 | 1 |
-| **Total** | **19** | **18** | **1** |
+| Analyst query | R-019 | 1 | 0 |
+| **Total** | **19** | **19** | **0** |
 
 Every requirement traces to at least one automated test **and** a manual UAT
 script. Re-run automated coverage with `pytest`; execute the manual layer with
