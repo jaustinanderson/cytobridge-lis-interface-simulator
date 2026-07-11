@@ -12,6 +12,12 @@ A review of the CytoBridge LIS Interface Simulator from the perspective of an
 
 ## Overall score: 8.9 / 10
 
+> **Follow-up status (2026-07-11):** the review's two actionable engineering
+> gaps are now closed. GitHub Actions runs the full suite and demo on Python 3.11
+> and 3.12, and `tests/test_queries.py` gives every analyst SQL view a
+> result-level assertion. Current evidence is 61 passing tests and 19/19
+> requirements fully verified within the synthetic scope.
+
 A standout portfolio project for a lab/interface analyst track. It reads like
 someone who understands the *work* - order-to-result lifecycle, validation
 gating, HL7/FHIR interface mapping in both directions, an error queue that
@@ -54,7 +60,7 @@ disclosed rather than hidden.
 - **A genuine validation package.** Requirements -> code -> test -> UAT
   traceability, a risk register, and a self-authored known-issues list signal
   someone who can work with QA and auditors.
-- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 56 passing
+- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 61 passing
   tests, a 4-scenario demo, and a timed demo script.
 
 ## Weaknesses
@@ -67,12 +73,8 @@ disclosed rather than hidden.
   experience (Rhapsody/Cloverleaf/Mirth).
 - **In-memory only.** No persistence story, migrations, concurrency, or auth;
   `actor` fields are free-text, not authenticated identities.
-- **One coverage gap (KI-01).** Five of six analyst queries are exercised for
-  runnability but only one has a result-asserting test - already tracked, worth
-  closing.
-- **No automation gate.** Tests are run by hand (CI is intentionally out of
-  scope), so "56 passing" is a claim a reviewer must reproduce locally (easy,
-  but not one-click).
+- **Resolved follow-up:** KI-01 is closed by result-level tests for all six
+  analyst queries, and CI now makes the test/demo evidence one-click verifiable.
 
 ## Red flags
 
@@ -92,22 +94,15 @@ doc-accuracy hygiene a reviewer likes to see.
 
 Prioritized; none are blockers.
 
-1. **(Done in this PR)** Fix stale "later session" comments in `schema.sql` and
+1. **(Done in the original review PR)** Fix stale "later session" comments in `schema.sql` and
    the "deferred to a later session" line in `docs/interface-mapping.md`; remove
    the "PARTIAL partial" doubling in `validation-summary.md`.
-2. **Close KI-01.** Add a small `tests/test_queries.py` that asserts each
-   `queries/*.sql` returns the expected shape against seeded synthetic data. This
-   turns R-019 from PARTIAL to fully verified and removes the one honest gap.
-3. **Roadmap readability (cosmetic).** The README "Done:" list renders as
-   `- PASS <item>` (an artifact of the earlier ASCII pass). Consider GitHub
-   task-list checkboxes (`- [x] <item>`) or dropping the `PASS ` prefix, since
-   the "Done:" heading already conveys completion.
-4. **Add a one-line results line near the top of the README** (e.g. "56 tests
-   passing; 4-scenario demo; 19 traced requirements") for instant credibility on
-   a skim - without adding a CI badge (CI is out of scope).
-5. **Name the next feature.** The error-queue resolve/re-drive workflow (KI-03)
-   is the obvious next increment and makes a great "what would you build next?"
-   answer - consider a short stub section in the roadmap.
+2. **(Done)** Close KI-01 with `tests/test_queries.py`; R-019 is now PASS.
+3. **(Done)** Improve roadmap readability with GitHub task-list checkboxes.
+4. **(Done)** Add a one-line results summary and live CI badge near the top of
+   the README for instant credibility on a skim.
+5. **(Done)** Name the error-queue resolve/re-drive workflow (KI-03) as the next
+   bounded enhancement and a concrete "what would you build next?" answer.
 
 ## Suggested 30-second explanation
 
@@ -137,7 +132,7 @@ Beaker-adjacent learning, not Epic experience."
    go to an error queue with a specific reason and an analyst runbook to resolve
    them - nothing is silently dropped."
 5. **(1:45-2:00) Prove it.** "19 requirements each trace to a function, a test,
-   and a UAT script; 56 tests pass; the demo runs four scenarios end-to-end. And
+   and a UAT script; 61 tests pass; the demo runs four scenarios end-to-end. And
    I wrote the limitations down myself."
 
 ## Suggested resume bullet
@@ -146,7 +141,7 @@ Beaker-adjacent learning, not Epic experience."
 > SQLite, raw SQL) that models an AML/MDS FISH order end-to-end - accessioning,
 > per-probe results, cutoff-aware validation, finalization, and audit - with
 > outbound HL7/FHIR generation and inbound ORU ingestion routed through an
-> interface error queue; 19 traceable requirements and 56 passing tests.
+> interface error queue; 19 traceable requirements and 61 passing tests.
 > (Synthetic data; educational, Beaker-adjacent - not Epic build experience.)
 
 ## Suggested LinkedIn project description
@@ -164,7 +159,7 @@ Beaker-adjacent learning, not Epic experience."
 >
 > Built with Python and SQLite (raw SQL, no ORM) and backed by a real
 > validation package - numbered requirements, a requirements-to-test
-> traceability matrix, UAT scripts, a risk assessment, and 56 passing tests.
+> traceability matrix, UAT scripts, a risk assessment, and 61 passing tests.
 >
 > All data is synthetic (no PHI). This is educational, HL7/FHIR-*style* work
 > and is **Beaker-adjacent learning, not Epic build experience** - it

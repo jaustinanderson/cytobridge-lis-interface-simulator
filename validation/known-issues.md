@@ -12,9 +12,14 @@ plainly what a system does **not** do.
 
 | ID | Area | Description | Impact | Disposition |
 |---|---|---|---|---|
-| **KI-01** | Test coverage | Five of six `queries/*.sql` views (`pending_review`, `stat_pending`, `turnaround_time`, `validation_error_rate`, `audit_lookup`) lack a dedicated result-asserting `pytest`; they are exercised for runnability via `demo_run.py`. Only `interface_error_queue.sql` is directly asserted. | Low - queries run, but regressions in their output shape would not be caught automatically. | Accepted for now; candidate for a future `test_queries.py`. Traceability R-019 marked PARTIAL. |
 | **KI-02** | Inbound parser | The inbound HL7 parser accepts a small, fixed ORU dialect and packs the per-probe result into `OBX-5` as `scored^abnormal^signal^interp`. It is **not** a general HL7 v2 parser (no repetitions, escaping edge cases, Z-segments, or field-length rules). | Low - by design for an educational simulator. | Documented in `docs/interface-mapping.md`; won't fix (out of scope). |
 | **KI-03** | Error-queue lifecycle | Error-queue entries are created `OPEN`; the schema supports `RESOLVED`/`resolved_at`, but there is no code path or workflow function to resolve/re-drive a queued message (an analyst would run the `UPDATE` by hand, as shown in `docs/interface-troubleshooting.md`). | Low | Deferred - a "resolve + resend" workflow is a candidate future session. |
+
+## Resolved items
+
+| ID | Resolution |
+|---|---|
+| **KI-01** | Closed by `tests/test_queries.py`: all five previously uncovered analyst views now have deterministic result assertions; the existing inbound suite covers `interface_error_queue.sql`. R-019 is PASS. |
 
 ## Design limitations (by scope, not defects)
 
@@ -32,8 +37,9 @@ plainly what a system does **not** do.
 ## Explicitly out of scope (won't add in this project)
 
 Per the project's guardrails, the following are intentionally **not** added:
-a UI, Docker, CI pipelines, an ORM, additional panels, new database platforms,
-new/real HL7/FHIR dependencies, and any real or Epic-derived content.
+a UI, Docker packaging or deployment infrastructure, an ORM, additional panels,
+new database platforms, new/real HL7/FHIR dependencies, and any real or
+Epic-derived content. CI is present solely to run the test suite and demo.
 
 ## Non-goals restated
 

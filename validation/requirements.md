@@ -69,7 +69,7 @@ manual [UAT script](uat-test-scripts.md).
 | **R-016** | Successful inbound filing records an `INBOUND_RESULT_FILED` audit event on the order naming the source `interface_message.message_id`. | S3 | Audit |
 | **R-017** | An inbound `OBX` whose probe code is not part of the AML/MDS panel is routed to `interface_error_queue`. | S3 | Interface (inbound) |
 | **R-018** | Each error-queue entry carries `message_id`, `direction`, a clear `reason`, `status = 'OPEN'`, and a created timestamp. | S3 | Interface (inbound) |
-| **R-019** | Analyst SQL views exist for the common worklists (pending review, STAT aging, turnaround, validation error rate, audit lookup, open interface errors). | S1-S3 | Analyst query |
+| **R-019** | Analyst SQL views return the expected worklists and metrics for pending review, STAT aging, turnaround, validation error rate, audit lookup, and open interface errors. | S1-S3 | Analyst query |
 
 See the [traceability matrix](traceability-matrix.md) for the full
 requirement -> code -> test -> UAT mapping and current status.

@@ -8,7 +8,9 @@ workflow, audit trails, outbound HL7/FHIR-style interface generation, inbound
 ORU-style ingestion with an interface error queue, validation logic, and pytest
 coverage.
 
-This is an **analyst-first portfolio project**, not a polished web app.
+This is an **analyst-first, intentionally headless portfolio project**. The
+reviewable artifacts are the data model, workflow rules, SQL, interfaces,
+validation evidence, and troubleshooting documentation.
 
 > **Not affiliated with Epic Systems.** This is a "Beaker-adjacent" learning
 > project. It is not affiliated with, endorsed by, or connected to Epic Systems
@@ -19,6 +21,10 @@ This is an **analyst-first portfolio project**, not a polished web app.
 
 > **Data notice:** All data in this project is **synthetic**. No PHI. No real
 > patient data.
+
+**Verified on `main`:** 61 passing pytest tests, four end-to-end demonstration
+scenarios, and 19/19 requirements with result-level automated coverage plus
+manual UAT definitions. GitHub Actions verifies Python 3.11 and 3.12.
 
 ## Scope (v1)
 
@@ -50,6 +56,20 @@ changes): numbered requirements, a requirements-to-test traceability matrix, UAT
 scripts, a validation summary, risk assessment, known-issues, a change-control
 log, a demo script, a Mermaid workflow diagram, and a portfolio review. See
 [Validation & portfolio docs](#validation--portfolio-docs-session-4).
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    O["Order + specimen"] --> R["Per-probe results"]
+    R --> V{"Validation"}
+    V -->|"pass"| F["Final report + outbound messages"]
+    I["Inbound ORU-style message"] --> R
+    I -->|"invalid or unmatched"| Q["Interface error queue"]
+```
+
+The full lifecycle, inbound path, and audit events are documented in
+[`docs/workflow-diagram.md`](docs/workflow-diagram.md).
 
 ## Outbound interfaces (Session 2)
 
@@ -108,7 +128,8 @@ runnable samples under [`sample_messages/inbound/`](sample_messages/inbound/).
 - **SQLite** via the stdlib `sqlite3` module.
 - Raw, hand-written SQL in `schema.sql` and `queries/`. **No ORM.**
 - **pytest** for tests.
-- Headless workflow first - no Streamlit UI until the workflow is solid.
+- Intentionally headless - analyst interaction is demonstrated through Python,
+  raw SQL, generated messages, and validation artifacts.
 
 ## Repository layout
 
@@ -148,13 +169,14 @@ validation/                    validation package (Session 4)
   uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-010)
   validation-summary.md        approach + results summary
   known-issues.md              limitations and tracked issues
-  change-control-log.md        per-session change history (S1-S4)
+  change-control-log.md        per-session change history (S1-S6)
   risk-assessment.md           synthetic LIS/interface workflow risks
 tests/
   test_workflow.py      workflow lifecycle + audit + constraints
   test_validation.py    validation rules
   test_outbound_interfaces.py  outbound HL7/FHIR generation + export gating
   test_inbound_interfaces.py   inbound ingestion + error-queue routing
+  test_queries.py              result assertions for analyst SQL views
 ```
 
 ## Data model highlights
@@ -205,7 +227,7 @@ queue.
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-pytest
+python -m pytest -q                   # 61 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python
@@ -239,8 +261,8 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
   boundary, resume bullets, and interview talking points) /
   [hiring-manager review](docs/hiring-manager-review.md) (scorecard + resume/LinkedIn framing)
 
-Every requirement (`R-001`-`R-019`) traces to the code, an automated `pytest`
-test, and a manual UAT script. This is **Beaker-adjacent learning, not Epic
+Every requirement (`R-001`-`R-019`) traces to the code, result-level automated
+`pytest` coverage, and a manual UAT script. This is **Beaker-adjacent learning, not Epic
 build experience** - see [portfolio review](docs/portfolio-review.md).
 
 ## Roadmap
@@ -258,8 +280,11 @@ Done:
 - [x] Repository CI and maintenance baseline: automated tests/demo, licensing,
   security policy, contribution guidance, Dependabot, and PR checklist.
 
-Still deferred:
+Next bounded enhancements:
 
 - [ ] ISCN nomenclature parser (seam already present in `reports.py`).
 - [ ] Resolution workflow for error-queue items (re-drive a corrected message).
-- [ ] Optional Streamlit UI once the workflow is proven.
+
+The headless interface is deliberate. A UI, production transport, additional
+panels, authentication, and clinical deployment remain outside this project's
+scope so the portfolio signal stays focused on LIS/interface analyst work.

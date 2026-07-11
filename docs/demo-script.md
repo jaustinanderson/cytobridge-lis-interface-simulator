@@ -92,10 +92,11 @@ hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
 ## 4:45-5:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
-- **Say:** "The bottom line: 56 automated tests pass, 19 requirements are traced,
-  18 fully verified with one documented partial, and the demo runs clean. And I
-  wrote down the limitations honestly in `known-issues.md` and `risk-assessment.md`
-  - including that this is Beaker-adjacent learning, not Epic build experience."
+- **Say:** "The bottom line: 61 automated tests pass, all 19 requirements are
+  fully traced and verified within the synthetic scope, and the demo runs clean.
+  And I wrote down the limitations honestly in `known-issues.md` and
+  `risk-assessment.md` - including that this is Beaker-adjacent learning, not
+  Epic build experience."
 
 ---
 
@@ -105,7 +106,7 @@ hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
   `test_invalid_numeric_result_goes_to_error_queue` - "all-or-nothing proven in
   one test."
 - **"What would you build next?"** The error-queue *resolve/re-drive* workflow
-  (KI-03) and a `test_queries.py` to close KI-01 - both already written down.
+  (KI-03), followed by the ISCN parser seam if it serves a specific learning goal.
 - **"How is this different from Epic?"** Point to
   [`portfolio-review.md`](portfolio-review.md) - "I model the *category* of
   system Beaker is; I don't use Epic software or build content."

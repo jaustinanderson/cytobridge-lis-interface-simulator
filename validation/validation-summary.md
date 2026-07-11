@@ -26,9 +26,9 @@ Validation is layered:
 
 1. **Requirements** - 19 numbered, testable requirements (`R-001`-`R-019`) in
    [`requirements.md`](requirements.md).
-2. **Automated tests** - `pytest` across four suites (`test_workflow.py`,
+2. **Automated tests** - `pytest` across five suites (`test_workflow.py`,
    `test_validation.py`, `test_outbound_interfaces.py`,
-   `test_inbound_interfaces.py`).
+   `test_inbound_interfaces.py`, `test_queries.py`).
 3. **Manual UAT** - 10 analyst-style acceptance scripts (`UAT-001`-`UAT-010`)
    in [`uat-test-scripts.md`](uat-test-scripts.md).
 4. **Traceability** - every requirement mapped to code, test, and UAT in the
@@ -37,14 +37,14 @@ Validation is layered:
    path, a blocked finalize, outbound export, and inbound ingestion/error queue
    against a fresh in-memory database.
 
-## Results (as of the Session 4 branch)
+## Current results
 
 | Metric | Result |
 |---|---|
-| Automated tests | **56 passed** (`pytest`) |
+| Automated tests | **61 passed** (`pytest`) |
 | Requirements traced | 19 / 19 mapped to code + test + UAT |
-| Requirements fully verified (PASS) | 18 / 19 |
-| Requirements partial (PARTIAL) | 1 / 19 (R-019 - see below) |
+| Requirements fully verified (PASS) | 19 / 19 |
+| Requirements partial | 0 / 19 |
 | Demo scenarios | 4 / 4 run clean (`python -m src.demo_run`, exit 0) |
 | Reproducibility | Deterministic - in-memory DB seeded from `schema.sql`; fixed sample messages |
 
@@ -57,15 +57,16 @@ Validation is layered:
 | Audit (workflow + inbound) | R-007, R-016 | PASS |
 | Outbound interfaces (HL7, FHIR, finalized-only) | R-008, R-009 | PASS |
 | Inbound interfaces (store, file, error-queue routing) | R-010-R-015, R-017, R-018 | PASS |
-| Analyst SQL views | R-019 | PARTIAL |
+| Analyst SQL views | R-019 | PASS |
 
-## Known limitation affecting coverage
+## Analyst-query coverage
 
-**R-019 (analyst queries)** is marked partial: five of the six `queries/*.sql`
-views are exercised for runnability (via `demo_run.py`) but only
-`interface_error_queue.sql` has a dedicated result-asserting test. Tracked as
-**KI-01** in [`known-issues.md`](known-issues.md). All other requirements have a
-direct automated assertion.
+All six `queries/*.sql` views now have deterministic result-level assertions.
+`tests/test_queries.py` covers pending review, STAT aging, turnaround time,
+validation error rate, and parameterized audit lookup;
+`tests/test_inbound_interfaces.py` covers the open interface-error worklist.
+This closes KI-01 and makes R-019 fully verified within the project's synthetic
+scope.
 
 Broader boundaries (educational HL7/FHIR only, single panel, no auth/security
 model, in-memory demo DB) are enumerated in [`known-issues.md`](known-issues.md)
@@ -75,7 +76,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-pytest                                 # -> 56 passed
+python -m pytest -q                   # -> 61 passed
 python -m src.demo_run                 # -> 4 scenarios, exit 0
 ```
 
@@ -85,8 +86,8 @@ and record results in its summary table.
 ## Conclusion
 
 Within its stated synthetic scope, the simulator meets all 19 requirements, with
-18 fully verified by automated tests and one partially covered (analyst-query
-assertions). The workflow, validation, outbound generation, and inbound
+all 19 backed by result-level automated coverage and defined manual UAT. The
+workflow, validation, outbound generation, inbound
 ingestion/error-queue behaviors are traceable, reproducible, and demonstrated
 end-to-end. Remaining gaps are documented, bounded, and non-blocking for the
 project's purpose as a portfolio demonstration of LIS/interface analyst thinking.

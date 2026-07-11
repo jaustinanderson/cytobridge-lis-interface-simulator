@@ -33,7 +33,7 @@ running it:
   are traceable back to the source message.
 - **Analyst SQL.** Six worklist queries (pending review, STAT aging, turnaround,
   validation error rate, audit lookup, open interface errors).
-- **Testing and traceability discipline.** 56 passing `pytest` tests plus a full
+- **Testing and traceability discipline.** 61 passing `pytest` tests plus a full
   requirements -> code -> test -> UAT [traceability matrix](../validation/traceability-matrix.md),
   a [validation summary](../validation/validation-summary.md), a
   [risk assessment](../validation/risk-assessment.md), and an honest
@@ -99,7 +99,7 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   drops - with an analyst SQL worklist.
 - Authored a **validation package**: 19 traceable requirements, a
   requirements-to-test **traceability matrix**, 10 **UAT scripts**, risk
-  assessment, and known-issues log; **56 passing automated tests**.
+  assessment, and known-issues log; **61 passing automated tests**.
 
 ## Interview talking points
 
@@ -119,8 +119,9 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
 - **"How is this related to Epic Beaker?"** It models the same category of
   system and the same analyst skills; it is explicitly not Epic software or build
   content. I'm careful not to overstate it.
-- **"What would you do next?"** Close KI-01 (per-query tests) and build an
-  error-queue resolve/re-drive workflow (KI-03) - both already documented.
+- **"What would you do next?"** Build the error-queue resolve/re-drive workflow
+  (KI-03); KI-01 is already closed with result-level tests for every analyst SQL
+  view.
 
 ## Bottom line
 
