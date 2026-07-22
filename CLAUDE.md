@@ -32,11 +32,13 @@ hardening semantics also return to Austin.
 - `validation/v1.1-design-record.md`
 - `validation/v1.1-requirements.md`
 - `validation/v1.1-test-intent.md`
+- `.github/CODEOWNERS`
 - The frozen-file guard workflow (`.github/workflows/frozen-file-guard.yml`)
 
 Substantive changes to these require Austin's explicit approval. A `claude/*`
-pull request that modifies a frozen file fails the frozen-file guard (except the
-one-time supervised bootstrap that first introduces the design record).
+pull request that modifies a frozen file fails the frozen-file guard; the guard
+has no bypass (the supervised setup PR that introduced these files was the
+one-time bootstrap, completed before the guard existed on `main`).
 `AUTONOMOUS_STATUS.md` is the only control document autonomous builders may
 routinely update.
 

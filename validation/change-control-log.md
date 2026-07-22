@@ -176,7 +176,7 @@ Clearly distinguished:
   approved and frozen Phase 1 product architecture (plain-ASCII typography only;
   no meaning changed). Substantive edits require Austin's explicit approval.
 - **Draft awaiting review.** `validation/v1.1-requirements.md` (draft `R-020`-
-  `R-040`) and `validation/v1.1-test-intent.md` are marked **DRAFT FOR AUSTIN
+  `R-041`) and `validation/v1.1-test-intent.md` are marked **DRAFT FOR AUSTIN
   REVIEW**. They describe behavior that does **not yet exist** and become frozen
   only after Austin approves and merges the setup pull request. The existing
   `requirements.md` numbering (`R-001`-`R-019`) is unchanged.
@@ -184,7 +184,11 @@ Clearly distinguished:
 
 **What changed (control-plane only):**
 - `validation/v1.1-design-record.md` - frozen approved design record.
-- `validation/v1.1-requirements.md` - draft v1.1 requirements (`R-020`-`R-040`).
+- `validation/v1.1-requirements.md` - draft v1.1 requirements (`R-020`-`R-041`),
+  amended per Austin-approved corrections: handled-failure rollback semantics
+  (preserve the `ERRORED` resulting message and `FAILED` attempt while rolling
+  back FISH results, filing events, and queue resolution) and match-checked
+  `request_id` replay with `REQUEST_ID_CONFLICT` rejection.
 - `validation/v1.1-test-intent.md` - draft pre-implementation test intent,
   including the human-approved invariants I-01 and I-02.
 - `CLAUDE.md` - stable autonomous-builder rules (synthetic-data/no-PHI,
@@ -193,10 +197,14 @@ Clearly distinguished:
   `PHASE_1_CONTROLS_PENDING_REVIEW`, no approved implementation task, routines
   disabled until Austin merges and approves.
 - `.github/CODEOWNERS` - Austin owns the frozen files (review ownership/
-  visibility, not edit prevention).
+  visibility, not edit prevention); protected by the guard along with the guard
+  itself.
 - `.github/workflows/frozen-file-guard.yml` - fails `claude/*` PRs that modify a
-  frozen file, with a one-time bootstrap allowance while the design record does
-  not yet exist on the base branch. Existing CI is unchanged.
+  frozen file. Hardened per Austin-approved correction: runs the trusted base-
+  branch workflow via `pull_request_target`, inspects changed filenames only via
+  the GitHub API, never checks out or executes PR code, and has no bootstrap
+  bypass (the setup PR itself was the one-time supervised bootstrap, before the
+  guard existed on `main`). Existing CI is unchanged.
 
 **Validation:** existing pytest suite and demo run unchanged and green; workflow
 YAML parses; new Markdown is plain-ASCII; relative links reviewed;

@@ -1,38 +1,39 @@
 name: Frozen-file guard
 
 # Fails a pull request from a claude/* branch when it modifies a frozen
-# control-plane file. Narrowly scoped: it only guards the listed frozen files
-# and only for claude/* head branches. It requires no secret and does not
-# replace the main CI workflow.
+# control-plane file.
 #
-# One-time bootstrap: if the frozen design record does not yet exist on the
-# pull request's base branch, this PR is the supervised bootstrap that first
-# introduces the frozen files, and the guard allows it. Once the design record
-# exists on the base branch, any later claude/* PR touching a frozen file fails.
+# Hardening model:
+# - Runs on pull_request_target, so GitHub always executes the trusted
+#   version of this workflow from the PR's base branch, not the PR's copy.
+#   A PR that edits this file cannot change which guard runs on it.
+# - Never checks out or executes any PR code. The job performs no checkout
+#   at all; it only reads the PR's changed *filenames* from the GitHub API.
+# - Uses only the automatic GITHUB_TOKEN with read permissions; no
+#   configured secret.
+# - No bootstrap bypass. The supervised setup pull request (#11) introduced
+#   the frozen files before this guard existed on the base branch; once this
+#   workflow is on the base branch it enforces unconditionally for claude/*
+#   head branches.
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          # Fetch full history so the base and head commits are both present
-          # for a reliable diff regardless of PR size.
-          fetch-depth: 0
-
       - name: Guard frozen files
         env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
 
@@ -50,22 +51,15 @@ jobs:
           validation/v1.1-design-record.md
           validation/v1.1-requirements.md
           validation/v1.1-test-intent.md
+          .github/CODEOWNERS
           .github/workflows/frozen-file-guard.yml
           "
 
-          # Make sure both endpoints of the PR are available for diffing.
-          git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true
-
-          # One-time bootstrap: if the design record does not exist on the base
-          # commit, allow the frozen files to be introduced by this PR.
-          if ! git cat-file -e "$BASE_SHA:validation/v1.1-design-record.md" 2>/dev/null; then
-            echo "Bootstrap: 'validation/v1.1-design-record.md' does not exist on the base commit."
-            echo "Treating this pull request as the one-time supervised bootstrap; frozen files may be introduced."
-            exit 0
-          fi
-
-          # Diff the PR against its merge base so only PR-introduced changes count.
-          CHANGED="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          # Filenames only, via the API. Includes files renamed onto or away
+          # from a frozen path ("previous_filename"). No PR code is fetched,
+          # checked out, or executed.
+          CHANGED="$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+            --jq '.[].filename, (.[] | select(.previous_filename != null) | .previous_filename)')"
 
           VIOLATIONS=""
           for f in $FROZEN_FILES; do

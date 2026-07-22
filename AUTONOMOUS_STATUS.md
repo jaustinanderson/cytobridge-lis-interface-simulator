@@ -41,8 +41,10 @@ and approves the first implementation task.)
 
 ## Questions requiring Austin
 
-- Approve or revise the drafted v1.1 requirements (`R-020`-`R-040`) and the
+- Approve or revise the drafted v1.1 requirements (`R-020`-`R-041`) and the
   test-intent specification, then merge the setup PR to freeze them.
+  (Austin's corrections on handled-failure rollback, guard hardening, and
+  `request_id` conflict handling have been applied to the drafts.)
 - After merge, approve the first implementation task ID before any Phase 2 work.
 
 ## Next permitted action
