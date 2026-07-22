@@ -1,0 +1,80 @@
+name: Frozen-file guard
+
+# Fails a pull request from a claude/* branch when it modifies a frozen
+# control-plane file.
+#
+# Hardening model:
+# - Runs on pull_request_target, so GitHub always executes the trusted
+#   version of this workflow from the PR's base branch, not the PR's copy.
+#   A PR that edits this file cannot change which guard runs on it.
+# - Never checks out or executes any PR code. The job performs no checkout
+#   at all; it only reads the PR's changed *filenames* from the GitHub API.
+# - Uses only the automatic GITHUB_TOKEN with read permissions; no
+#   configured secret.
+# - No bootstrap bypass. The supervised setup pull request (#11) introduced
+#   the frozen files before this guard existed on the base branch; once this
+#   workflow is on the base branch it enforces unconditionally for claude/*
+#   head branches.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard frozen files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          # Only guard PRs whose head branch starts with "claude/".
+          case "$HEAD_BRANCH" in
+            claude/*) ;;
+            *)
+              echo "Head branch '$HEAD_BRANCH' is not a claude/* branch; guard does not apply."
+              exit 0
+              ;;
+          esac
+
+          FROZEN_FILES="
+          CLAUDE.md
+          validation/v1.1-design-record.md
+          validation/v1.1-requirements.md
+          validation/v1.1-test-intent.md
+          .github/CODEOWNERS
+          .github/workflows/frozen-file-guard.yml
+          "
+
+          # Filenames only, via the API. Includes files renamed onto or away
+          # from a frozen path ("previous_filename"). No PR code is fetched,
+          # checked out, or executed.
+          CHANGED="$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
+            --jq '.[].filename, (.[] | select(.previous_filename != null) | .previous_filename)')"
+
+          VIOLATIONS=""
+          for f in $FROZEN_FILES; do
+            if printf '%s\n' "$CHANGED" | grep -Fxq "$f"; then
+              VIOLATIONS="$VIOLATIONS $f"
+            fi
+          done
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "ERROR: this claude/* pull request modifies frozen control-plane file(s):"
+            for f in $VIOLATIONS; do
+              echo "  - $f"
+            done
+            echo "Frozen files require Austin's explicit approval and must not be changed from autonomous task branches."
+            exit 1
+          fi
+
+          echo "No frozen files were modified by this pull request."
