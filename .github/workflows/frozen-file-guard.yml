@@ -1,0 +1,86 @@
+name: Frozen-file guard
+
+# Fails a pull request from a claude/* branch when it modifies a frozen
+# control-plane file. Narrowly scoped: it only guards the listed frozen files
+# and only for claude/* head branches. It requires no secret and does not
+# replace the main CI workflow.
+#
+# One-time bootstrap: if the frozen design record does not yet exist on the
+# pull request's base branch, this PR is the supervised bootstrap that first
+# introduces the frozen files, and the guard allows it. Once the design record
+# exists on the base branch, any later claude/* PR touching a frozen file fails.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # Fetch full history so the base and head commits are both present
+          # for a reliable diff regardless of PR size.
+          fetch-depth: 0
+
+      - name: Guard frozen files
+        env:
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Only guard PRs whose head branch starts with "claude/".
+          case "$HEAD_BRANCH" in
+            claude/*) ;;
+            *)
+              echo "Head branch '$HEAD_BRANCH' is not a claude/* branch; guard does not apply."
+              exit 0
+              ;;
+          esac
+
+          FROZEN_FILES="
+          CLAUDE.md
+          validation/v1.1-design-record.md
+          validation/v1.1-requirements.md
+          validation/v1.1-test-intent.md
+          .github/workflows/frozen-file-guard.yml
+          "
+
+          # Make sure both endpoints of the PR are available for diffing.
+          git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true
+
+          # One-time bootstrap: if the design record does not exist on the base
+          # commit, allow the frozen files to be introduced by this PR.
+          if ! git cat-file -e "$BASE_SHA:validation/v1.1-design-record.md" 2>/dev/null; then
+            echo "Bootstrap: 'validation/v1.1-design-record.md' does not exist on the base commit."
+            echo "Treating this pull request as the one-time supervised bootstrap; frozen files may be introduced."
+            exit 0
+          fi
+
+          # Diff the PR against its merge base so only PR-introduced changes count.
+          CHANGED="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+
+          VIOLATIONS=""
+          for f in $FROZEN_FILES; do
+            if printf '%s\n' "$CHANGED" | grep -Fxq "$f"; then
+              VIOLATIONS="$VIOLATIONS $f"
+            fi
+          done
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "ERROR: this claude/* pull request modifies frozen control-plane file(s):"
+            for f in $VIOLATIONS; do
+              echo "  - $f"
+            done
+            echo "Frozen files require Austin's explicit approval and must not be changed from autonomous task branches."
+            exit 1
+          fi
+
+          echo "No frozen files were modified by this pull request."

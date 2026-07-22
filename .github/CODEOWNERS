@@ -1,0 +1,12 @@
+# Code ownership for review routing and visibility.
+#
+# CODEOWNERS assigns review ownership; it does not by itself prevent edits.
+# Enforcement of the frozen files is provided by the frozen-file guard workflow
+# (.github/workflows/frozen-file-guard.yml). Austin owns the frozen v1.1
+# control-plane files below.
+
+/CLAUDE.md                              @jaustinanderson
+/validation/v1.1-design-record.md       @jaustinanderson
+/validation/v1.1-requirements.md        @jaustinanderson
+/validation/v1.1-test-intent.md         @jaustinanderson
+/.github/workflows/frozen-file-guard.yml @jaustinanderson

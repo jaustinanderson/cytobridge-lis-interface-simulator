@@ -19,6 +19,7 @@ development session. Each session was developed on its own branch and merged to
 | S5 | Hiring-manager review | Portfolio scorecard, interview framing, and documentation-accuracy fixes | `bf7da52` (Merge Session 5) |
 | S6 | Repository maintenance | CI on Python 3.11/3.12, licensing, security/contribution guidance, Dependabot, PR checklist | `f15cef1` |
 | S7 | Analyst-query verification | Result-level tests for every analyst SQL view; R-019 moved from PARTIAL to PASS | 2026-07-11 validation maintenance |
+| S8 | v1.1 Phase 1 control-plane setup | Frozen v1.1 design record; **draft** requirements/test intent for Austin review; `CLAUDE.md`; writable status file; CODEOWNERS; frozen-file guard | 2026-07-22 planning/control milestone |
 
 ---
 
@@ -161,6 +162,48 @@ to expected worklist and metric behavior.
   summaries; KI-01 is resolved and R-019 is PASS.
 - Increased the current suite from 56 to 61 passing tests without changing
   application behavior or schema.
+
+## Session 8 - CytoBridge v1.1 Phase 1 control-plane setup
+
+**Requirements introduced:** none implemented. This is a supervised
+planning/control milestone, not an implementation session. **No v1.1 recovery
+behavior, schema change, application code, sample data, or executable test was
+added.**
+
+Clearly distinguished:
+
+- **Approved design.** `validation/v1.1-design-record.md` reproduces Austin's
+  approved and frozen Phase 1 product architecture (plain-ASCII typography only;
+  no meaning changed). Substantive edits require Austin's explicit approval.
+- **Draft awaiting review.** `validation/v1.1-requirements.md` (draft `R-020`-
+  `R-040`) and `validation/v1.1-test-intent.md` are marked **DRAFT FOR AUSTIN
+  REVIEW**. They describe behavior that does **not yet exist** and become frozen
+  only after Austin approves and merges the setup pull request. The existing
+  `requirements.md` numbering (`R-001`-`R-019`) is unchanged.
+- **No implementation yet.** Recovery remains unbuilt.
+
+**What changed (control-plane only):**
+- `validation/v1.1-design-record.md` - frozen approved design record.
+- `validation/v1.1-requirements.md` - draft v1.1 requirements (`R-020`-`R-040`).
+- `validation/v1.1-test-intent.md` - draft pre-implementation test intent,
+  including the human-approved invariants I-01 and I-02.
+- `CLAUDE.md` - stable autonomous-builder rules (synthetic-data/no-PHI,
+  read-frozen-files-first, blockers, branch/PR/pace limits, no push to `main`).
+- `AUTONOMOUS_STATUS.md` - the single writable status document; phase
+  `PHASE_1_CONTROLS_PENDING_REVIEW`, no approved implementation task, routines
+  disabled until Austin merges and approves.
+- `.github/CODEOWNERS` - Austin owns the frozen files (review ownership/
+  visibility, not edit prevention).
+- `.github/workflows/frozen-file-guard.yml` - fails `claude/*` PRs that modify a
+  frozen file, with a one-time bootstrap allowance while the design record does
+  not yet exist on the base branch. Existing CI is unchanged.
+
+**Validation:** existing pytest suite and demo run unchanged and green; workflow
+YAML parses; new Markdown is plain-ASCII; relative links reviewed;
+`git diff --check` clean; scope check confirms no application code, SQL schema,
+sample message, or executable test changed.
+
+---
 
 ## Change-control principles used
 
