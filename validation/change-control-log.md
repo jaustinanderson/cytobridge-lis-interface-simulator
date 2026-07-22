@@ -19,7 +19,7 @@ development session. Each session was developed on its own branch and merged to
 | S5 | Hiring-manager review | Portfolio scorecard, interview framing, and documentation-accuracy fixes | `bf7da52` (Merge Session 5) |
 | S6 | Repository maintenance | CI on Python 3.11/3.12, licensing, security/contribution guidance, Dependabot, PR checklist | `f15cef1` |
 | S7 | Analyst-query verification | Result-level tests for every analyst SQL view; R-019 moved from PARTIAL to PASS | 2026-07-11 validation maintenance |
-| S8 | v1.1 Phase 1 control-plane setup | Frozen v1.1 design record; **draft** requirements/test intent for Austin review; `CLAUDE.md`; writable status file; CODEOWNERS; frozen-file guard | 2026-07-22 planning/control milestone |
+| S8 | v1.1 Phase 1 controls and acceptance | Frozen design, approved/frozen requirements and test intent, builder rules, status control, CODEOWNERS, frozen-file guard | `cc3d395` plus 2026-07-22 Phase 1 closeout |
 
 ---
 
@@ -163,7 +163,7 @@ to expected worklist and metric behavior.
 - Increased the current suite from 56 to 61 passing tests without changing
   application behavior or schema.
 
-## Session 8 - CytoBridge v1.1 Phase 1 control-plane setup
+## Session 8 - CytoBridge v1.1 Phase 1 control-plane setup and acceptance
 
 **Requirements introduced:** none implemented. This is a supervised
 planning/control milestone, not an implementation session. **No v1.1 recovery
@@ -175,27 +175,29 @@ Clearly distinguished:
 - **Approved design.** `validation/v1.1-design-record.md` reproduces Austin's
   approved and frozen Phase 1 product architecture (plain-ASCII typography only;
   no meaning changed). Substantive edits require Austin's explicit approval.
-- **Draft awaiting review.** `validation/v1.1-requirements.md` (draft `R-020`-
-  `R-041`) and `validation/v1.1-test-intent.md` are marked **DRAFT FOR AUSTIN
-  REVIEW**. They describe behavior that does **not yet exist** and become frozen
-  only after Austin approves and merges the setup pull request. The existing
+- **Approved and frozen requirements/test intent.**
+  `validation/v1.1-requirements.md` (`R-020`-`R-041`) and
+  `validation/v1.1-test-intent.md` were reviewed and approved by Austin after
+  setup PR #11 merged. They describe behavior that does **not yet exist**;
+  substantive changes require Austin's explicit approval. The existing
   `requirements.md` numbering (`R-001`-`R-019`) is unchanged.
 - **No implementation yet.** Recovery remains unbuilt.
 
 **What changed (control-plane only):**
 - `validation/v1.1-design-record.md` - frozen approved design record.
-- `validation/v1.1-requirements.md` - draft v1.1 requirements (`R-020`-`R-041`),
-  amended per Austin-approved corrections: handled-failure rollback semantics
+- `validation/v1.1-requirements.md` - approved, frozen v1.1 requirements
+  (`R-020`-`R-041`), amended per Austin-approved corrections:
+  handled-failure rollback semantics
   (preserve the `ERRORED` resulting message and `FAILED` attempt while rolling
   back FISH results, filing events, and queue resolution) and match-checked
   `request_id` replay with `REQUEST_ID_CONFLICT` rejection.
-- `validation/v1.1-test-intent.md` - draft pre-implementation test intent,
-  including the human-approved invariants I-01 and I-02.
+- `validation/v1.1-test-intent.md` - approved, frozen pre-implementation test
+  intent, including the human-approved invariants I-01 and I-02.
 - `CLAUDE.md` - stable autonomous-builder rules (synthetic-data/no-PHI,
   read-frozen-files-first, blockers, branch/PR/pace limits, no push to `main`).
-- `AUTONOMOUS_STATUS.md` - the single writable status document; phase
-  `PHASE_1_CONTROLS_PENDING_REVIEW`, no approved implementation task, routines
-  disabled until Austin merges and approves.
+- `AUTONOMOUS_STATUS.md` - the single writable status document; after Phase 1
+  acceptance, phase `PHASE_2_READY_FOR_TASK_APPROVAL`, no approved
+  implementation task, zero unreviewed tasks, and the Routine disabled.
 - `.github/CODEOWNERS` - Austin owns the frozen files (review ownership/
   visibility, not edit prevention); protected by the guard along with the guard
   itself.
@@ -205,6 +207,12 @@ Clearly distinguished:
   the GitHub API, never checks out or executes PR code, and has no bootstrap
   bypass (the setup PR itself was the one-time supervised bootstrap, before the
   guard existed on `main`). Existing CI is unchanged.
+
+**Phase 1 acceptance (2026-07-22):** Austin approved and froze the v1.1
+requirements and test-intent specification after setup PR #11 merged. The
+accepted baseline is `cc3d395`. Phase 2 is ready for Austin to approve its first
+task; no implementation task is approved and the autonomous Routine remains
+disabled.
 
 **Validation:** existing pytest suite and demo run unchanged and green; workflow
 YAML parses; new Markdown is plain-ASCII; relative links reviewed;
