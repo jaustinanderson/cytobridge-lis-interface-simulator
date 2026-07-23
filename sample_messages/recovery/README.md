@@ -80,9 +80,9 @@ checks a message in a fixed order:
    probe code, then non-integer cell count, then abnormal exceeds scored, then
    invalid interpretation.
 
-Each original fixture changes exactly one field from an otherwise-valid message
-so that the intended check is the first (and only) one that fails. The
-representative triggers used are:
+Each original fixture isolates a single failure-producing condition so that the
+intended check is the first (and only) one that fails. The representative
+triggers used are:
 
 - EMPTY_MESSAGE: an empty (zero-byte) payload.
 - MISSING_REQUIRED_SEGMENT: the SPM segment is omitted.
@@ -100,8 +100,28 @@ representative triggers used are:
 - INVALID_INTERPRETATION: an interpretation (EQUIVOCAL) outside NORMAL,
   ABNORMAL, and INDETERMINATE.
 
-Each corrected fixture (where one exists) repairs only that single field and is
-otherwise identical, so a reviewer can see exactly what a re-drive would change.
+Each corrected fixture (where one exists) removes only the failure-producing
+condition and is an otherwise-faithful re-drive of the same synthetic case; it
+is not a byte-for-byte copy of the original. Specifically:
+
+- The isolated failure-producing condition is the only defect removed. Every
+  corrected fixture is a complete, valid message that files, and none
+  introduces a different invalid condition.
+- A re-drive is a new message, so each corrected fixture carries fresh message
+  metadata: a new message date/time (MSH-7) and a new message control ID
+  (MSH-10, an RCC-* value rather than the original's RCO-*). These identify the
+  re-drive and are expected to differ from the original.
+- For EMPTY_MESSAGE and NO_OBX the repair is necessarily additive: an empty
+  payload and a message with no OBX cannot be fixed in place, so the corrected
+  fixtures supply the missing message content (a full message, and OBX result
+  segments, respectively).
+- For the specimen cases (SPECIMEN_UNRECOGNIZED, SPECIMEN_INCOMPATIBLE) the
+  correction updates the coded specimen type (SPM-4) together with the related
+  synthetic specimen identifier (SPM-2), keeping the specimen fields internally
+  consistent.
+- Every other corrected fixture changes only the single offending field (for
+  example an empty OBR-3 accession, an OBX probe code, a cell count, or an
+  interpretation).
 
 ## Manifest fields
 
