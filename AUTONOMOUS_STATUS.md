@@ -11,62 +11,56 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_SCHEMA_IN_REVIEW` (P3-001 completed, awaiting Austin's review) |
-| Last accepted baseline commit | `681b8295f0555097af0c7b0ae56ee7069ccbcc5a` (`main`) |
-| P3-001 starting `main` commit | `4035e3315c54dd4f9e39df20588a73ef35859e7a` |
-| Active implementation task branch | `claude/v1.1-p3-001-recovery-schema` |
-| Draft implementation PR | #15 (draft, targets `main`) |
-| Completed-but-unreviewed task count | 1 |
+| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-001 accepted and closed; no follow-on task approved) |
+| Last accepted baseline commit | `dafba1ae2cfe3a8d7e5cad0b5e89926e58dfd90e` (`main`) |
+| Active implementation task branch | None |
+| Draft implementation PR | None |
+| Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-Austin explicitly approved exactly one task: **P3-001 - Recovery Data Model and
-Schema** (the separately reviewed schema/data-model task). It is now completed
-and awaiting Austin's review. No later implementation task is approved: no
-failure classification, recovery service, application behavior, or additional
-executable test beyond the P3-001 schema tests is authorized.
+None. P3-001 is complete and accepted; it is no longer active or unreviewed.
+No later Phase 3 implementation task is approved. In particular, no structured
+failure-classification population, recovery service, queue-transition logic,
+application behavior, or additional executable test is authorized.
 
 ## Accepted task history
 
 | Task | Accepted outcome | Accepted baseline |
 |---|---|---|
 | P2-001 - Synthetic Recovery Corpus | Gate 2 passed; PR #13 merged into `main` | `681b8295f0555097af0c7b0ae56ee7069ccbcc5a` |
+| P3-001 - Recovery Data Model and Schema | Independent schema review passed; PR #15 merged into `main` | `dafba1ae2cfe3a8d7e5cad0b5e89926e58dfd90e` |
 
 P2-001 delivered the approved review-only corpus: fourteen original synthetic
 AML/MDS FISH failure fixtures, twelve corrected fixtures for recoverable cases,
 a machine-readable manifest, and a human-readable guide. It introduced no
 schema or recovery implementation.
 
+P3-001 delivered only the approved v1.1 recovery database shape and
+database-level constraints. It added the `interface_error_queue`
+classification columns (`failure_code`, `failure_category`,
+`recovery_policy`), expanded queue states to
+`OPEN`/`RESOLVED`/`TERMINAL`, added `terminal_at`, and enforced the
+approved state/timestamp combinations. It also added the
+`interface_recovery_attempt` table with the exact approved logical fields,
+foreign keys, request-id uniqueness, the single-success-per-queue invariant,
+valid action/outcome values, and outcome-to-resulting-message rules.
+
+The classification columns remain nullable as approved for schema-task
+sequencing, preserving unchanged Session 3 ingestion until a separate task is
+approved to populate them. P3-001 introduced no failure mapping logic,
+recovery processing, service function, parser change, migration framework, or
+application behavior.
+
 ## Completed-but-unreviewed task branches
 
-One of the two permitted completed-but-unreviewed task slots is in use.
-
-| Task | Branch | Status |
-|---|---|---|
-| P3-001 - Recovery Data Model and Schema | `claude/v1.1-p3-001-recovery-schema` | Completed; draft PR #15 open; awaiting Austin's review |
-
-P3-001 implements only the approved v1.1 recovery database shape and
-database-level constraints. It adds the `interface_error_queue` classification
-columns (`failure_code`, `failure_category`, `recovery_policy`), the expanded
-`OPEN`/`RESOLVED`/`TERMINAL` status set, `terminal_at`, and the enforced
-state/timestamp consistency rules; it creates the `interface_recovery_attempt`
-table with the exact approved logical fields and its database enforcement
-(unique `request_id`, at most one `SUCCEEDED` attempt per `queue_id`, valid
-foreign keys, enumerated `action`/`outcome`, and outcome-to-resulting-message
-rules). Per the schema-task sequencing rule the classification columns remain
-nullable while non-null values are constrained to the frozen vocabulary,
-because the existing Session 3 ingestion code is not authorized to change in
-P3-001. No failure classification, recovery processing, service function,
-parser change, migration framework, or application behavior was added.
-
-Changed files: `schema.sql`, the new `tests/test_recovery_schema.py`, and this
-status document only.
+None. Both permitted completed-but-unreviewed task slots are available.
 
 ## Blocked tasks and reasons
 
-None recorded. Gate 2 found no unresolved taxonomy, policy, fixture, or
-documentation blocker after the approved review corrections.
+None recorded. P3-001 review found no unresolved schema, compatibility, or
+database-constraint blocker.
 
 ## Test evidence (accepted P2-001 corpus)
 
@@ -89,37 +83,38 @@ documentation blocker after the approved review corrections.
   `AUTONOMOUS_STATUS.md`; no frozen file, schema, application code, workflow,
   or executable test changed.
 
-## Questions requiring Austin
+## Test evidence (accepted P3-001 schema task)
 
-- Review the P3-001 draft PR (schema and schema tests only) and accept, revise,
-  or reject it.
-- Approve, revise, or defer any later Phase 3 implementation task (failure
-  classification, recovery services, application behavior). None is approved yet.
-- Decide separately when the autonomous Routine may be enabled. It remains
-  `DISABLED` unless Austin explicitly authorizes it.
-
-## Test evidence (P3-001 schema task)
-
+- PR #15 passed independent schema review and merged to `main` as
+  `dafba1ae2cfe3a8d7e5cad0b5e89926e58dfd90e`.
 - `python -m pytest -q`: 90 tests passed (61 existing unchanged plus 29 new
   schema tests); no existing test was modified.
 - `python -m src.demo_run`: ran cleanly, exit 0.
 - `PRAGMA foreign_key_check`: no violations on a freshly initialized database.
-- `schema.sql` initializes a fresh database and is safely rerunnable
-  (`IF NOT EXISTS` / `INSERT OR IGNORE`); seed data is not duplicated.
-- New schema tests independently prove the queue columns, the exact recovery
-  attempt fields, valid and invalid state/timestamp combinations, invalid
-  non-null failure codes/categories/policies, both foreign keys, duplicate
-  `request_id` rejection, the single-`SUCCEEDED`-per-queue invariant, permitted
-  multiple `FAILED`/`REJECTED` attempts, invalid actions/outcomes,
-  `SUCCEEDED`/`FAILED` requiring a resulting message, `REJECTED` forbidding one,
-  repeatable initialization, and unchanged Session 3 ingestion.
-- New text is plain ASCII; `git diff --check` is clean. The diff contains only
-  `schema.sql`, `tests/test_recovery_schema.py`, and this status document.
+- `schema.sql` initialized a fresh database and was safely rerunnable without
+  duplicate seed data.
+- The new tests independently proved the queue columns, exact recovery-attempt
+  fields, queue-state/timestamp rules, approved vocabulary checks, foreign
+  keys, unique `request_id`, at most one `SUCCEEDED` attempt per queue,
+  permitted repeated `FAILED`/`REJECTED` attempts, action/outcome checks,
+  outcome-to-resulting-message rules, repeatable initialization, and unchanged
+  Session 3 ingestion.
+- CI passed on Python 3.11 and 3.12, including the test suite and demo.
+- New text was plain ASCII and `git diff --check` was clean.
+- The accepted PR changed only `schema.sql`,
+  `tests/test_recovery_schema.py`, and `AUTONOMOUS_STATUS.md`.
+
+## Questions requiring Austin
+
+- Approve, revise, or defer the next separately scoped Phase 3 implementation
+  task. No later task is approved yet.
+- Decide separately when the autonomous Routine may be enabled. It remains
+  `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Await Austin's review of the P3-001 draft PR. **Scheduled routines remain
-disabled.** No recovery implementation, failure-classification population,
-application change, or further executable-test work may begin until its own
-task ID is approved. Do not merge, deploy, release, enable auto-merge, or push
-to `main`.
+Present one bounded Phase 3 task for Austin's explicit approval. **Scheduled
+routines remain disabled.** No failure-classification population, recovery
+service, queue-transition implementation, application change, or additional
+executable-test work may begin until its own task ID is approved. Do not merge,
+deploy, release, enable auto-merge, or push to `main`.
