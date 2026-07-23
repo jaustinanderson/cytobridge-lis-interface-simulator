@@ -15,7 +15,7 @@ explicit approval.
 | Last accepted baseline commit | `681b8295f0555097af0c7b0ae56ee7069ccbcc5a` (`main`) |
 | P3-001 starting `main` commit | `4035e3315c54dd4f9e39df20588a73ef35859e7a` |
 | Active implementation task branch | `claude/v1.1-p3-001-recovery-schema` |
-| Draft implementation PR | (recorded on final status commit) |
+| Draft implementation PR | #15 (draft, targets `main`) |
 | Completed-but-unreviewed task count | 1 |
 | Autonomous Routine | `DISABLED` |
 
@@ -44,7 +44,7 @@ One of the two permitted completed-but-unreviewed task slots is in use.
 
 | Task | Branch | Status |
 |---|---|---|
-| P3-001 - Recovery Data Model and Schema | `claude/v1.1-p3-001-recovery-schema` | Completed; draft PR open; awaiting Austin's review |
+| P3-001 - Recovery Data Model and Schema | `claude/v1.1-p3-001-recovery-schema` | Completed; draft PR #15 open; awaiting Austin's review |
 
 P3-001 implements only the approved v1.1 recovery database shape and
 database-level constraints. It adds the `interface_error_queue` classification
