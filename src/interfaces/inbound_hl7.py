@@ -53,6 +53,39 @@ REQUIRED_SEGMENTS = ("MSH", "PID", "OBR", "SPM")
 
 VALID_INTERPRETATIONS = ("NORMAL", "ABNORMAL", "INDETERMINATE")
 
+
+@dataclass(frozen=True)
+class FailureClassification:
+    """The approved category and recovery policy for one failure code."""
+
+    category: str
+    policy: str
+
+
+# The single authoritative mapping from an approved failure code to its approved
+# category and recovery policy (design record sec 6). Category and policy are
+# ALWAYS derived from this table keyed by the code assigned at the failure site;
+# they are never inferred from the human-readable reason string, and the
+# (code, category, policy) triple is defined here and nowhere else. A ``TERMINAL``
+# policy is what makes a queue item initialize TERMINAL rather than OPEN, so the
+# two terminal order-state failures need no separately hard-coded list.
+_FAILURE_CLASSIFICATION: dict[str, FailureClassification] = {
+    "EMPTY_MESSAGE":            FailureClassification("MESSAGE_STRUCTURE", "REDRIVE_ONLY"),
+    "MISSING_REQUIRED_SEGMENT": FailureClassification("MESSAGE_STRUCTURE", "REDRIVE_ONLY"),
+    "NO_OBX":                   FailureClassification("MESSAGE_STRUCTURE", "REDRIVE_ONLY"),
+    "MISSING_ACCESSION":        FailureClassification("ORDER_MATCHING", "REDRIVE_ONLY"),
+    "ORDER_NOT_FOUND":          FailureClassification("ORDER_MATCHING", "RETRY_OR_REDRIVE"),
+    "ORDER_FINALIZED":          FailureClassification("ORDER_STATE", "TERMINAL"),
+    "ORDER_CANCELLED":          FailureClassification("ORDER_STATE", "TERMINAL"),
+    "SPECIMEN_UNRECOGNIZED":    FailureClassification("SPECIMEN", "REDRIVE_ONLY"),
+    "SPECIMEN_INCOMPATIBLE":    FailureClassification("SPECIMEN", "REDRIVE_ONLY"),
+    "MISSING_PROBE_CODE":       FailureClassification("FISH_RESULT_CONTENT", "REDRIVE_ONLY"),
+    "UNKNOWN_PROBE_CODE":       FailureClassification("FISH_RESULT_CONTENT", "REDRIVE_ONLY"),
+    "INVALID_CELL_COUNT":       FailureClassification("FISH_RESULT_CONTENT", "REDRIVE_ONLY"),
+    "ABNORMAL_EXCEEDS_SCORED":  FailureClassification("FISH_RESULT_CONTENT", "REDRIVE_ONLY"),
+    "INVALID_INTERPRETATION":   FailureClassification("FISH_RESULT_CONTENT", "REDRIVE_ONLY"),
+}
+
 # Map an inbound SPM-4 specimen code back to the internal specimen_type. Built
 # from the shared outbound SPECIMEN_TYPE table, plus a couple of common aliases
 # and the internal names themselves so the parser is forgiving about senders.
@@ -71,9 +104,17 @@ _SPECIMEN_CODE_TO_TYPE.update({
 class InboundError(Exception):
     """A reason an inbound message could not be filed.
 
-    The string is used verbatim as the ``interface_error_queue.reason`` so an
-    analyst reading the queue sees exactly why the message did not file.
+    Carries the approved structured failure ``code`` (design record sec 6),
+    assigned at the exact failure site, alongside the human-readable reason. The
+    reason string is still used verbatim as the ``interface_error_queue.reason``
+    so an analyst reading the queue sees exactly why the message did not file;
+    the code drives the structured classification and is never inferred by
+    parsing that reason string.
     """
+
+    def __init__(self, code: str, reason: str) -> None:
+        super().__init__(reason)
+        self.code = code
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +227,9 @@ def parse_message(raw: str) -> ParsedMessage:
     """
     segments = _split_segments(raw)
     if not segments:
-        raise InboundError("Message is empty; no HL7 segments found.")
+        raise InboundError(
+            "EMPTY_MESSAGE", "Message is empty; no HL7 segments found."
+        )
 
     present: dict[str, list[list[str]]] = {}
     for segment in segments:
@@ -195,11 +238,16 @@ def parse_message(raw: str) -> ParsedMessage:
 
     for required in REQUIRED_SEGMENTS:
         if required not in present:
-            raise InboundError(f"Required segment {required} is missing.")
+            raise InboundError(
+                "MISSING_REQUIRED_SEGMENT",
+                f"Required segment {required} is missing.",
+            )
 
     obx_segments = present.get("OBX", [])
     if not obx_segments:
-        raise InboundError("No OBX result segments present in message.")
+        raise InboundError(
+            "NO_OBX", "No OBX result segments present in message."
+        )
 
     msh = present["MSH"][0]
     pid = present["PID"][0]
@@ -238,7 +286,9 @@ def _match_order(conn: sqlite3.Connection, parsed: ParsedMessage) -> sqlite3.Row
     """Find the open order for the parsed accession, or raise ``InboundError``."""
     accession = parsed.accession_number
     if not accession:
-        raise InboundError("Accession number (OBR-3) is missing.")
+        raise InboundError(
+            "MISSING_ACCESSION", "Accession number (OBR-3) is missing."
+        )
 
     order = conn.execute(
         "SELECT o.order_id, o.status, o.panel_id, "
@@ -250,17 +300,20 @@ def _match_order(conn: sqlite3.Connection, parsed: ParsedMessage) -> sqlite3.Row
     ).fetchone()
     if order is None:
         raise InboundError(
-            f"No order matches accession number {accession}."
+            "ORDER_NOT_FOUND",
+            f"No order matches accession number {accession}.",
         )
     if order["status"] == "FINALIZED":
         raise InboundError(
+            "ORDER_FINALIZED",
             f"Order for accession {accession} is already finalized; "
-            "results cannot be filed."
+            "results cannot be filed.",
         )
     if order["status"] == "CANCELLED":
         raise InboundError(
+            "ORDER_CANCELLED",
             f"Order for accession {accession} is cancelled; "
-            "results cannot be filed."
+            "results cannot be filed.",
         )
     return order
 
@@ -271,14 +324,16 @@ def _check_specimen(parsed: ParsedMessage, order: sqlite3.Row) -> None:
     internal = _SPECIMEN_CODE_TO_TYPE.get(raw_code)
     if internal is None:
         raise InboundError(
-            f"Specimen type '{parsed.specimen_code}' (SPM-4) is not recognized."
+            "SPECIMEN_UNRECOGNIZED",
+            f"Specimen type '{parsed.specimen_code}' (SPM-4) is not recognized.",
         )
     expected = order["panel_specimen_type"]
     if internal != expected:
         raise InboundError(
+            "SPECIMEN_INCOMPATIBLE",
             f"Specimen type '{parsed.specimen_code}' ({internal}) is "
             f"incompatible with the {order['panel_code']} panel, which "
-            f"requires {expected}."
+            f"requires {expected}.",
         )
 
 
@@ -289,11 +344,13 @@ def _parse_count(raw: str, label: str, probe_code: str) -> int:
         value = int(text)
     except ValueError:
         raise InboundError(
-            f"Probe {probe_code}: {label} '{raw}' is not a valid integer."
+            "INVALID_CELL_COUNT",
+            f"Probe {probe_code}: {label} '{raw}' is not a valid integer.",
         )
     if value < 0:
         raise InboundError(
-            f"Probe {probe_code}: {label} ({value}) cannot be negative."
+            "INVALID_CELL_COUNT",
+            f"Probe {probe_code}: {label} ({value}) cannot be negative.",
         )
     return value
 
@@ -310,7 +367,10 @@ def _validate_obx(
     for obx in parsed.obx:
         probe_code = obx.probe_code
         if not probe_code:
-            raise InboundError("An OBX segment is missing its probe code (OBX-3).")
+            raise InboundError(
+                "MISSING_PROBE_CODE",
+                "An OBX segment is missing its probe code (OBX-3).",
+            )
 
         probe = conn.execute(
             "SELECT probe_id FROM probe WHERE panel_id = ? AND probe_code = ?",
@@ -318,8 +378,9 @@ def _validate_obx(
         ).fetchone()
         if probe is None:
             raise InboundError(
+                "UNKNOWN_PROBE_CODE",
                 f"Probe code {probe_code} is not part of the "
-                f"{order['panel_code']} panel."
+                f"{order['panel_code']} panel.",
             )
 
         scored = _parse_count(_component(obx.raw_value, 0), "cells_scored", probe_code)
@@ -328,16 +389,18 @@ def _validate_obx(
         )
         if abnormal > scored:
             raise InboundError(
+                "ABNORMAL_EXCEEDS_SCORED",
                 f"Probe {probe_code}: cells_abnormal ({abnormal}) exceeds "
-                f"cells_scored ({scored})."
+                f"cells_scored ({scored}).",
             )
 
         signal_pattern = _component(obx.raw_value, 2)
         interpretation = _component(obx.raw_value, 3).upper()
         if interpretation not in VALID_INTERPRETATIONS:
             raise InboundError(
+                "INVALID_INTERPRETATION",
                 f"Probe {probe_code}: interpretation '{interpretation}' is not "
-                f"one of {', '.join(VALID_INTERPRETATIONS)}."
+                f"one of {', '.join(VALID_INTERPRETATIONS)}.",
             )
 
         results.append(
@@ -374,15 +437,56 @@ def _update_message(
 
 
 def _route_to_error_queue(
-    conn: sqlite3.Connection, message_id: int, reason: str, raw_payload: str
+    conn: sqlite3.Connection,
+    message_id: int,
+    *,
+    code: str,
+    reason: str,
+    raw_payload: str,
 ) -> int:
-    """Record an OPEN inbound error-queue entry and return its queue_id."""
+    """Record a classified inbound error-queue entry and return its queue_id.
+
+    The failure ``code`` is assigned at the failure site; its category and
+    recovery policy come from the single authoritative classification mapping,
+    never from the human-readable ``reason``. A ``TERMINAL`` policy
+    (``ORDER_FINALIZED`` / ``ORDER_CANCELLED``) initializes the item directly as
+    TERMINAL with a populated ``terminal_at`` and null ``resolved_at``; every
+    other approved failure initializes OPEN with both timestamps null. A code
+    absent from the mapping is left to raise as a blocker rather than being
+    given any fallback classification.
+    """
+    classification = _FAILURE_CLASSIFICATION[code]
+    if classification.policy == "TERMINAL":
+        return execute(
+            conn,
+            "INSERT INTO interface_error_queue "
+            "(message_id, direction, reason, raw_payload, "
+            " failure_code, failure_category, recovery_policy, "
+            " status, terminal_at) "
+            "VALUES (?, 'INBOUND', ?, ?, ?, ?, ?, 'TERMINAL', datetime('now'))",
+            (
+                message_id,
+                reason,
+                raw_payload,
+                code,
+                classification.category,
+                classification.policy,
+            ),
+        )
     return execute(
         conn,
         "INSERT INTO interface_error_queue "
-        "(message_id, direction, reason, raw_payload, status) "
-        "VALUES (?, 'INBOUND', ?, ?, 'OPEN')",
-        (message_id, reason, raw_payload),
+        "(message_id, direction, reason, raw_payload, "
+        " failure_code, failure_category, recovery_policy, status) "
+        "VALUES (?, 'INBOUND', ?, ?, ?, ?, ?, 'OPEN')",
+        (
+            message_id,
+            reason,
+            raw_payload,
+            code,
+            classification.category,
+            classification.policy,
+        ),
     )
 
 
@@ -461,7 +565,13 @@ def ingest_message(
         results = _validate_obx(conn, order, parsed)
     except InboundError as err:
         reason = str(err)
-        queue_id = _route_to_error_queue(conn, message_id, reason, raw_payload)
+        queue_id = _route_to_error_queue(
+            conn,
+            message_id,
+            code=err.code,
+            reason=reason,
+            raw_payload=raw_payload,
+        )
         _update_message(conn, message_id, status="ERRORED")
         return IngestResult(
             message_id=message_id,

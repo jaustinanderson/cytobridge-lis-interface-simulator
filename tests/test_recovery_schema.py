@@ -421,8 +421,10 @@ def test_fresh_database_initializes_cleanly():
 
 
 def test_existing_inbound_ingestion_still_routes_to_queue(conn):
-    # Session 3 ingestion inserts queue rows without the new classification
-    # columns; those must remain null and the row must be a valid OPEN item.
+    # The schema still permits null classification (proven separately by
+    # test_null_classification_allowed), but P3-002 now populates the
+    # classification columns for the existing inbound path: an unmatched
+    # accession is an OPEN ORDER_NOT_FOUND item.
     message = (
         "MSH|^~\\&|FISHSCAN|CYTO_INSTR|CYTOBRIDGE|CYTO_LAB|20260709101500||"
         "ORU^R01|SCHEMA1|T|2.5.1\n"
@@ -442,6 +444,6 @@ def test_existing_inbound_ingestion_still_routes_to_queue(conn):
     assert row["status"] == "OPEN"
     assert row["resolved_at"] is None
     assert row["terminal_at"] is None
-    assert row["failure_code"] is None
-    assert row["failure_category"] is None
-    assert row["recovery_policy"] is None
+    assert row["failure_code"] == "ORDER_NOT_FOUND"
+    assert row["failure_category"] == "ORDER_MATCHING"
+    assert row["recovery_policy"] == "RETRY_OR_REDRIVE"

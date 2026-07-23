@@ -184,7 +184,23 @@ def test_already_finalized_order_goes_to_error_queue(conn, open_inbound_order):
 
     result = inbound_hl7.ingest_message(conn, _sample("aml_mds_valid_oru.hl7"))
     assert result.filed is False
-    assert "finalized" in _open_queue(conn)[0]["reason"].lower()
+    # A finalized order is a terminal failure, so P3-002 initializes the queue
+    # item as TERMINAL rather than OPEN; retrieve it directly by queue_id
+    # instead of through the OPEN-only _open_queue helper.
+    entry = conn.execute(
+        "SELECT reason, status, terminal_at, resolved_at, failure_code, "
+        "failure_category, recovery_policy "
+        "FROM interface_error_queue WHERE queue_id = ?",
+        (result.queue_id,),
+    ).fetchone()
+    assert entry is not None
+    assert "finalized" in entry["reason"].lower()
+    assert entry["status"] == "TERMINAL"
+    assert entry["terminal_at"] is not None
+    assert entry["resolved_at"] is None
+    assert entry["failure_code"] == "ORDER_FINALIZED"
+    assert entry["failure_category"] == "ORDER_STATE"
+    assert entry["recovery_policy"] == "TERMINAL"
 
 
 def test_unknown_probe_code_goes_to_error_queue(conn, open_inbound_order):
