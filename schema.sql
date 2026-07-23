@@ -195,20 +195,98 @@ CREATE TABLE IF NOT EXISTS interface_message (
 CREATE INDEX IF NOT EXISTS idx_interface_message_order ON interface_message(order_id);
 
 -- Inbound messages that could not be filed land here with a clear reason.
+--
+-- v1.1 (P3-001) adds the recovery data model: structured failure classification
+-- (failure_code / failure_category / recovery_policy), an expanded status set
+-- (OPEN / RESOLVED / TERMINAL), and a terminal_at timestamp. The classification
+-- columns are nullable at this schema stage because the existing Session 3
+-- ingestion path does not yet populate them; database CHECKs still reject any
+-- non-null value outside the approved frozen vocabulary. Populating these
+-- columns and any later tightening are separately approved work.
 CREATE TABLE IF NOT EXISTS interface_error_queue (
-    queue_id    INTEGER PRIMARY KEY,
-    message_id  INTEGER REFERENCES interface_message(message_id),
-    direction   TEXT    NOT NULL DEFAULT 'INBOUND'
+    queue_id         INTEGER PRIMARY KEY,
+    message_id       INTEGER REFERENCES interface_message(message_id),
+    direction        TEXT    NOT NULL DEFAULT 'INBOUND'
         CHECK (direction IN ('INBOUND', 'OUTBOUND')),
-    reason      TEXT    NOT NULL,
-    raw_payload TEXT,
-    status      TEXT    NOT NULL DEFAULT 'OPEN'
-        CHECK (status IN ('OPEN', 'RESOLVED')),
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-    resolved_at TEXT
+    reason           TEXT    NOT NULL,
+    raw_payload      TEXT,
+    -- Stable machine-readable failure code from the approved mapping. Nullable
+    -- for now; non-null values are constrained to the frozen taxonomy.
+    failure_code     TEXT
+        CHECK (failure_code IS NULL OR failure_code IN (
+            'EMPTY_MESSAGE', 'MISSING_REQUIRED_SEGMENT', 'NO_OBX',
+            'MISSING_ACCESSION', 'ORDER_NOT_FOUND',
+            'ORDER_FINALIZED', 'ORDER_CANCELLED',
+            'SPECIMEN_UNRECOGNIZED', 'SPECIMEN_INCOMPATIBLE',
+            'MISSING_PROBE_CODE', 'UNKNOWN_PROBE_CODE', 'INVALID_CELL_COUNT',
+            'ABNORMAL_EXCEEDS_SCORED', 'INVALID_INTERPRETATION'
+        )),
+    -- One of the five approved categories. Nullable for now.
+    failure_category TEXT
+        CHECK (failure_category IS NULL OR failure_category IN (
+            'MESSAGE_STRUCTURE', 'ORDER_MATCHING', 'ORDER_STATE',
+            'SPECIMEN', 'FISH_RESULT_CONTENT'
+        )),
+    -- Approved recovery policy for the item. Nullable for now.
+    recovery_policy  TEXT
+        CHECK (recovery_policy IS NULL OR recovery_policy IN (
+            'RETRY_OR_REDRIVE', 'REDRIVE_ONLY', 'TERMINAL'
+        )),
+    status           TEXT    NOT NULL DEFAULT 'OPEN'
+        CHECK (status IN ('OPEN', 'RESOLVED', 'TERMINAL')),
+    created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+    resolved_at      TEXT,
+    terminal_at      TEXT,
+    -- State/timestamp consistency (design record sec 5.1):
+    --   OPEN:     resolved_at and terminal_at are null.
+    --   RESOLVED: resolved_at is populated and terminal_at is null.
+    --   TERMINAL: terminal_at is populated and resolved_at is null.
+    CHECK (
+        (status = 'OPEN'     AND resolved_at IS NULL     AND terminal_at IS NULL)
+     OR (status = 'RESOLVED' AND resolved_at IS NOT NULL AND terminal_at IS NULL)
+     OR (status = 'TERMINAL' AND terminal_at IS NOT NULL AND resolved_at IS NULL)
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_error_queue_status ON interface_error_queue(status);
+
+-- ---------------------------------------------------------------------------
+-- Recovery attempts (v1.1 P3-001): one row per requested recovery of a queue
+-- item. Retried and corrected messages themselves live in interface_message;
+-- this table only records lineage and outcome. No separate payload store and no
+-- third recovery table are introduced (design record sec 4, 5.2, 5.3).
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS interface_recovery_attempt (
+    attempt_id           INTEGER PRIMARY KEY,
+    queue_id             INTEGER NOT NULL
+        REFERENCES interface_error_queue(queue_id),
+    resulting_message_id INTEGER
+        REFERENCES interface_message(message_id),
+    request_id           TEXT    NOT NULL UNIQUE,
+    action               TEXT    NOT NULL
+        CHECK (action IN ('RETRY_ORIGINAL', 'REDRIVE_CORRECTED')),
+    payload_sha256       TEXT    NOT NULL,
+    outcome              TEXT    NOT NULL
+        CHECK (outcome IN ('SUCCEEDED', 'FAILED', 'REJECTED')),
+    actor                TEXT    NOT NULL,
+    outcome_detail       TEXT    NOT NULL,
+    attempted_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+    -- Resulting-message presence by outcome (design record sec 5.2, 8):
+    --   SUCCEEDED / FAILED: a resulting interface_message is required.
+    --   REJECTED:           no resulting processing message is created.
+    CHECK (
+        (outcome IN ('SUCCEEDED', 'FAILED') AND resulting_message_id IS NOT NULL)
+     OR (outcome = 'REJECTED'               AND resulting_message_id IS NULL)
+    )
+);
+
+-- At most one SUCCEEDED recovery attempt per queue item, enforced independently
+-- of request_id uniqueness (design record sec 5.2, 9). Multiple FAILED or
+-- REJECTED attempts for the same queue item remain possible.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_recovery_attempt_single_success
+    ON interface_recovery_attempt (queue_id)
+    WHERE outcome = 'SUCCEEDED';
 
 -- ---------------------------------------------------------------------------
 -- Reference seed data: the AML/MDS FISH panel and its probes.
