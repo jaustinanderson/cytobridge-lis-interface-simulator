@@ -11,25 +11,20 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_TASK_COMPLETE_AWAITING_REVIEW` (P3-002 implemented; blocker resolved under Austin's explicit authorization; awaiting Austin's review) |
-| Last accepted baseline commit | `eec29e3199996653eb38c3b2d1fa88ee77d64aad` (`main`) |
-| Active implementation task branch | `claude/v1.1-p3-002-failure-classification-xub2b4` |
-| Draft implementation PR | [#17](https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/17) (draft, targeting `main`) |
-| Completed-but-unreviewed task count | 1 |
+| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-002 accepted and closed; no follow-on task approved) |
+| Last accepted baseline commit | `e6fa627bb0815560e2adf9d0c27b459f129db09e` (`main`) |
+| Active implementation task branch | None |
+| Draft implementation PR | None |
+| Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-Austin explicitly approved **P3-002 - Structured Failure Classification and
-Terminal Queue Initialization**, starting from `main` at commit
-`eec29e3199996653eb38c3b2d1fa88ee77d64aad`.
-
-P3-002 is complete and awaiting Austin's review. It implements only structured
-classification of the existing inbound failures plus the correct initial queue
-state for terminal order failures, from a single authoritative in-code mapping.
-No later Phase 3 implementation task (recovery service, retries, corrected
-re-drives, recovery-attempt creation, queue resolution, idempotency) is
-approved.
+None. P3-002 is complete and accepted; it is no longer active or unreviewed.
+No later Phase 3 implementation task is approved. In particular, no recovery
+service, retry or corrected re-drive processing, recovery-attempt creation,
+queue-transition logic, idempotency, application behavior, or additional
+executable test is authorized.
 
 ## Blocker resolution (P3-002)
 
@@ -67,6 +62,7 @@ document, query, or workflow was changed in this continuation.
 |---|---|---|
 | P2-001 - Synthetic Recovery Corpus | Gate 2 passed; PR #13 merged into `main` | `681b8295f0555097af0c7b0ae56ee7069ccbcc5a` |
 | P3-001 - Recovery Data Model and Schema | Independent schema review passed; PR #15 merged into `main` | `dafba1ae2cfe3a8d7e5cad0b5e89926e58dfd90e` |
+| P3-002 - Structured Failure Classification and Terminal Queue Initialization | Independent review passed; PR #17 merged into `main` | `e6fa627bb0815560e2adf9d0c27b459f129db09e` |
 
 P2-001 delivered the approved review-only corpus: fourteen original synthetic
 AML/MDS FISH failure fixtures, twelve corrected fixtures for recoverable cases,
@@ -84,21 +80,31 @@ foreign keys, request-id uniqueness, the single-success-per-queue invariant,
 valid action/outcome values, and outcome-to-resulting-message rules.
 
 The classification columns were left nullable as approved for schema-task
-sequencing, preserving unchanged Session 3 ingestion until a separate task was
-approved to populate them. P3-002 is that separate task.
+sequencing. P3-002 subsequently populated them for every existing inbound
+failure path while preserving the approved schema nullability.
+
+P3-002 delivered the frozen fourteen-code classification through one
+authoritative in-code mapping, initialized twelve recoverable failures as
+`OPEN`, and initialized `ORDER_FINALIZED` and `ORDER_CANCELLED` as
+`TERMINAL` with `terminal_at`. It preserved the existing reason text,
+original messages, raw payloads, successful filing behavior, and order state.
+It added no recovery service, retry or corrected re-drive processing,
+recovery-attempt write, queue transition after recovery, or idempotency
+behavior. Austin explicitly authorized the two non-frozen existing-test updates
+recorded below before P3-002 was accepted.
 
 ## Completed-but-unreviewed task branches
 
-One: `claude/v1.1-p3-002-failure-classification-xub2b4` (P3-002), draft PR #17,
-complete and awaiting Austin's review. One of the two permitted
-completed-but-unreviewed task slots remains available.
+None. Both permitted completed-but-unreviewed task slots are available.
 
 ## Blocked tasks and reasons
 
-None. The single P3-002 blocker is resolved under Austin's explicit
-authorization (see "Blocker resolution").
+None recorded. P3-002 review found no unresolved classification,
+compatibility, queue-initialization, or test-scope blocker. The implementation
+blocker was resolved through Austin's explicit two-test authorization before
+acceptance (see "Blocker resolution").
 
-## P3-002 scope delivered
+## Accepted P3-002 scope
 
 - `src/interfaces/inbound_hl7.py` (commit `28935b8`, unchanged in this
   continuation): the failure code is assigned at each exact failure site;
@@ -124,8 +130,10 @@ authorization (see "Blocker resolution").
 - The two authorized existing-test updates described under "Blocker
   resolution".
 
-## Test evidence (P3-002, blocker resolved)
+## Test evidence (accepted P3-002)
 
+- PR #17 passed independent review and merged to `main` as
+  `e6fa627bb0815560e2adf9d0c27b459f129db09e`.
 - `python -m pytest -q`: 110 passed, 0 failed (the two previously-conflicting
   pre-existing tests now assert the P3-002 behavior; all other tests unchanged).
 - `python -m src.demo_run`: ran cleanly, exit 0.
@@ -152,13 +160,16 @@ authorization (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Review and accept (or return) P3-002 on draft PR #17.
+- Approve, revise, or defer the next separately scoped Phase 3 recovery-service
+  task. No later task is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Await Austin's review of P3-002 draft PR #17. Do not merge, deploy, release,
-enable auto-merge, push to `main`, begin recovery-service or any later Phase 3
-work, or approve another task until Austin acts. **Scheduled routines remain
-disabled.**
+Present one bounded Phase 3 recovery-service task for Austin's explicit
+approval. **Scheduled routines remain disabled.** No recovery service, retry or
+corrected re-drive processing, recovery-attempt write, queue-transition
+implementation, idempotency behavior, application change, or additional
+executable-test work may begin until its own task ID is approved. Do not merge,
+deploy, release, enable auto-merge, or push to `main`.
