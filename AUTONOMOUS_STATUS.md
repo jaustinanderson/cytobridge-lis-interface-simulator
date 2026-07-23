@@ -14,7 +14,7 @@ explicit approval.
 | Current phase | `PHASE_3_TASK_COMPLETE_AWAITING_REVIEW` (P3-002 implemented; blocker resolved under Austin's explicit authorization; awaiting Austin's review) |
 | Last accepted baseline commit | `eec29e3199996653eb38c3b2d1fa88ee77d64aad` (`main`) |
 | Active implementation task branch | `claude/v1.1-p3-002-failure-classification-xub2b4` |
-| Draft implementation PR | `PENDING_RECORD` (opened after the amendment commit; number recorded in the following status commit) |
+| Draft implementation PR | [#17](https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/17) (draft, targeting `main`) |
 | Completed-but-unreviewed task count | 1 |
 | Autonomous Routine | `DISABLED` |
 
@@ -89,9 +89,9 @@ approved to populate them. P3-002 is that separate task.
 
 ## Completed-but-unreviewed task branches
 
-One: `claude/v1.1-p3-002-failure-classification-xub2b4` (P3-002), complete and
-awaiting Austin's review. One of the two permitted completed-but-unreviewed
-task slots remains available.
+One: `claude/v1.1-p3-002-failure-classification-xub2b4` (P3-002), draft PR #17,
+complete and awaiting Austin's review. One of the two permitted
+completed-but-unreviewed task slots remains available.
 
 ## Blocked tasks and reasons
 
@@ -152,13 +152,13 @@ authorization (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Review and accept (or return) P3-002 on the draft PR.
+- Review and accept (or return) P3-002 on draft PR #17.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Await Austin's review of the P3-002 draft PR. Do not merge, deploy, release,
+Await Austin's review of P3-002 draft PR #17. Do not merge, deploy, release,
 enable auto-merge, push to `main`, begin recovery-service or any later Phase 3
 work, or approve another task until Austin acts. **Scheduled routines remain
 disabled.**
