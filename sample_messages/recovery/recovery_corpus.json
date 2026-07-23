@@ -1,0 +1,373 @@
+{
+  "corpus": "CytoBridge v1.1 synthetic recovery corpus",
+  "task_id": "P2-001",
+  "status": "REVIEW ARTIFACT - recovery behavior NOT implemented",
+  "accepted_baseline_commit": "ec97f5b20daab62b0bafcd62d2c650b6e93fb444",
+  "source_of_truth": "validation/v1.1-design-record.md (APPROVED AND FROZEN)",
+  "panel": "AML_MDS_FISH (AML/MDS FISH Panel, BONE_MARROW)",
+  "synthetic_only": true,
+  "phi": "none - all identifiers, orders, specimens, and results are synthetic",
+  "notes": [
+    "This corpus encodes the frozen v1.1 design's expected failure classification and recovery policy for each approved failure code. It defines fixtures and expected metadata only; it does NOT implement recovery services, schema changes, or executable tests.",
+    "Expected metadata (failure_code, failure_category, recovery_policy, expected_queue_status, permitted_recovery_actions) is transcribed from the frozen design record mapping (section 6) and recovery rules (sections 7-8), not produced by running the parser.",
+    "The current Session-3 inbound parser stores each failed message as ERRORED and routes it to interface_error_queue with a free-text reason and status OPEN; it does not yet emit failure_code, failure_category, recovery_policy, or the TERMINAL queue status. Those v1.1 fields are unimplemented and are represented here only as design-dictated expectations for review.",
+    "expected_original_message_status is ERRORED for every case: the original failed message is preserved and is never updated to FILED (only a new recovery message may reach FILED)."
+  ],
+  "recovery_policy_reference": {
+    "REDRIVE_ONLY": {
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "expected_queue_status": "OPEN"
+    },
+    "RETRY_OR_REDRIVE": {
+      "permitted_recovery_actions": [
+        "RETRY_ORIGINAL",
+        "REDRIVE_CORRECTED"
+      ],
+      "expected_queue_status": "OPEN"
+    },
+    "TERMINAL": {
+      "permitted_recovery_actions": [],
+      "expected_queue_status": "TERMINAL"
+    }
+  },
+  "case_count": 14,
+  "cases": [
+    {
+      "case_id": "RC-01",
+      "failure_code": "EMPTY_MESSAGE",
+      "failure_category": "MESSAGE_STRUCTURE",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The payload is empty (zero bytes); the parser finds no HL7 segments and raises before any segment, order, specimen, or OBX check runs.",
+      "synthetic_setup": "For the corrected re-drive only: synthetic patient SYN-8101 and an AML/MDS FISH lab_order on accession ACC-REC-0101 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen. The empty original needs no database state to fail.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive supplies a well-formed message for an existing OPEN order (ACC-REC-0101); the single successful re-drive transitions the queue OPEN -> RESOLVED.",
+      "original_payload": "original/01_empty_message.hl7",
+      "corrected_payload": "corrected/01_empty_message.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-02",
+      "failure_code": "MISSING_REQUIRED_SEGMENT",
+      "failure_category": "MESSAGE_STRUCTURE",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The required SPM segment is omitted. MSH, PID, OBR, and OBX are all present, so the message parses up to the required-segment check and fails only because SPM is missing.",
+      "synthetic_setup": "For the corrected re-drive: synthetic patient SYN-8201 and an AML/MDS FISH lab_order on accession ACC-REC-0201 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive restores the SPM segment; with the matching OPEN order present the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/02_missing_required_segment.hl7",
+      "corrected_payload": "corrected/02_missing_required_segment.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-03",
+      "failure_code": "NO_OBX",
+      "failure_category": "MESSAGE_STRUCTURE",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "Every required segment (MSH, PID, OBR, SPM) is present but the message carries no OBX result segments, so it fails the no-result check.",
+      "synthetic_setup": "For the corrected re-drive: synthetic patient SYN-8301 and an AML/MDS FISH lab_order on accession ACC-REC-0301 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive adds valid OBX result segments; with the matching OPEN order the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/03_no_obx.hl7",
+      "corrected_payload": "corrected/03_no_obx.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-04",
+      "failure_code": "MISSING_ACCESSION",
+      "failure_category": "ORDER_MATCHING",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "OBR-3 (the accession) is empty. The message parses cleanly, then order matching fails immediately because there is no accession to match.",
+      "synthetic_setup": "For the corrected re-drive: synthetic patient SYN-8401 and an AML/MDS FISH lab_order on accession ACC-REC-0401 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive fills OBR-3 with the matching accession ACC-REC-0401; the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/04_missing_accession.hl7",
+      "corrected_payload": "corrected/04_missing_accession.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-05",
+      "failure_code": "ORDER_NOT_FOUND",
+      "failure_category": "ORDER_MATCHING",
+      "recovery_policy": "RETRY_OR_REDRIVE",
+      "isolated_failure_trigger": "The message is syntactically valid and specimen-compatible, but its accession ACC-REC-0500-NOMATCH matches no lab_order at ingest time.",
+      "synthetic_setup": "At failure time no lab_order exists for ACC-REC-0500-NOMATCH. RETRY_ORIGINAL prerequisite: a synthetic patient and a matching AML/MDS FISH lab_order on accession ACC-REC-0500-NOMATCH later exists in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen. REDRIVE_CORRECTED alternative: a separate synthetic AML/MDS FISH lab_order on accession ACC-REC-0501 in a non-terminal status already exists.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "RETRY_ORIGINAL",
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "RETRY_ORIGINAL: the unchanged original payload is retried after a matching OPEN order for ACC-REC-0500-NOMATCH becomes available. REDRIVE_CORRECTED: a corrected payload points OBR-3 at the existing OPEN order ACC-REC-0501. Either single success transitions the queue OPEN -> RESOLVED.",
+      "original_payload": "original/05_order_not_found.hl7",
+      "corrected_payload": "corrected/05_order_not_found.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-06",
+      "failure_code": "ORDER_FINALIZED",
+      "failure_category": "ORDER_STATE",
+      "recovery_policy": "TERMINAL",
+      "isolated_failure_trigger": "The message is valid and matches lab_order ACC-REC-0601, but that order is already FINALIZED, so results cannot be filed.",
+      "synthetic_setup": "Synthetic patient SYN-8601 and an AML/MDS FISH lab_order on accession ACC-REC-0601 in FINALIZED status (with its finalized report).",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "TERMINAL",
+      "permitted_recovery_actions": [],
+      "successful_recovery_prerequisite": "None. The failure is TERMINAL: no recovery action is permitted and no corrected payload exists. Recovery never reopens or unfinalizes the order; the queue item is TERMINAL.",
+      "original_payload": "original/06_order_finalized.hl7",
+      "corrected_payload": null,
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)",
+        "matched lab_order.status (never reopened, unfinalized, or uncancelled)"
+      ]
+    },
+    {
+      "case_id": "RC-07",
+      "failure_code": "ORDER_CANCELLED",
+      "failure_category": "ORDER_STATE",
+      "recovery_policy": "TERMINAL",
+      "isolated_failure_trigger": "The message is valid and matches lab_order ACC-REC-0701, but that order is CANCELLED, so results cannot be filed.",
+      "synthetic_setup": "Synthetic patient SYN-8701 and an AML/MDS FISH lab_order on accession ACC-REC-0701 in CANCELLED status.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "TERMINAL",
+      "permitted_recovery_actions": [],
+      "successful_recovery_prerequisite": "None. The failure is TERMINAL: no recovery action is permitted and no corrected payload exists. Recovery never reopens or uncancels the order; the queue item is TERMINAL.",
+      "original_payload": "original/07_order_cancelled.hl7",
+      "corrected_payload": null,
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)",
+        "matched lab_order.status (never reopened, unfinalized, or uncancelled)"
+      ]
+    },
+    {
+      "case_id": "RC-08",
+      "failure_code": "SPECIMEN_UNRECOGNIZED",
+      "failure_category": "SPECIMEN",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-0801, but SPM-4 carries an unknown specimen code (ZZZ) that maps to no internal specimen type.",
+      "synthetic_setup": "Synthetic patient SYN-8801 and an AML/MDS FISH lab_order on accession ACC-REC-0801 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive sets SPM-4 to a recognized bone-marrow code (BMA); the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/08_specimen_unrecognized.hl7",
+      "corrected_payload": "corrected/08_specimen_unrecognized.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-09",
+      "failure_code": "SPECIMEN_INCOMPATIBLE",
+      "failure_category": "SPECIMEN",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-0901, and SPM-4 is a recognized peripheral-blood code (PB), which is incompatible with the bone-marrow AML/MDS FISH panel.",
+      "synthetic_setup": "Synthetic patient SYN-8901 and an AML/MDS FISH lab_order on accession ACC-REC-0901 in a non-terminal (IN_PROCESS) status. The AML/MDS FISH panel requires BONE_MARROW.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive sets SPM-4 to the compatible bone-marrow code (BMA); the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/09_specimen_incompatible.hl7",
+      "corrected_payload": "corrected/09_specimen_incompatible.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-10",
+      "failure_code": "MISSING_PROBE_CODE",
+      "failure_category": "FISH_RESULT_CONTENT",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-1001 with a compatible specimen; the second OBX has an empty OBX-3 (no probe code). Filing is all-or-nothing, so the missing probe code fails the whole message.",
+      "synthetic_setup": "Synthetic patient SYN-9001 and an AML/MDS FISH lab_order on accession ACC-REC-1001 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive supplies a probe code in the offending OBX-3; the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/10_missing_probe_code.hl7",
+      "corrected_payload": "corrected/10_missing_probe_code.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-11",
+      "failure_code": "UNKNOWN_PROBE_CODE",
+      "failure_category": "FISH_RESULT_CONTENT",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-1101 with a compatible specimen; the second OBX names probe code NOTAPROBE, which is not part of the AML/MDS FISH panel.",
+      "synthetic_setup": "Synthetic patient SYN-9101 and an AML/MDS FISH lab_order on accession ACC-REC-1101 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive replaces NOTAPROBE with a valid panel probe code; the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/11_unknown_probe_code.hl7",
+      "corrected_payload": "corrected/11_unknown_probe_code.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-12",
+      "failure_code": "INVALID_CELL_COUNT",
+      "failure_category": "FISH_RESULT_CONTENT",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-1201 with a valid probe; the second OBX packs a non-integer cells_scored value (xx) in OBX-5.",
+      "synthetic_setup": "Synthetic patient SYN-9201 and an AML/MDS FISH lab_order on accession ACC-REC-1201 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive supplies an integer cells_scored value; the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/12_invalid_cell_count.hl7",
+      "corrected_payload": "corrected/12_invalid_cell_count.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-13",
+      "failure_code": "ABNORMAL_EXCEEDS_SCORED",
+      "failure_category": "FISH_RESULT_CONTENT",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-1301 with a valid probe; the second OBX reports 150 abnormal cells against only 100 scored, so abnormal exceeds scored.",
+      "synthetic_setup": "Synthetic patient SYN-9301 and an AML/MDS FISH lab_order on accession ACC-REC-1301 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive supplies counts where abnormal does not exceed scored; the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/13_abnormal_exceeds_scored.hl7",
+      "corrected_payload": "corrected/13_abnormal_exceeds_scored.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    },
+    {
+      "case_id": "RC-14",
+      "failure_code": "INVALID_INTERPRETATION",
+      "failure_category": "FISH_RESULT_CONTENT",
+      "recovery_policy": "REDRIVE_ONLY",
+      "isolated_failure_trigger": "The message matches OPEN order ACC-REC-1401 with a valid probe and counts; the second OBX carries interpretation EQUIVOCAL, which is not one of NORMAL, ABNORMAL, or INDETERMINATE.",
+      "synthetic_setup": "Synthetic patient SYN-9401 and an AML/MDS FISH lab_order on accession ACC-REC-1401 in a non-terminal (IN_PROCESS) status with an accessioned bone-marrow specimen.",
+      "expected_original_message_status": "ERRORED",
+      "expected_queue_status": "OPEN",
+      "permitted_recovery_actions": [
+        "REDRIVE_CORRECTED"
+      ],
+      "successful_recovery_prerequisite": "A corrected re-drive supplies a valid interpretation; the re-drive files and the queue transitions OPEN -> RESOLVED.",
+      "original_payload": "original/14_invalid_interpretation.hl7",
+      "corrected_payload": "corrected/14_invalid_interpretation.hl7",
+      "data_that_must_remain_unchanged": [
+        "interface_message.message_id (original failed message)",
+        "interface_message.payload (original failed payload)",
+        "interface_message.control_id",
+        "interface_message.status (remains ERRORED; never updated to FILED)",
+        "interface_message.created_at",
+        "interface_error_queue.raw_payload (immutable copy of the original)"
+      ]
+    }
+  ]
+}
