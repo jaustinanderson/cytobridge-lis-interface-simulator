@@ -17,14 +17,14 @@ explicit approval.
 | Draft implementation PR | None |
 | Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
-| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 5 closed initial findings, 0 open) |
+| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 6 confirmed findings, all `CORRECTED`; control verification pending) |
 
 ## Audit findings control
 
 `AUDIT_FINDINGS.md` is the canonical, reviewer-maintained record for material
 mistakes, near misses, post hoc corrections, inaccurate evidence, and planning
-failures. The initial record contains five closed findings from the P3-004 review
-cycle.
+failures. The initial record contains five corrected P3-004 findings plus one
+corrected governance-status finding from this control's own first draft.
 
 Every future approved task specification must require the builder to report
 either an `AUDIT CANDIDATE` with evidence and immediate containment, or
@@ -33,9 +33,12 @@ the independent reviewer confirms and logs official findings. Builders do not
 edit the ledger unless the task explicitly authorizes that file.
 
 A correction alone does not close a finding. The reviewer must verify both the
-immediate correction and a prevention/control measure. This audit control does
-not approve P3-005 or any other implementation task and does not enable the
-Autonomous Routine.
+immediate correction and a prevention/control measure. The six initial findings
+remain CORRECTED; transition to CONTROLLED or CLOSED requires independent
+acceptance of this governance change and later evidence from an approved pilot.
+
+This audit control does not approve P3-005 or any other implementation task and
+does not enable the Autonomous Routine.
 
 ## Approved and unblocked task IDs
 
