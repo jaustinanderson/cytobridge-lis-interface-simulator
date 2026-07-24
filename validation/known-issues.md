@@ -27,7 +27,7 @@ plainly what a system does **not** do.
 |---|---|
 | **Standards conformance** | HL7/FHIR outputs and the inbound parser are *educational, style-only*. They use synthetic local code systems (`urn:cytobridge:*`), set HL7 `MSH-11 = T` (training), and are **not** conformance-validated. No MLLP framing, ACK/NACK, or FHIR profile validation. Must not be pointed at a production interface. |
 | **Panel breadth** | Exactly one panel is modeled: **AML/MDS FISH** with 9 synthetic required probes and illustrative cutoffs. Cutoffs are not clinical reference values. |
-| **Persistence** | The demo and tests use an **in-memory** SQLite database seeded from `schema.sql`. There is no migration tooling, connection pooling, or multi-user concurrency model. |
+| **Persistence** | The demo and most tests use an **in-memory** SQLite database seeded from `schema.sql`; targeted recovery tests (`tests/test_recovery_service.py`) additionally verify **file-backed durability** after a success and after a handled failure by reopening an on-disk database. Even so, there is no migration tooling, connection pooling, or multi-user concurrency model. |
 | **Security / identity** | No authentication, authorization, role model, or PHI-handling controls. `actor` fields are free-text strings (`tech01`, `analyst01`, `interface`), not authenticated identities. |
 | **ISCN** | `reports.py` defines an ISCN parser **seam** (`parse_iscn`) but does not parse ISCN nomenclature; it returns the raw string with `is_valid=False`. |
 | **Clinical logic** | Interpretation consistency is a simple cutoff comparison. There is no clonal-evolution, mosaicism, or multi-probe-pattern reasoning. |

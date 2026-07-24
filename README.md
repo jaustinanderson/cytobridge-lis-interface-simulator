@@ -22,10 +22,12 @@ validation evidence, and troubleshooting documentation.
 > **Data notice:** All data in this project is **synthetic**. No PHI. No real
 > patient data.
 
-**Verified on `main`:** 164 passing pytest tests across eight suites, five
-end-to-end demonstration scenarios, and 41/41 requirements with result-level
-automated coverage plus 18 manual UAT definitions. GitHub Actions verifies Python
-3.11 and 3.12.
+**Verified state (this codebase):** 164 passing pytest tests across eight suites,
+five end-to-end demonstration scenarios, and 41/41 requirements with result-level
+automated coverage that passes today, plus 18 manual UAT definitions (defined,
+not executed). GitHub Actions verifies Python 3.11 and 3.12. (The v1.1
+controlled-recovery documentation closeout is under review; these figures
+describe the current tree and do not assert that closeout is merged to `main`.)
 
 ## Scope (v1)
 
@@ -327,7 +329,7 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
   [change-control log](validation/change-control-log.md) /
   [risk assessment](validation/risk-assessment.md)
 - **Walkthrough & review** ([`docs/`](docs/)):
-  [5-minute demo script](docs/demo-script.md) /
+  [~6-minute demo script](docs/demo-script.md) /
   [Mermaid workflow diagram](docs/workflow-diagram.md) /
   [portfolio review](docs/portfolio-review.md) (what it proves, the Epic/Beaker
   boundary, resume bullets, and interview talking points) /

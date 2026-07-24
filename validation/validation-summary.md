@@ -87,9 +87,10 @@ tests), and `tests/test_failure_classification.py` (20 tests):
 - **Both human-approved invariants** pass without weakening: I-01
   (original-message immutability) and I-02 (duplicate/replay protection).
 - **Outcome coverage:** `SUCCEEDED` (new FILED message + queue RESOLVED),
-  `FAILED` (handled failure - attempted message preserved as ERRORED, all filing
-  side effects rolled back, queue left OPEN), and `REJECTED` (prohibited action
-  or closed item; no processing message).
+  `FAILED` (a handled `InboundError` - the filing side effects and queue
+  resolution are rolled back, then the handled outcome is committed with the
+  attempted message preserved as ERRORED, the attempt FAILED, and the queue left
+  OPEN), and `REJECTED` (prohibited action or closed item; no processing message).
 - **Idempotency and conflict:** matching `request_id` **replay** returns the
   recorded attempt and writes nothing (proven for prior SUCCEEDED, FAILED, and
   REJECTED); a mismatched `request_id` reuse is a `REQUEST_ID_CONFLICT` that
@@ -99,9 +100,13 @@ tests), and `tests/test_failure_classification.py` (20 tests):
   `OPEN -> TERMINAL` without filing or reopening the order.
 - **History:** `get_recovery_history` returns every attempt in order and excludes
   conflict pseudo-attempts.
-- **Rollback:** a handled mid-operation failure and an unexpected failure (before
-  or after filing) both roll the whole request back, leaving no dangling
-  transaction; generic/database errors are never converted to FAILED.
+- **Rollback:** a handled mid-operation `InboundError` rolls back the filing side
+  effects (FISH results, `RESULT_ENTERED`/`INBOUND_RESULT_FILED` events, queue
+  resolution) and then commits the approved handled-failure outcome (ERRORED
+  message + FAILED attempt, queue OPEN). Separately, an **unexpected**
+  non-`InboundError` (before or after filing) rolls back the **whole request** and
+  re-raises. Both paths leave no dangling transaction; generic/database errors are
+  never converted to FAILED.
 - **Durability and integrity:** file-backed durability holds after both a success
   and a handled failure, and `PRAGMA foreign_key_check` returns no violations
   across success, failure, rejection, replay, conflict, and terminalization.

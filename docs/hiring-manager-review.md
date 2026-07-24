@@ -54,7 +54,7 @@ disclosed rather than hidden.
 | 6 | Error queue / troubleshooting credibility | 9 | Every message stored, all-or-nothing filing, clear reasons, OPEN status, an analyst runbook that reads like real triage, and a controlled recovery service (immutable original, idempotent, transaction-safe). |
 | 7 | Validation / UAT maturity | 9 | 41 traced requirements, a requirements-to-test matrix, 18 UAT scripts, risk assessment, known-issues, and a frozen pre-implementation design record with two human-approved invariants - unusually mature for a portfolio. |
 | 8 | Portfolio honesty / no overclaiming | 10 | Repeated Epic/Beaker boundary, "what it does NOT prove", synthetic-data notices, training flags. Best-in-class. |
-| 9 | Ease of demo | 9 | `python -m src.demo_run` (stdlib only), one dev dep, deterministic in-memory DB, 4 scenarios, a 5-minute script. |
+| 9 | Ease of demo | 9 | `python -m src.demo_run` (stdlib only), one dev dep, deterministic in-memory DB, five scenarios, an approximately six-minute script. |
 | 10 | Resume / interview usefulness | 9 | Ready-made bullets, talking points, and a clear answer to "is this Epic experience?". |
 
 ## Strengths
@@ -162,8 +162,10 @@ Beaker-adjacent learning, not Epic experience."
    stored; failures go to an error queue with a specific reason. From there a
    controlled service recovers them safely - retry an unchanged message or
    re-drive a corrected one, with the original kept immutable, idempotency by
-   request_id, and full rollback on failure. Nothing is silently dropped or
-   half-updated."
+   request_id, and transaction-safe outcomes: a handled failure rolls back the
+   filing side effects and commits a FAILED attempt with the queue left OPEN,
+   while an unexpected error rolls back the whole request. Nothing is silently
+   dropped or half-updated."
 5. **(1:45-2:00) Prove it.** "41 requirements each trace to a function or schema
    constraint, a test, and a UAT script; 164 tests pass across eight suites; the
    demo runs five scenarios end-to-end; and the recovery behavior was frozen in a

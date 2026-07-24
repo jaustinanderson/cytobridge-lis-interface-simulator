@@ -83,19 +83,31 @@ flowchart TD
     REJ --> UNCHANGED["queue unchanged"]
 
     ORIG[("original interface_message<br/>ERRORED - immutable")] -.lineage.-> OPEN
-    SUCC -.records.-> RA[("interface_recovery_attempt<br/>+ INBOUND_RESULT_FILED audit")]
+
+    %% Every outcome records exactly one interface_recovery_attempt row.
+    SUCC -.records.-> RA[("interface_recovery_attempt<br/>(one row per outcome)")]
     FAIL -.records.-> RA
     DYN -.records.-> RA
     REJ -.records.-> RA
+
+    %% A filing audit event is reached ONLY from SUCCEEDED; FAILED and REJECTED
+    %% never produce one.
+    SUCC -.files.-> FILED[("audit_event<br/>INBOUND_RESULT_FILED")]
+
+    %% A request_id conflict is audit-only: no attempt row, just this event.
     CONFLICT -.records.-> AUD3[("audit_event<br/>REQUEST_ID_CONFLICT")]
 ```
 
-Key invariants (requirements R-022-R-041): the original message and the queue
-`raw_payload` are never modified; only a new recovery message may reach `FILED`;
-a queue item has **at most one** `SUCCEEDED` attempt; a handled failure rolls
-back all filing side effects (queue stays `OPEN`) while preserving the `ERRORED`
-message and `FAILED` attempt; and recovery never creates a second error-queue
-item.
+Key invariants (requirements R-022-R-041): every recovery outcome
+(`SUCCEEDED`, `FAILED`, `REJECTED`) records exactly one
+`interface_recovery_attempt` row; an `INBOUND_RESULT_FILED` audit event is
+produced **only** by a `SUCCEEDED` outcome (`FAILED` and `REJECTED` file
+nothing); a `REQUEST_ID_CONFLICT` is audit-only and creates no attempt row; the
+original message and the queue `raw_payload` are never modified; only a new
+recovery message may reach `FILED`; a queue item has **at most one** `SUCCEEDED`
+attempt; a handled failure rolls back all filing side effects (queue stays
+`OPEN`) while preserving the `ERRORED` message and `FAILED` attempt, then commits
+that handled outcome; and recovery never creates a second error-queue item.
 
 ## 4. Audit trail (cross-cutting)
 

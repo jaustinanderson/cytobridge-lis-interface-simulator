@@ -241,6 +241,27 @@ def _message(conn: sqlite3.Connection, message_id: int) -> sqlite3.Row:
     ).fetchone()
 
 
+def _original_snapshot(
+    conn: sqlite3.Connection, message_id: int, queue_id: int
+) -> tuple[dict, str]:
+    """Full immutability snapshot of the original failed message + queue copy.
+
+    Captures message_id, payload, control_id, status, and created_at of the
+    original ``interface_message`` plus the queue item's ``raw_payload`` so a
+    before/after comparison proves every one of them is unchanged.
+    """
+    m = conn.execute(
+        "SELECT message_id, payload, control_id, status, created_at "
+        "FROM interface_message WHERE message_id = ?",
+        (message_id,),
+    ).fetchone()
+    raw = conn.execute(
+        "SELECT raw_payload FROM interface_error_queue WHERE queue_id = ?",
+        (queue_id,),
+    ).fetchone()["raw_payload"]
+    return dict(m), raw
+
+
 def _queue(conn: sqlite3.Connection, queue_id: int) -> sqlite3.Row:
     return conn.execute(
         "SELECT status, resolved_at, terminal_at FROM interface_error_queue "
@@ -251,6 +272,23 @@ def _queue(conn: sqlite3.Connection, queue_id: int) -> sqlite3.Row:
 
 def _count(conn: sqlite3.Connection, sql: str, params=()) -> int:
     return conn.execute(sql, params).fetchone()[0]
+
+
+def _order_audit_count(
+    conn: sqlite3.Connection, action: str, order_id: int
+) -> int:
+    """Read-only count of an audit action scoped to one order."""
+    return _count(
+        conn,
+        "SELECT COUNT(*) FROM audit_event WHERE action = ? AND order_id = ?",
+        (action, order_id),
+    )
+
+
+def _order_status(conn: sqlite3.Connection, order_id: int) -> str:
+    return conn.execute(
+        "SELECT status FROM lab_order WHERE order_id = ?", (order_id,)
+    ).fetchone()["status"]
 
 
 def _print_history(conn: sqlite3.Connection, queue_id: int) -> None:
@@ -267,21 +305,21 @@ def _corrected_redrive(conn: sqlite3.Connection) -> int:
     _make_open_order(conn, "SYN-8901", "ACC-REC-0901")
     ingest = inbound_hl7.ingest_message(conn, _recovery_original("09_specimen_incompatible.hl7"))
     queue_id = ingest.queue_id
-    original_before = dict(_message(conn, ingest.message_id))
+    before = _original_snapshot(conn, ingest.message_id, queue_id)
     print(f"  original message {ingest.message_id} status="
-          f"{original_before['status']}; queue {queue_id} OPEN "
+          f"{before[0]['status']}; queue {queue_id} OPEN "
           f"(reason: {ingest.reason})")
 
     attempt = recovery.redrive_queue_item(
         conn, queue_id, _recovery_corrected("09_specimen_incompatible.hl7"),
         request_id="DEMO-REDRIVE-A", actor="analyst01",
     )
-    after = dict(_message(conn, ingest.message_id))
+    after = _original_snapshot(conn, ingest.message_id, queue_id)
     new_msg = _message(conn, attempt.resulting_message_id)
     print(f"  redrive attempt {attempt.attempt_id}: {attempt.outcome}; "
           f"new message {attempt.resulting_message_id} status={new_msg['status']}")
-    print(f"  original message unchanged: {after == original_before} "
-          f"(still {after['status']})")
+    print(f"  original message_id/payload/control_id/status/created_at and queue "
+          f"raw_payload unchanged: {after == before} (still {after[0]['status']})")
     q = _queue(conn, queue_id)
     print(f"  queue {queue_id} -> {q['status']} "
           f"(resolved_at set: {q['resolved_at'] is not None}, "
@@ -322,7 +360,12 @@ def _handled_failure_then_success(conn: sqlite3.Connection) -> None:
     ingest = inbound_hl7.ingest_message(conn, _recovery_original("11_unknown_probe_code.hl7"))
     queue_id = ingest.queue_id
 
-    # A re-drive whose payload is still invalid: FAILED, no partial filing.
+    # A re-drive whose payload is still invalid. This one is rejected during
+    # validation (unknown probe) before any result is filed, so it produces no
+    # filing side effects at all; the handled failure commits a FAILED attempt
+    # with the attempted message ERRORED and leaves the queue OPEN. (The
+    # deterministic mid-operation rollback-after-a-partial-write path is proven
+    # by tests/test_recovery_service.py, not claimed here.)
     failed = recovery.redrive_queue_item(
         conn, queue_id, _recovery_original("11_unknown_probe_code.hl7"),
         request_id="DEMO-FAIL-1", actor="analyst01",
@@ -331,10 +374,14 @@ def _handled_failure_then_success(conn: sqlite3.Connection) -> None:
     q = _queue(conn, queue_id)
     order_fish = _count(
         conn, "SELECT COUNT(*) FROM fish_result WHERE order_id = ?", (order_id,))
+    results_entered = _order_audit_count(conn, "RESULT_ENTERED", order_id)
+    filed_events = _order_audit_count(conn, "INBOUND_RESULT_FILED", order_id)
     print(f"  attempt {failed.attempt_id}: {failed.outcome}; resulting message "
           f"{failed.resulting_message_id} status={failed_msg['status']}")
-    print(f"  queue {queue_id} still {q['status']}; results filed to order "
-          f"{order_id}: {order_fish} (no partial filing)")
+    print(f"  no filing side effects for order {order_id}: fish_result="
+          f"{order_fish}, RESULT_ENTERED={results_entered}, "
+          f"INBOUND_RESULT_FILED={filed_events}; order still "
+          f"{_order_status(conn, order_id)}; queue {queue_id} still {q['status']}")
 
     # A later valid request with a new request_id succeeds.
     good = recovery.redrive_queue_item(

@@ -472,30 +472,105 @@ from step 3 with its timestamps; the unchanged order status.
 
 **Precondition:** Fresh database.
 
+This UAT has two subcases. **15A** exercises the natural handled failure (an
+invalid payload rejected during validation, before any result is filed). **15B**
+deterministically exercises the mid-operation rollback path - a handled
+`InboundError` raised *after* the first result and its `RESULT_ENTERED` event
+have already been written - so the rollback is genuinely observed, not merely
+inferred from a validation that failed early.
+
+### Subcase 15A - natural handled failure (no filing side effects)
+
 **Steps:**
 1. Create the OPEN unknown-probe item:
    `open_order("SYN-9101", "ACC-REC-1101")`, then
    `r = inbound_hl7.ingest_message(conn, original("11_unknown_probe_code.hl7"))`.
 2. Re-drive with a **still-invalid** permitted payload (the original, unknown
    probe):
-   `f = recovery.redrive_queue_item(conn, r.queue_id, original("11_unknown_probe_code.hl7"), request_id="UAT15-F", actor="analyst01")`.
-3. Inspect rollback evidence (read-only): the resulting message status, the
-   order's `fish_result` count, `INBOUND_RESULT_FILED` events for the order, and
-   the queue status.
+   `f = recovery.redrive_queue_item(conn, r.queue_id, original("11_unknown_probe_code.hl7"), request_id="UAT15A-F", actor="analyst01")`.
+3. Inspect evidence (read-only): the resulting message status, the order's
+   `fish_result` count, its `RESULT_ENTERED` and `INBOUND_RESULT_FILED` events,
+   and the queue status.
 4. Re-drive with the **corrected** payload under a **new** `request_id`:
-   `g = recovery.redrive_queue_item(conn, r.queue_id, corrected("11_unknown_probe_code.hl7"), request_id="UAT15-G", actor="analyst01")`.
+   `g = recovery.redrive_queue_item(conn, r.queue_id, corrected("11_unknown_probe_code.hl7"), request_id="UAT15A-G", actor="analyst01")`.
 
 **Expected result:** `f.outcome = FAILED` with a resulting message preserved as
-`ERRORED`; **no** FISH results filed, **no** `INBOUND_RESULT_FILED` event for the
-order, queue still `OPEN` (rollback after filing but before success bookkeeping).
-`g.outcome = SUCCEEDED`, its message `FILED`, queue now `RESOLVED`; exactly one
-`SUCCEEDED` attempt exists.
+`ERRORED`. This payload is rejected during validation **before** any result is
+filed, so it produces **no filing side effects at all** - zero `fish_result`,
+zero `RESULT_ENTERED`, zero `INBOUND_RESULT_FILED` for the order - and the queue
+stays `OPEN`. (This subcase is *not* proof of rollback-after-a-partial-write; it
+simply never wrote anything - 15B proves the rollback.) `g.outcome = SUCCEEDED`,
+its message `FILED`, queue now `RESOLVED`; exactly one `SUCCEEDED` attempt exists.
 
 **Evidence to capture:** The `FAILED` attempt + `ERRORED` message; the zero
-filed-result / zero filing-event evidence with the queue still OPEN; the later
-`SUCCEEDED` attempt and `RESOLVED` queue.
+result / zero `RESULT_ENTERED` / zero filing-event evidence with the queue still
+OPEN; the later `SUCCEEDED` attempt and `RESOLVED` queue.
 
-**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
+### Subcase 15B - deterministic mid-operation rollback (fault injection)
+
+This mirrors `tests/test_recovery_service.py::`
+`test_handled_mid_operation_failure_rolls_back_all_side_effects`. The fault
+injection below is **UAT setup only** - it replaces one public workflow
+dependency to force a handled failure at a chosen point. It does **not** call any
+private recovery/inbound helper and does **not** update the queue by hand; the
+recovery itself is invoked only through `redrive_queue_item`.
+
+**Steps:**
+1. Create a fresh OPEN item whose corrected re-drive files **two** results (so a
+   failure on the second write happens after the first has committed within the
+   operation):
+   `open_order("SYN-8901", "ACC-REC-0901")`, then
+   `r = inbound_hl7.ingest_message(conn, original("09_specimen_incompatible.hl7"))`.
+2. Snapshot the order status and the queue row (`status`, `resolved_at`,
+   `terminal_at`) read-only, for a before/after comparison.
+3. Inject the fault (UAT setup only): make the **second** `enter_fish_result`
+   raise a handled `InboundError`, after the first result and its
+   `RESULT_ENTERED` event have written:
+
+   ```python
+   from src import workflow
+   from src.interfaces import inbound_hl7
+   real_enter = workflow.enter_fish_result
+   state = {"calls": 0}
+   def flaky_enter(*args, **kwargs):
+       state["calls"] += 1
+       if state["calls"] == 2:
+           raise inbound_hl7.InboundError(
+               "INVALID_INTERPRETATION", "injected handled mid-op failure")
+       return real_enter(*args, **kwargs)
+   workflow.enter_fish_result = flaky_enter
+   ```
+4. Re-drive the **corrected** payload through the service (invoke recovery only
+   this way):
+   `f = recovery.redrive_queue_item(conn, r.queue_id, corrected("09_specimen_incompatible.hl7"), request_id="UAT15B-MID", actor="analyst01")`.
+5. **Restore the injected dependency immediately:**
+   `workflow.enter_fish_result = real_enter`.
+6. Inspect rollback evidence (read-only): `fish_result` for the order,
+   `RESULT_ENTERED` and `INBOUND_RESULT_FILED` events for the order, the order
+   status, the queue row, the resulting message status, the attempt outcome, and
+   `conn.in_transaction`.
+7. Re-drive the corrected payload again with a **new** `request_id`:
+   `g = recovery.redrive_queue_item(conn, r.queue_id, corrected("09_specimen_incompatible.hl7"), request_id="UAT15B-OK", actor="analyst01")`.
+
+**Expected result:** `f.outcome = FAILED`. Even though the first result and its
+`RESULT_ENTERED` event were written mid-operation, the handled failure **rolls
+them back**: the order has **0** `fish_result`, **0** `RESULT_ENTERED`, and **0**
+`INBOUND_RESULT_FILED`; the order status is unchanged (`IN_PROCESS`); the queue
+row is unchanged and still `OPEN` with `resolved_at` and `terminal_at` null. The
+attempted message is preserved as `ERRORED` and the attempt is preserved as
+`FAILED`; `conn.in_transaction` is `False` (the approved handled-failure outcome
+committed cleanly - only an *unexpected* non-`InboundError` would re-raise). The
+later step-7 request with a new `request_id` succeeds (`g.outcome = SUCCEEDED`,
+message `FILED`, queue `RESOLVED`, exactly one `SUCCEEDED` attempt).
+
+**Evidence to capture:** before/after order and queue rows (unchanged through the
+FAILED attempt); the zeroed `fish_result` / `RESULT_ENTERED` / `INBOUND_RESULT_FILED`
+counts; the `ERRORED` message and `FAILED` attempt; `conn.in_transaction = False`;
+the later `SUCCEEDED` attempt and `RESOLVED` queue.
+
+**Pass / Fail (15A):** [ ] Pass [ ] Fail  Notes: ______________________________
+
+**Pass / Fail (15B):** [ ] Pass [ ] Fail  Notes: ______________________________
 
 ---
 

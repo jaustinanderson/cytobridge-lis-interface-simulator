@@ -92,8 +92,10 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
   Scenario 5 shows the representative cases: a **corrected re-drive** files a
   fixed message on a *new* message ID while the original stays ERRORED and
   untouched; an **unchanged retry** replays an ORDER_NOT_FOUND message once the
-  order exists; a **handled failure** rolls everything back and leaves the queue
-  OPEN, then a later valid request succeeds; and **replay/conflict protection** -
+  order exists; a **handled failure** rolls back the filing side effects,
+  preserves the attempted message as ERRORED and the attempt as FAILED, commits
+  that handled outcome, and leaves the queue OPEN - then a later valid request
+  succeeds; and **replay/conflict protection** -
   an identical replay is a no-op, a new request on a resolved item is REJECTED,
   and reusing a request_id with different parameters is a REQUEST_ID_CONFLICT."
 - **Point out:** "Two safety properties I'd highlight: the original failed
@@ -131,9 +133,12 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
   `test_invariant_I02_duplicate_and_replay_protection` - "one success per item,
   replay is a no-op, post-resolution requests are rejected."
 - **"How does recovery stay safe?"** Point to `src/recovery.py`: the original
-  message is immutable, only a new message can be FILED, every operation commits
-  or rolls back as a unit, and a handled failure leaves the queue OPEN with the
-  attempted message ERRORED - all transcribed from a frozen design record Austin
+  message is immutable, only a new message can be FILED, and every operation
+  commits or rolls back as a unit. A *handled* `InboundError` rolls back the
+  filing side effects and queue resolution, then commits the approved
+  handled-failure outcome - the attempted message ERRORED, the attempt FAILED,
+  the queue OPEN; only an *unexpected* non-`InboundError` rolls back the whole
+  request and re-raises. All transcribed from a frozen design record Austin
   approved before implementation.
 - **"What would you build next?"** Nothing beyond the approved scope without
   Austin's sign-off - the error-queue resolve/re-drive workflow (former KI-03) is

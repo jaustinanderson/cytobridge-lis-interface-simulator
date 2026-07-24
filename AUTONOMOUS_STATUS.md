@@ -77,6 +77,67 @@ plain ASCII; `recovery_corpus.json` parses and is unchanged.
 **Status:** P3-004 is **completed but awaiting Austin's review** on draft PR #21.
 It is not merged or accepted.
 
+## P3-004 review response (draft PR #21)
+
+Independent review of PR #21 found documentation/validation findings (no code or
+recovery-behavior defect). All were fixed on the same branch within the original
+14 authorized files; the amendment touched only these ten: `src/demo_run.py`,
+`README.md`, `docs/demo-script.md`, `docs/hiring-manager-review.md`,
+`docs/workflow-diagram.md`, `validation/uat-test-scripts.md`,
+`validation/validation-summary.md`, `validation/risk-assessment.md`,
+`validation/known-issues.md`, and this `AUTONOMOUS_STATUS.md`.
+
+1. **UAT-015 now genuinely proves mid-operation rollback.** UAT-015 keeps the
+   natural invalid-payload FAILED -> later-success case but no longer calls its
+   zero writes "rollback after filing" (that payload fails validation before
+   `_file_results` runs). A new subcase 15B mirrors
+   `test_handled_mid_operation_failure_rolls_back_all_side_effects`: it injects an
+   `InboundError` on the second `enter_fish_result` (after the first result and
+   `RESULT_ENTERED` wrote) through the public `redrive_queue_item`, and proves the
+   rollback removes all FISH rows / `RESULT_ENTERED` / `INBOUND_RESULT_FILED`,
+   leaves the order and queue unchanged and OPEN, preserves the ERRORED message
+   and FAILED attempt, shows `conn.in_transaction` false, then a new `request_id`
+   succeeds. The fault injection is UAT setup only (no private helper, no manual
+   queue update).
+2. **Handled-failure language corrected** in `docs/demo-script.md`,
+   `docs/hiring-manager-review.md`, `validation/validation-summary.md`, and
+   `validation/risk-assessment.md`: a handled `InboundError` rolls back the filing
+   side effects and queue resolution and then **commits** the approved
+   handled-failure outcome (ERRORED message + FAILED attempt, queue OPEN); only an
+   **unexpected** non-`InboundError` rolls back the whole request and re-raises.
+3. **Recovery diagram corrected** in `docs/workflow-diagram.md`: SUCCEEDED,
+   FAILED, and REJECTED each record an `interface_recovery_attempt` evidence node;
+   `INBOUND_RESULT_FILED` is a separate audit event reached only from SUCCEEDED;
+   `REQUEST_ID_CONFLICT` is audit-only. FAILED/REJECTED no longer imply a filing
+   event.
+4. **Remaining current-state facts corrected:** the hiring-manager scorecard now
+   reads five scenarios and an approximately six-minute script; the README
+   demo-script label is consistent; the branch-sensitive "Verified on `main`"
+   wording is replaced with a current-tree verified-state statement that does not
+   imply P3-004 is merged; `known-issues.md` persistence wording notes that the
+   demo and most tests use in-memory SQLite while targeted recovery tests verify
+   file-backed durability, with migration/pooling/concurrency limits remaining.
+   Historical four-scenario and 61-test figures are preserved only where labeled
+   historical.
+5. **Demo evidence tightened** in `src/demo_run.py`: the immutability claim now
+   compares `message_id`, `payload`, `control_id`, `status`, `created_at`, and the
+   queue `raw_payload` before/after; the handled-FAILED demonstration reports
+   accurately that the invalid payload produced no filing side effects (with
+   read-only `RESULT_ENTERED` / `INBOUND_RESULT_FILED` counts) and does not claim
+   it exercised mid-operation rollback.
+
+No test, schema, query, sample, corpus, frozen file, interface mapping, public
+signature, or recovery behavior was changed in this review response. After the
+amendment: 164 pytest tests still pass across eight suites; `python -m
+src.demo_run` exits 0 with five scenarios and every printed claim matching
+persisted state; `git diff --check` clean; changed-line text is plain ASCII; all
+relative Markdown links resolve; the full PR remains within the original 14
+authorized files.
+
+P3-004 remains **completed but awaiting Austin's review** - one completed-but-
+unreviewed task. No P3-005 or other follow-on work is approved, and the
+Autonomous Routine remains `DISABLED`.
+
 ## Blocker resolution (P3-002)
 
 The P3-002 review surfaced a blocker: correctly implementing the approved
