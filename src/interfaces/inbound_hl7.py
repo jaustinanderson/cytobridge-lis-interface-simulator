@@ -426,13 +426,19 @@ def _update_message(
     *,
     status: str,
     order_id: int | None = None,
+    commit: bool = True,
 ) -> None:
-    """Update the stored inbound message's status (and order link once matched)."""
+    """Update the stored inbound message's status (and order link once matched).
+
+    ``commit`` defaults to ``True`` (unchanged behavior); ``commit=False`` keeps
+    the update inside the caller's open transaction.
+    """
     execute(
         conn,
         "UPDATE interface_message SET status = ?, order_id = COALESCE(?, order_id) "
         "WHERE message_id = ?",
         (status, order_id, message_id),
+        commit=commit,
     )
 
 
@@ -496,8 +502,15 @@ def _file_results(
     results: list[InboundProbeResult],
     message_id: int,
     actor: str,
+    *,
+    commit: bool = True,
 ) -> list[str]:
-    """File validated probe results to the order and audit the inbound filing."""
+    """File validated probe results to the order and audit the inbound filing.
+
+    ``commit`` defaults to ``True`` (unchanged behavior); ``commit=False`` keeps
+    every result write and the filing audit event inside the caller's open
+    transaction so they commit or roll back as a unit.
+    """
     order_id = order["order_id"]
     filed_codes: list[str] = []
     for r in results:
@@ -510,6 +523,7 @@ def _file_results(
             r.signal_pattern,
             r.interpretation,
             entered_by=actor,
+            commit=commit,
         )
         filed_codes.append(r.probe_code)
 
@@ -524,8 +538,61 @@ def _file_results(
             f"({', '.join(filed_codes)})"
         ),
         actor=actor,
+        commit=commit,
     )
     return filed_codes
+
+
+# ---------------------------------------------------------------------------
+# Shared processing seam
+#
+# ``ingest_message`` and the v1.1 recovery service both need to (1) store a new
+# INBOUND message and (2) parse/match/specimen/OBX-validate a payload against the
+# database before filing. Those steps are factored into the two private helpers
+# below so the recovery service reuses exactly the same parsing, matching,
+# validation, fourteen-code failure taxonomy, and filing behavior through a
+# narrow seam, controlling the transaction via ``commit=False`` instead of
+# duplicating or reinterpreting any of it. The behavior of the public entry
+# points is unchanged: both helpers default to ``commit=True``.
+# ---------------------------------------------------------------------------
+
+def _store_inbound_message(
+    conn: sqlite3.Connection,
+    raw_payload: str,
+    *,
+    commit: bool = True,
+) -> int:
+    """Store one raw INBOUND HL7 message (status RECEIVED) and return its id.
+
+    Header metadata is read best-effort so even a malformed payload is stored.
+    """
+    control_id, message_type = _peek_header(raw_payload)
+    return store_message(
+        conn,
+        direction="INBOUND",
+        message_type=message_type,
+        message_format="HL7",
+        order_id=None,
+        control_id=control_id,
+        payload=raw_payload,
+        status="RECEIVED",
+        commit=commit,
+    )
+
+
+def _validate_inbound(
+    conn: sqlite3.Connection, raw_payload: str
+) -> tuple[ParsedMessage, sqlite3.Row, list[InboundProbeResult]]:
+    """Parse, match, specimen-check, and OBX-validate a payload (read-only).
+
+    Raises ``InboundError`` (carrying the approved failure ``code``) on the first
+    failing check, exactly as the inbound path does. Performs no writes.
+    """
+    parsed = parse_message(raw_payload)
+    order = _match_order(conn, parsed)
+    _check_specimen(parsed, order)
+    results = _validate_obx(conn, order, parsed)
+    return parsed, order, results
 
 
 # ---------------------------------------------------------------------------
@@ -546,23 +613,10 @@ def ingest_message(
     ``FILED``. Otherwise the whole message is routed to ``interface_error_queue``
     with a clear reason and the message is marked ``ERRORED``.
     """
-    control_id, message_type = _peek_header(raw_payload)
-    message_id = store_message(
-        conn,
-        direction="INBOUND",
-        message_type=message_type,
-        message_format="HL7",
-        order_id=None,
-        control_id=control_id,
-        payload=raw_payload,
-        status="RECEIVED",
-    )
+    message_id = _store_inbound_message(conn, raw_payload)
 
     try:
-        parsed = parse_message(raw_payload)
-        order = _match_order(conn, parsed)
-        _check_specimen(parsed, order)
-        results = _validate_obx(conn, order, parsed)
+        _parsed, order, results = _validate_inbound(conn, raw_payload)
     except InboundError as err:
         reason = str(err)
         queue_id = _route_to_error_queue(

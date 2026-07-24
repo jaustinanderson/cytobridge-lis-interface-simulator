@@ -50,14 +50,21 @@ def record_audit(
     order_id: int | None = None,
     detail: str | None = None,
     actor: str = "system",
+    commit: bool = True,
 ) -> int:
-    """Insert an audit_event row for a state change."""
+    """Insert an audit_event row for a state change.
+
+    ``commit`` defaults to ``True`` (unchanged behavior); pass ``commit=False``
+    to let the caller control the surrounding transaction so a multi-step
+    operation commits or rolls back as a unit.
+    """
     return execute(
         conn,
         "INSERT INTO audit_event "
         "(entity_type, entity_id, order_id, action, detail, actor) "
         "VALUES (?, ?, ?, ?, ?, ?)",
         (entity_type, entity_id, order_id, action, detail, actor),
+        commit=commit,
     )
 
 
@@ -237,12 +244,17 @@ def enter_fish_result(
     signal_pattern: str,
     interpretation: str,
     entered_by: str,
+    commit: bool = True,
 ) -> int:
     """Enter (or replace) a structured per-probe FISH result; return result_id.
 
     Re-entering a probe updates the existing result (one result per probe/order).
     Entering results is only allowed while the order is in process or already
     pending review — not after finalization.
+
+    ``commit`` defaults to ``True`` (unchanged behavior); pass ``commit=False``
+    to let the caller control the surrounding transaction so this result write,
+    the order-status advance, and the audit event commit or roll back as a unit.
     """
     order = get_order(conn, order_id)
     if order["status"] in ("FINALIZED", "CANCELLED"):
@@ -272,6 +284,7 @@ def enter_fish_result(
             interpretation,
             entered_by,
         ),
+        commit=commit,
     )
     # Move ORDERED/IN_PROCESS orders forward to PENDING_REVIEW once results flow.
     execute(
@@ -279,6 +292,7 @@ def enter_fish_result(
         "UPDATE lab_order SET status = 'PENDING_REVIEW' "
         "WHERE order_id = ? AND status IN ('ORDERED', 'IN_PROCESS')",
         (order_id,),
+        commit=commit,
     )
     record_audit(
         conn,
@@ -287,6 +301,7 @@ def enter_fish_result(
         "RESULT_ENTERED",
         order_id=order_id,
         detail=f"probe={probe_code} interp={interpretation}",
+        commit=commit,
     )
     return result_id
 

@@ -250,12 +250,17 @@ def store_message(
     control_id: str,
     payload: str,
     status: str = "GENERATED",
+    commit: bool = True,
 ) -> int:
     """Persist a generated message to ``interface_message`` and return its id.
 
     The existing schema already carries outbound messages (``direction`` allows
     ``OUTBOUND``; ``format`` allows ``HL7``/``FHIR``), so no schema change is
     needed to store what these generators produce.
+
+    ``commit`` defaults to ``True`` (unchanged behavior); pass ``commit=False``
+    to store the message inside the caller's open transaction so a multi-step
+    operation commits or rolls back as a unit.
     """
     return execute(
         conn,
@@ -264,6 +269,7 @@ def store_message(
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (direction, message_type, message_format, order_id, control_id,
          payload, status),
+        commit=commit,
     )
 
 
