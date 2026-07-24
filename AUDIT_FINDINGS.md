@@ -77,11 +77,12 @@ Every confirmed finding must record:
 
 | ID | Finding | Classification | Severity | Status |
 |---|---|---|---|---|
-| AF-2026-001 | UAT claimed rollback without reaching a filing write | Evidence validity | High | CLOSED |
-| AF-2026-002 | Handled and unexpected rollback semantics were conflated | Semantic accuracy | High | CLOSED |
-| AF-2026-003 | Recovery diagram associated filing audit evidence with non-success outcomes | Traceability/diagram | High | CLOSED |
-| AF-2026-004 | Current-state counts and claim strength drifted | State accuracy | Medium | CLOSED |
-| AF-2026-005 | UAT snippet confused written with committed and lacked guaranteed cleanup | Procedure robustness | Medium | CLOSED |
+| AF-2026-001 | UAT claimed rollback without reaching a filing write | Evidence validity | High | CORRECTED |
+| AF-2026-002 | Handled and unexpected rollback semantics were conflated | Semantic accuracy | High | CORRECTED |
+| AF-2026-003 | Recovery diagram associated filing audit evidence with non-success outcomes | Traceability/diagram | High | CORRECTED |
+| AF-2026-004 | Current-state counts and claim strength drifted | State accuracy | Medium | CORRECTED |
+| AF-2026-005 | UAT snippet confused written with committed and lacked guaranteed cleanup | Procedure robustness | Medium | CORRECTED |
+| AF-2026-006 | Findings were closed before prevention controls were verified | Governance status | Medium | CORRECTED |
 
 ## Findings
 
@@ -113,8 +114,8 @@ Every confirmed finding must record:
   must name the injection point, prove the pre-fault milestone was reached, and
   verify both persisted state and transaction state afterward.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CLOSED
-- **Closure evidence:** Corrected UAT merged through PR #21; the final procedure
+- **Status:** CORRECTED
+- **Correction evidence:** Corrected UAT merged through PR #21; the final procedure
   records `state["calls"] == 2`, pre-commit writes, rolled-back evidence, and
   `conn.in_transaction is false`.
 
@@ -143,8 +144,8 @@ Every confirmed finding must record:
   task must reconcile each outcome against a matrix of records created,
   preserved, rolled back, and re-raised before approving summary language.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CLOSED
-- **Closure evidence:** Corrected language merged through PR #21 and independently
+- **Status:** CORRECTED
+- **Correction evidence:** Corrected language merged through PR #21 and independently
   re-reviewed against the recovery service and tests.
 
 ### AF-2026-003 - Diagram implied false filing audit evidence
@@ -168,8 +169,8 @@ Every confirmed finding must record:
   outcome edge against persisted events before calling a validation diagram
   complete.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CLOSED
-- **Closure evidence:** Corrected diagram merged through PR #21 and independently
+- **Status:** CORRECTED
+- **Correction evidence:** Corrected diagram merged through PR #21 and independently
   checked against service behavior.
 
 ### AF-2026-004 - Current-state claims drifted during a large closeout
@@ -197,8 +198,8 @@ Every confirmed finding must record:
   before editing, search for superseded values afterward, distinguish historical
   figures explicitly, and compare every field named by an immutability claim.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CLOSED
-- **Closure evidence:** Corrections merged through PR #21; repository-wide stale
+- **Status:** CORRECTED
+- **Correction evidence:** Corrections merged through PR #21; repository-wide stale
   checks, demo execution, link checks, ASCII checks, and independent review
   passed.
 
@@ -229,6 +230,38 @@ Every confirmed finding must record:
   deterministic setup, unconditional teardown, explicit injection-point
   evidence, exact vocabulary, and an independent dry run.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CLOSED
-- **Closure evidence:** Residual correction commit `4c5e08a` merged through PR
+- **Status:** CORRECTED
+- **Correction evidence:** Residual correction commit `4c5e08a` merged through PR
   #21; the revised snippet and full suite were independently re-run.
+
+### AF-2026-006 - Finding closure was claimed before control verification
+
+- **Date:** 2026-07-24
+- **Scope:** PR #23, initial audit-findings governance draft
+- **Classification:** Governance status
+- **Severity:** Medium
+- **Diagnosis:** The first draft marked AF-2026-001 through AF-2026-005 CLOSED
+  because their immediate defects had been corrected in PR #21 and prevention
+  measures were described in this ledger. The new controls had not yet been
+  accepted on `main` or exercised in a later autonomous task, so closure was
+  premature under the ledger's own lifecycle.
+- **Evidence and impact:** PR #23 itself was the first location where the controls
+  existed. No independent review or pilot evidence yet demonstrated that future
+  task specifications and builders would follow them.
+- **What should have happened:** Historical corrections should have entered the
+  ledger as CORRECTED. CONTROLLED should require acceptance of the governance
+  control, and CLOSED should require later independent evidence that the control
+  operated as intended.
+- **Immediate correction:** AF-2026-001 through AF-2026-005 now remain CORRECTED.
+  Their transition to CONTROLLED or CLOSED is explicitly deferred. This finding
+  is recorded instead of silently fixing the summary.
+- **Root cause:** The initial record treated documenting a prevention measure as
+  equivalent to implementing and verifying it.
+- **Future prevention/control:** Status transitions must cite evidence that every
+  prerequisite in the lifecycle has occurred. A finding may not be closed in the
+  same unreviewed change that first proposes its preventive control.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CORRECTED
+- **Correction evidence:** PR #23 amendment corrects all premature status and
+  evidence labels. CONTROLLED/CLOSED transitions remain pending independent
+  acceptance and pilot evidence.
