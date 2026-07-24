@@ -43,13 +43,21 @@ def execute(
     conn: sqlite3.Connection,
     sql: str,
     params: Sequence[Any] | Mapping[str, Any] = (),
+    *,
+    commit: bool = True,
 ) -> int:
     """Run a write statement (INSERT/UPDATE/DELETE) and return lastrowid.
 
-    Commits so callers get durable, observable state. Uses bound parameters.
+    By default commits so callers get durable, observable state. Uses bound
+    parameters. Pass ``commit=False`` to leave the write inside the caller's
+    open transaction/savepoint so a multi-step operation can commit or roll back
+    as a unit; the default ``commit=True`` preserves every existing caller's
+    behavior. Callers that pass ``commit=False`` are responsible for committing
+    or rolling back the surrounding transaction.
     """
     cur = conn.execute(sql, params)
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.lastrowid
 
 

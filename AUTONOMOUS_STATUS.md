@@ -11,20 +11,23 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-002 accepted and closed; no follow-on task approved) |
+| Current phase | `PHASE_3_TASK_IN_REVIEW` (P3-003 implemented; awaiting Austin's review) |
 | Last accepted baseline commit | `e6fa627bb0815560e2adf9d0c27b459f129db09e` (`main`) |
-| Active implementation task branch | None |
-| Draft implementation PR | None |
-| Completed-but-unreviewed task count | 0 |
+| P3-003 starting `main` commit | `2ee1c5b83f26173c4a3e15902411e46fbb47481b` |
+| Active implementation task branch | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` |
+| Draft implementation PR | #19 (draft, targets `main`) |
+| Completed-but-unreviewed task count | 1 (P3-003) |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-None. P3-002 is complete and accepted; it is no longer active or unreviewed.
-No later Phase 3 implementation task is approved. In particular, no recovery
-service, retry or corrected re-drive processing, recovery-attempt creation,
-queue-transition logic, idempotency, application behavior, or additional
-executable test is authorized.
+Austin explicitly approved exactly one task: **P3-003 - Controlled Recovery
+Service Core**. It is implemented on branch
+`claude/v1.1-p3-003-recovery-service-core-pxh0fc` off `main` at
+`2ee1c5b83f26173c4a3e15902411e46fbb47481b` and is now completed but awaiting
+Austin's review. No other Phase 3 task is approved: no documentation or UAT
+closeout, no hardening, no UI/API/CLI, no deployment or release, and no P3-004
+or later work is authorized. The Autonomous Routine remains `DISABLED`.
 
 ## Blocker resolution (P3-002)
 
@@ -93,9 +96,165 @@ recovery-attempt write, queue transition after recovery, or idempotency
 behavior. Austin explicitly authorized the two non-frozen existing-test updates
 recorded below before P3-002 was accepted.
 
+## P3-003 - Controlled Recovery Service Core (completed, awaiting review)
+
+Austin explicitly approved P3-003 and its bounded scope. The task implements the
+complete headless recovery-service safety boundary dictated by the frozen design
+record (sections 4-11) and its frozen requirements/test-intent files: unchanged
+retry, corrected re-drive, recovery-attempt history, eligibility and rejection
+rules, original-message immutability, queue resolution and terminalization,
+request-id replay and conflict handling, duplicate-filing protection,
+handled-failure rollback, transaction-safe persistence, and recovery audit
+evidence. No product semantics were invented; every expectation is transcribed
+from the frozen files.
+
+### Scope delivered
+
+- `src/recovery.py` (new): the headless service boundary
+  `retry_queue_item(conn, queue_id, *, request_id, actor)`,
+  `redrive_queue_item(conn, queue_id, corrected_payload, *, request_id, actor)`,
+  and `get_recovery_history(conn, queue_id)`, returning a frozen
+  `RecoveryAttempt` shape. `request_id` resolution runs before any queue-state or
+  action eligibility check: a matching replay (same queue_id, action,
+  `payload_sha256`, and actor) returns the recorded attempt and writes nothing
+  for prior SUCCEEDED, FAILED, and REJECTED outcomes; any mismatch is exposed as
+  a distinct `RequestIdConflictError` (`REQUEST_ID_CONFLICT`) that fabricates no
+  recovery attempt and records exactly one `audit_event`. `payload_sha256` is the
+  lowercase SHA-256 of the exact UTF-8 request payload: for `RETRY_ORIGINAL` that
+  payload is read from the queue item's linked original `interface_message`
+  (`interface_message.payload` resolved via `interface_error_queue.message_id`),
+  never from `interface_error_queue.raw_payload`, and is the source for both the
+  fingerprint and the new retry message; for `REDRIVE_CORRECTED` it is the
+  caller-supplied corrected payload. Neither stored copy is rewritten; a null
+  original-message link or a missing message row surfaces as a `RecoveryError`
+  before any write. After request-id resolution and before ordinary
+  queue-state/action eligibility, the stored `failure_code` / `failure_category`
+  / `recovery_policy` are validated against the single authoritative mapping in
+  `inbound_hl7` (no second mapping); null, contradictory, or unmappable
+  classification is a `RecoveryError` blocker that persists no attempt, message,
+  result, queue change, order change, or audit event. Classification is never
+  inferred from reason strings. Eligibility follows the frozen rules; permitted
+  processing reuses the inbound seam and commits success (new FILED message +
+  FISH results + filing audit + SUCCEEDED attempt + queue OPEN -> RESOLVED), a
+  handled failure (attempted message ERRORED + FAILED attempt, all filing side
+  effects rolled back, queue left OPEN), a rejection (single REJECTED attempt,
+  plus the approved dynamic OPEN -> TERMINAL when processing establishes the
+  target order is now FINALIZED/CANCELLED), or a request-id conflict (audit event
+  only) atomically. The rollback boundary spans the entire permitted request --
+  message creation, validation, filing, the FILED update, SUCCEEDED-attempt
+  insertion, queue resolution, terminalization/handled-failure bookkeeping, and
+  the final commit -- so any unexpected (non-inbound) failure at any stage rolls
+  the whole request back, re-raises, and leaves `conn.in_transaction` false; such
+  failures and database errors are never converted to FAILED, and handled
+  `InboundError` semantics are unchanged.
+- `src/db.py`: added a keyword-only `commit=True` control to `execute`; the
+  default preserves every existing caller. Recovery uses the non-committing path
+  under one explicit transaction with a savepoint.
+- `src/workflow.py`: threaded the same `commit` control through `record_audit`
+  and `enter_fish_result` only (no laboratory-workflow semantics changed).
+- `src/interfaces/__init__.py`: threaded `commit` through `store_message`.
+- `src/interfaces/inbound_hl7.py`: private, behavior-preserving refactor only.
+  Extracted `_store_inbound_message` and `_validate_inbound` as the narrow shared
+  seam and threaded `commit` through `_update_message` and `_file_results`.
+  `IngestResult`, `ingest_message`/`ingest_file` signatures and behavior, the
+  authoritative fourteen-code mapping, and normal success/error-queue routing are
+  unchanged. Recovery does not call the legacy ingest path and never creates a
+  second `interface_error_queue` item.
+- `tests/test_recovery_service.py` (new): 54 executable tests transcribed from
+  the frozen design and test-intent, covering all twelve corrected re-drives, the
+  ORDER_NOT_FOUND unchanged retry, RETRY rejection for every REDRIVE_ONLY class,
+  terminal-item rejection, the dynamic OPEN -> TERMINAL case for currently
+  FINALIZED and CANCELLED orders, handled-failure and later-success, mid-operation
+  rollback, unexpected-failure rollback and re-raise, invariants I-01 and I-02,
+  REQUEST_ID_CONFLICT per mismatch dimension (queue_id, action, payload_sha256,
+  actor) and conflict-before-eligibility, matching replay of prior FAILED and
+  REJECTED attempts, recovery-history ordering with conflict exclusion,
+  file-backed durability after success and after a handled failure with no
+  dangling transaction, and PRAGMA foreign_key_check emptiness across every
+  outcome. The review-response amendment adds eight tests: an unexpected failure
+  after filing but before the success commit rolls the whole request back;
+  null / contradictory-category / contradictory-code-policy classification each
+  block and persist nothing; request-id replay and conflict are resolved before
+  classification validation; and RETRY sources its payload from the linked
+  original message (proven against a tampered `raw_payload`) with a null link and
+  a dangling link both surfaced as blockers.
+
+No schema, query, frozen document, sample message, corpus manifest, existing
+test, `src/demo_run.py`, workflow, or CI file was changed. No new table, column,
+index, migration, failure code, category, policy, queue state, or attempt
+outcome was added.
+
+## Review response (draft PR #19)
+
+Independent review found three blockers, all fixed on this branch by changing
+only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
+
+1. **Complete transaction rollback.** The unexpected-error rollback boundary in
+   `_process` now wraps the entire permitted request (message creation through
+   the final commit, including SUCCEEDED-attempt insertion, queue resolution, and
+   terminalization/handled-failure bookkeeping). Any unexpected exception at any
+   stage rolls the whole request back, re-raises, and leaves
+   `conn.in_transaction` false. Handled `InboundError` semantics are preserved and
+   generic/database errors are still never converted to FAILED. A new test injects
+   a failure during queue resolution (after filing) and proves messages, FISH
+   results, attempts, RESULT_ENTERED / INBOUND_RESULT_FILED events, order status,
+   queue status/timestamps, and transaction state are all unchanged.
+2. **Exact stored classification validated.** After request-id replay/conflict
+   resolution but before ordinary queue/action eligibility, `_validate_classification`
+   confirms `failure_code`, `failure_category`, and `recovery_policy` are all
+   populated and form the exact triple in `inbound_hl7`'s existing authoritative
+   mapping (no second mapping). Null, contradictory, or unmappable classification
+   raises `RecoveryError` and persists nothing. New tests cover null, a category
+   mismatch, a code/policy mismatch, and prove request-id handling runs first.
+3. **RETRY uses the original interface_message payload.** `RETRY_ORIGINAL` now
+   resolves the queue item's linked original `interface_message` and reads
+   `interface_message.payload`, using that exact value for both `payload_sha256`
+   and the new retry message; it does not read `interface_error_queue.raw_payload`
+   and rewrites neither stored copy. A missing link or missing row surfaces as
+   `RecoveryError` without writes. New tests prove the linked message is the
+   source (against a tampered `raw_payload`) and cover the null-link and
+   dangling-link blockers.
+
+## Test evidence (P3-003, awaiting review; review-response amendment)
+
+- `pip install -r requirements-dev.txt`: succeeded.
+- `python -m pytest -q`: **164 passed, 0 failed** (110 pre-existing unchanged
+  plus 54 recovery-service tests: 46 original plus 8 added for the review
+  response).
+- `python -m src.demo_run`: ran cleanly, exit 0.
+- Both human-approved invariants (I-01, I-02) pass without weakening.
+- All twelve corrected re-drives succeed; the ORDER_NOT_FOUND unchanged retry
+  succeeds byte-for-byte after a matching order becomes available, sourced from
+  the linked original `interface_message.payload`.
+- Success, FAILED, REJECTED, matching replay, REQUEST_ID_CONFLICT,
+  terminalization, and history behaviors pass; handled-failure rollback,
+  unexpected-error rollback (including after filing but before the success
+  commit), classification-blocker, and retry-payload-source behaviors pass;
+  file-backed durability passes.
+- Exactly one successful recovery exists per queue item; no duplicate filing
+  event occurs through replay or a post-resolution request; no recovery creates a
+  second error-queue item.
+- `PRAGMA foreign_key_check` returns no violations after success, failure,
+  rejection, replay, conflict, and terminalization scenarios.
+- `schema.sql` still initializes a fresh database and reruns safely;
+  `recovery_corpus.json` parses and is unmodified from `main`.
+- New and changed text is plain ASCII; `git diff --check` is clean.
+- The review-response amendment (on top of `ec75ecdb`) changes only
+  `src/recovery.py`, `tests/test_recovery_service.py`, and this
+  `AUTONOMOUS_STATUS.md`.
+- The complete diff from `main` contains only the authorized files: `src/db.py`,
+  `src/workflow.py`, `src/interfaces/__init__.py`,
+  `src/interfaces/inbound_hl7.py`, `src/recovery.py`,
+  `tests/test_recovery_service.py`, and this `AUTONOMOUS_STATUS.md`.
+
 ## Completed-but-unreviewed task branches
 
-None. Both permitted completed-but-unreviewed task slots are available.
+| Task | Branch | Draft PR | State |
+|---|---|---|---|
+| P3-003 - Controlled Recovery Service Core | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` | #19 | Completed; awaiting Austin's review |
+
+One of the two permitted completed-but-unreviewed task slots is now in use; one
+slot remains available.
 
 ## Blocked tasks and reasons
 
@@ -160,16 +319,16 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Approve, revise, or defer the next separately scoped Phase 3 recovery-service
-  task. No later task is approved yet.
+- Review the P3-003 draft PR and its evidence; accept, request changes, or
+  reject. No follow-on task begins until it is reviewed and its own task ID is
+  approved.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Present one bounded Phase 3 recovery-service task for Austin's explicit
-approval. **Scheduled routines remain disabled.** No recovery service, retry or
-corrected re-drive processing, recovery-attempt write, queue-transition
-implementation, idempotency behavior, application change, or additional
-executable-test work may begin until its own task ID is approved. Do not merge,
-deploy, release, enable auto-merge, or push to `main`.
+Wait for Austin's review of the P3-003 draft PR. No documentation-closeout, UAT,
+hardening, P3-004, or later implementation work is approved and none may begin
+until Austin approves its own task ID. **Scheduled routines remain disabled.**
+Do not merge, approve another task, deploy, release, enable auto-merge, or push
+to `main`.
