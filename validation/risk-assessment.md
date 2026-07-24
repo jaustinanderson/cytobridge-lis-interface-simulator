@@ -57,6 +57,22 @@ data is ever involved.
 | RA-15 | Behavior changes without documentation keeping up | Med | Med | **Med** | One-session-one-PR change control; docs updated each session; this validation package + traceability matrix make drift visible. | Low |
 | RA-16 | Demo not reproducible on a reviewer's machine | Low | Med | **Low** | Stdlib + SQLite only; `pytest` sole dev dependency; in-memory DB seeded from `schema.sql`; deterministic sample messages. | Low |
 
+### E. Controlled-recovery risks (v1.1)
+
+These are the risks the v1.1 controlled error-queue recovery introduces, with the
+schema constraints, service behavior, and tests that mitigate each. Scoring stays
+in the project's synthetic, educational context; none of these mitigations claims
+production fitness or zero risk.
+
+| ID | Risk | Likelihood | Impact | Severity | Mitigation (in place) | Residual |
+|---|---|---|---|---|---|---|
+| RA-17 | A recovery action mutates the original failed message or the queue's `raw_payload` (loss of the immutable record) | Low | High | **Med** | Recovery writes only status/timestamps on the queue and creates a **new** `interface_message`; the original stays `ERRORED` and is never updated to `FILED` (R-022, R-023). Retry sources its payload from the linked original message, not `raw_payload`. Tests: invariant I-01 (`test_invariant_I01_original_message_immutability`), `test_retry_sources_payload_from_linked_original_message`. | Low |
+| RA-18 | Duplicate successful filing - the same queue item recovered twice, or a replay double-files | Low | High | **Med** | Schema partial unique index enforces **at most one** `SUCCEEDED` attempt per queue item (R-035); a matching `request_id` replay returns the recorded attempt and writes nothing (R-034); a new request against a `RESOLVED` item is `REJECTED` (R-036). Tests: invariant I-02, `test_second_succeeded_for_same_queue_fails`, replay tests. | Low |
+| RA-19 | A recovery that fails partway leaves partial writes (half-filed order, orphan filing event, or a wrongly RESOLVED queue) | Med | High | **Med** | Each permitted operation commits or rolls back as a unit; a handled failure rolls back all filing side effects and leaves the queue `OPEN` with the attempted message `ERRORED` and a `FAILED` attempt; an unexpected error rolls back the whole request and re-raises, leaving no dangling transaction (R-038). Filing is all-or-nothing. Tests: `test_handled_mid_operation_failure_rolls_back_all_side_effects`, `test_unexpected_failure_after_filing_rolls_back_entire_request`, file-backed durability, `PRAGMA foreign_key_check`. | Low |
+| RA-20 | Recovery reopens or refiles a finalized/cancelled order (prohibited terminal case) | Low | High | **Med** | A `TERMINAL` item is rejected and the order is never reopened/unfinalized/uncancelled (R-029); a permitted retry that discovers the target order is now FINALIZED/CANCELLED is `REJECTED` and moves the queue `OPEN -> TERMINAL` without filing (dynamic terminalization). Tests: `test_recovery_rejected_for_terminal_queue_item`, `test_open_to_terminal_when_target_order_now_terminal`. | Low |
+| RA-21 | A reused `request_id` silently overwrites a prior attempt or is applied to the wrong request, with no trace | Low | Med | **Low** | `request_id` is globally unique; a mismatched reuse (different queue/action/payload/actor) raises `REQUEST_ID_CONFLICT`, fabricates no records, never overwrites the original attempt, and records exactly one `REQUEST_ID_CONFLICT` audit event (R-041); every attempt carries a `payload_sha256` fingerprint and `outcome_detail` (R-040). Tests: the four per-dimension conflict tests and conflict-before-eligibility. | Low |
+| RA-22 | A reader assumes the recovery service is a production interface-engine recovery subsystem | Med | Med | **Med** | Recovery is documented as a synchronous, headless, single-process educational service with no scheduler, worker, async queue, UI, or API (README, `known-issues.md`, `docs/workflow-diagram.md`, `docs/interface-troubleshooting.md`, and the `recovery.py` docstring). It reuses the same synthetic-only, style-only inbound path. | Low |
+
 ## Highest-attention risks
 
 The residual-risk profile is low across the board; the ones worth stating out
@@ -70,9 +86,17 @@ loud to a reviewer are:
 2. **RA-07 (all-or-nothing inbound).** The design choice that a partial/invalid
    instrument message never half-updates an order is the key interface-integrity
    control and is directly tested.
+3. **RA-17 / RA-18 / RA-19 (recovery integrity).** The v1.1 recovery service adds
+   the ability to write to the database on behalf of a failed message, so its
+   controls matter: the original message is immutable, at most one successful
+   recovery per item, and every operation is atomic with full rollback on
+   failure. These are enforced by schema constraints and the recovery service and
+   are directly tested, including the two human-approved invariants (I-01, I-02).
 
 The former RA-14 / KI-01 coverage gap is closed: every analyst query now has a
-result-level automated test.
+result-level automated test. The former KI-03 gap (no controlled resolve/re-drive
+path) is closed by the v1.1 recovery service; manual queue `UPDATE`s are no longer
+part of the runbook.
 
 ## Risk-acceptance statement
 

@@ -8,6 +8,14 @@ Runs several scenarios against a fresh in-memory database:
   3. Outbound interfaces — HL7 ORU + FHIR DiagnosticReport export.
   4. Inbound ingestion — a valid instrument message files probe results to an
      open order, while an unmatched message lands in the interface error queue.
+  5. Controlled error-queue recovery (v1.1) - corrected re-drive, unchanged
+     ORDER_NOT_FOUND retry, a handled failure and later success, and duplicate/
+     replay/conflict protection, all through the public recovery service.
+
+The recovery scenario shows representative cases only. The automated recovery
+suite (``tests/test_recovery_service.py``) is what proves all twelve corrected
+re-drive corpus cases and every approved invariant; this demo narrates a
+readable subset for a walkthrough.
 
 Run with:  python -m src.demo_run
 All data is synthetic. No PHI.
@@ -18,11 +26,14 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from . import workflow
+from . import recovery, workflow
 from .db import create_database, run_query
 from .interfaces import inbound_hl7, outbound_fhir, outbound_hl7
 
-_INBOUND_SAMPLES = Path(__file__).resolve().parent.parent / "sample_messages" / "inbound"
+_SAMPLES = Path(__file__).resolve().parent.parent / "sample_messages"
+_INBOUND_SAMPLES = _SAMPLES / "inbound"
+_RECOVERY_ORIGINAL = _SAMPLES / "recovery" / "original"
+_RECOVERY_CORRECTED = _SAMPLES / "recovery" / "corrected"
 
 # All nine required AML/MDS FISH probes with synthetic, plausible results.
 # One abnormal probe (t(8;21)) to exercise the ABNORMAL path.
@@ -189,12 +200,233 @@ def scenario_inbound_ingestion(conn: sqlite3.Connection) -> None:
         print(f"  [{row['queue_id']}] {row['status']} — {row['reason']}")
 
 
+# ---------------------------------------------------------------------------
+# Scenario 5 helpers - controlled error-queue recovery (v1.1).
+#
+# Everything here goes through the public recovery service boundary
+# (retry_queue_item / redrive_queue_item / get_recovery_history) and the
+# existing public workflow/inbound functions. No private recovery or inbound
+# helper is called, no recovery attempt is inserted by hand, and no queue item
+# is resolved or terminalized through manual SQL.
+# ---------------------------------------------------------------------------
+
+def _recovery_original(fixture: str) -> str:
+    return (_RECOVERY_ORIGINAL / fixture).read_text(encoding="utf-8")
+
+
+def _recovery_corrected(fixture: str) -> str:
+    return (_RECOVERY_CORRECTED / fixture).read_text(encoding="utf-8")
+
+
+def _make_open_order(conn: sqlite3.Connection, mrn: str, accession: str) -> int:
+    """An accessioned, non-terminal AML/MDS FISH bone-marrow order."""
+    patient_id = workflow.create_patient(
+        conn, mrn=mrn, last_name="Synthetic", first_name="Recovery",
+        date_of_birth="1970-01-01", sex="M",
+    )
+    order_id = workflow.create_order(
+        conn, patient_id, accession_number=accession,
+        ordering_provider="Dr. Synthetic",
+    )
+    specimen_id = workflow.receive_specimen(conn, order_id)
+    workflow.accession_specimen(conn, specimen_id)
+    return order_id
+
+
+def _message(conn: sqlite3.Connection, message_id: int) -> sqlite3.Row:
+    return conn.execute(
+        "SELECT message_id, status, payload FROM interface_message "
+        "WHERE message_id = ?",
+        (message_id,),
+    ).fetchone()
+
+
+def _queue(conn: sqlite3.Connection, queue_id: int) -> sqlite3.Row:
+    return conn.execute(
+        "SELECT status, resolved_at, terminal_at FROM interface_error_queue "
+        "WHERE queue_id = ?",
+        (queue_id,),
+    ).fetchone()
+
+
+def _count(conn: sqlite3.Connection, sql: str, params=()) -> int:
+    return conn.execute(sql, params).fetchone()[0]
+
+
+def _print_history(conn: sqlite3.Connection, queue_id: int) -> None:
+    print(f"  recovery history for queue {queue_id} (get_recovery_history):")
+    for h in recovery.get_recovery_history(conn, queue_id):
+        print(f"    attempt {h.attempt_id}: {h.action:<17} -> {h.outcome:<9} "
+              f"msg={h.resulting_message_id} sha={h.payload_sha256[:12]}...")
+        print(f"      detail: {h.outcome_detail}")
+
+
+def _corrected_redrive(conn: sqlite3.Connection) -> int:
+    """Corrected re-drive: original stays ERRORED; a new message files; RESOLVED."""
+    print("\n-- 5a. Corrected re-drive (SPECIMEN_INCOMPATIBLE, REDRIVE_ONLY) --")
+    _make_open_order(conn, "SYN-8901", "ACC-REC-0901")
+    ingest = inbound_hl7.ingest_message(conn, _recovery_original("09_specimen_incompatible.hl7"))
+    queue_id = ingest.queue_id
+    original_before = dict(_message(conn, ingest.message_id))
+    print(f"  original message {ingest.message_id} status="
+          f"{original_before['status']}; queue {queue_id} OPEN "
+          f"(reason: {ingest.reason})")
+
+    attempt = recovery.redrive_queue_item(
+        conn, queue_id, _recovery_corrected("09_specimen_incompatible.hl7"),
+        request_id="DEMO-REDRIVE-A", actor="analyst01",
+    )
+    after = dict(_message(conn, ingest.message_id))
+    new_msg = _message(conn, attempt.resulting_message_id)
+    print(f"  redrive attempt {attempt.attempt_id}: {attempt.outcome}; "
+          f"new message {attempt.resulting_message_id} status={new_msg['status']}")
+    print(f"  original message unchanged: {after == original_before} "
+          f"(still {after['status']})")
+    q = _queue(conn, queue_id)
+    print(f"  queue {queue_id} -> {q['status']} "
+          f"(resolved_at set: {q['resolved_at'] is not None}, "
+          f"terminal_at null: {q['terminal_at'] is None})")
+    print(f"  payload fingerprint: {attempt.payload_sha256}")
+    _print_history(conn, queue_id)
+    return queue_id
+
+
+def _unchanged_retry(conn: sqlite3.Connection) -> None:
+    """Unchanged ORDER_NOT_FOUND retry once the matching order is available."""
+    print("\n-- 5b. Unchanged retry (ORDER_NOT_FOUND, RETRY_OR_REDRIVE) --")
+    original = _recovery_original("05_order_not_found.hl7")
+    ingest = inbound_hl7.ingest_message(conn, original)
+    queue_id = ingest.queue_id
+    print(f"  original message {ingest.message_id} ERRORED; queue {queue_id} "
+          f"OPEN ORDER_NOT_FOUND (no matching order yet)")
+
+    # The matching synthetic order becomes available.
+    _make_open_order(conn, "SYN-8500", "ACC-REC-0500-NOMATCH")
+    print("  matching order ACC-REC-0500-NOMATCH now exists")
+
+    attempt = recovery.retry_queue_item(
+        conn, queue_id, request_id="DEMO-RETRY-A", actor="analyst01",
+    )
+    new_msg = _message(conn, attempt.resulting_message_id)
+    print(f"  retry attempt {attempt.attempt_id}: {attempt.outcome}; "
+          f"new message {attempt.resulting_message_id} status={new_msg['status']}")
+    print(f"  original payload reused byte-for-byte on a distinct message: "
+          f"{new_msg['payload'] == original and attempt.resulting_message_id != ingest.message_id}")
+    print(f"  queue {queue_id} -> {_queue(conn, queue_id)['status']}")
+
+
+def _handled_failure_then_success(conn: sqlite3.Connection) -> None:
+    """A still-invalid payload FAILS (queue stays OPEN); a later valid request wins."""
+    print("\n-- 5c. Handled failure, then later recovery (UNKNOWN_PROBE_CODE) --")
+    order_id = _make_open_order(conn, "SYN-9101", "ACC-REC-1101")
+    ingest = inbound_hl7.ingest_message(conn, _recovery_original("11_unknown_probe_code.hl7"))
+    queue_id = ingest.queue_id
+
+    # A re-drive whose payload is still invalid: FAILED, no partial filing.
+    failed = recovery.redrive_queue_item(
+        conn, queue_id, _recovery_original("11_unknown_probe_code.hl7"),
+        request_id="DEMO-FAIL-1", actor="analyst01",
+    )
+    failed_msg = _message(conn, failed.resulting_message_id)
+    q = _queue(conn, queue_id)
+    order_fish = _count(
+        conn, "SELECT COUNT(*) FROM fish_result WHERE order_id = ?", (order_id,))
+    print(f"  attempt {failed.attempt_id}: {failed.outcome}; resulting message "
+          f"{failed.resulting_message_id} status={failed_msg['status']}")
+    print(f"  queue {queue_id} still {q['status']}; results filed to order "
+          f"{order_id}: {order_fish} (no partial filing)")
+
+    # A later valid request with a new request_id succeeds.
+    good = recovery.redrive_queue_item(
+        conn, queue_id, _recovery_corrected("11_unknown_probe_code.hl7"),
+        request_id="DEMO-FAIL-2", actor="analyst01",
+    )
+    print(f"  attempt {good.attempt_id}: {good.outcome}; new message "
+          f"{good.resulting_message_id} status={_message(conn, good.resulting_message_id)['status']}")
+    print(f"  queue {queue_id} -> {_queue(conn, queue_id)['status']}")
+    _print_history(conn, queue_id)
+
+
+def _duplicate_replay_conflict(conn: sqlite3.Connection, resolved_queue_id: int) -> None:
+    """Replay is a no-op; a new request is REJECTED; reuse conflict is audit-only."""
+    print("\n-- 5d. Duplicate, replay, and conflict protection --")
+    attempts_before = _count(
+        conn, "SELECT COUNT(*) FROM interface_recovery_attempt")
+    messages_before = _count(conn, "SELECT COUNT(*) FROM interface_message")
+
+    # Identical replay of the resolved item's original request: no new records.
+    replay = recovery.redrive_queue_item(
+        conn, resolved_queue_id,
+        _recovery_corrected("09_specimen_incompatible.hl7"),
+        request_id="DEMO-REDRIVE-A", actor="analyst01",
+    )
+    print(f"  identical replay of DEMO-REDRIVE-A returns attempt "
+          f"{replay.attempt_id} ({replay.outcome}); new attempts: "
+          f"{_count(conn, 'SELECT COUNT(*) FROM interface_recovery_attempt') - attempts_before}, "
+          f"new messages: "
+          f"{_count(conn, 'SELECT COUNT(*) FROM interface_message') - messages_before}")
+
+    # A new request_id against the RESOLVED item is REJECTED.
+    rejected = recovery.redrive_queue_item(
+        conn, resolved_queue_id,
+        _recovery_corrected("09_specimen_incompatible.hl7"),
+        request_id="DEMO-REDRIVE-B", actor="analyst01",
+    )
+    print(f"  new request DEMO-REDRIVE-B on the RESOLVED item: "
+          f"{rejected.outcome} (resulting message: {rejected.resulting_message_id})")
+
+    # Reusing DEMO-REDRIVE-A with a different actor is a REQUEST_ID_CONFLICT.
+    try:
+        recovery.redrive_queue_item(
+            conn, resolved_queue_id,
+            _recovery_corrected("09_specimen_incompatible.hl7"),
+            request_id="DEMO-REDRIVE-A", actor="someone-else",
+        )
+        print("  ERROR: expected a REQUEST_ID_CONFLICT but none was raised")
+    except recovery.RequestIdConflictError as err:
+        print(f"  reuse of DEMO-REDRIVE-A with a different actor -> "
+              f"REQUEST_ID_CONFLICT ({err.request_id})")
+
+    succeeded = _count(
+        conn,
+        "SELECT COUNT(*) FROM interface_recovery_attempt "
+        "WHERE queue_id = ? AND outcome = 'SUCCEEDED'",
+        (resolved_queue_id,),
+    )
+    filed = _count(
+        conn,
+        "SELECT COUNT(*) FROM interface_recovery_attempt a "
+        "JOIN interface_message m ON m.message_id = a.resulting_message_id "
+        "WHERE a.queue_id = ? AND m.status = 'FILED'",
+        (resolved_queue_id,),
+    )
+    conflicts = _count(
+        conn,
+        "SELECT COUNT(*) FROM audit_event WHERE action = 'REQUEST_ID_CONFLICT'",
+    )
+    print(f"  invariant: queue {resolved_queue_id} has {succeeded} SUCCEEDED "
+          f"attempt and {filed} FILED filing outcome; "
+          f"REQUEST_ID_CONFLICT audit events: {conflicts}")
+
+
+def scenario_recovery(conn: sqlite3.Connection) -> None:
+    _banner("Scenario 5: Controlled error-queue recovery (v1.1)")
+    # Representative controlled-recovery cases through the public service. The
+    # automated suite proves all twelve corrected corpus cases and every
+    # approved invariant; this shows a readable subset.
+    resolved_queue_id = _corrected_redrive(conn)
+    _unchanged_retry(conn)
+    _handled_failure_then_success(conn)
+    _duplicate_replay_conflict(conn, resolved_queue_id)
+
+
 def main() -> None:
     conn = create_database(":memory:")
     finalized_order_id = scenario_happy_path(conn)
     scenario_missing_probe(conn)
     scenario_outbound_interfaces(conn, finalized_order_id)
     scenario_inbound_ingestion(conn)
+    scenario_recovery(conn)
 
     _banner("Cross-order analyst views")
     print("Pending review (pending_review.sql):")

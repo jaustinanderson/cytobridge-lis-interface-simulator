@@ -11,19 +11,71 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-003 accepted and closed; no follow-on task approved) |
-| Last accepted baseline commit | `672143ca4ae364d413ef38fdfdedf244fcc89f66` (`main`) |
-| Active implementation task branch | None |
-| Draft implementation PR | None |
-| Completed-but-unreviewed task count | 0 |
+| Current phase | `PHASE_3_P3_004_IN_REVIEW` (P3-003 accepted and closed; P3-004 completed and awaiting Austin's review) |
+| Last accepted baseline commit | `8272bd18de4663180d94e18736726c211f77a361` (`main`, includes P3-003 PR #19 and its status closeout PR #20) |
+| P3-004 starting `main` commit | `8272bd18de4663180d94e18736726c211f77a361` |
+| Active implementation task branch | `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004; the harness-designated branch for this task) |
+| Draft implementation PR | P3-004 draft PR (number recorded below once opened) |
+| Completed-but-unreviewed task count | 1 (P3-004) |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-None. P3-003 is complete and accepted; it is no longer active or unreviewed.
-No follow-on Phase 3 task is approved. In particular, no documentation or UAT
-closeout, hardening, UI/API/CLI, deployment, release, P3-004, or later work is
-authorized. The Autonomous Routine remains `DISABLED`.
+**Austin explicitly approved P3-004 - Recovery Validation, UAT, and Portfolio
+Closeout.** It is the one approved, now-completed task on the active branch above.
+P3-003 remains accepted and closed (no longer active or unreviewed).
+
+No further Phase 3 task is approved. In particular, **P3-005, hardening, new
+recovery behavior, new failure handling, a UI/API/CLI, transport, deployment,
+authentication, and release work are NOT approved**. The Autonomous Routine
+remains `DISABLED`.
+
+## P3-004 scope (completed, awaiting review)
+
+P3-004 is a documentation and validation closeout for the accepted controlled
+recovery implementation (P3-001 through P3-003). The **only executable change**
+is adding a deterministic synthetic recovery demonstration to `src/demo_run.py`
+through the existing public recovery service; no product semantics were invented.
+
+**Files changed (authorized only):**
+
+- `src/demo_run.py` - added scenario 5, a controlled-recovery demonstration
+  through the public service (`retry_queue_item` / `redrive_queue_item` /
+  `get_recovery_history` / `RequestIdConflictError`): corrected re-drive,
+  unchanged ORDER_NOT_FOUND retry, handled failure then later success, and
+  duplicate/replay/`REQUEST_ID_CONFLICT` protection. Scenario count updated
+  four -> five. No private helper is called and no attempt/queue state is written
+  by hand.
+- `validation/traceability-matrix.md` - R-020 - R-041 mapped to implementing
+  file/function or schema constraint, executable test, and applicable UAT;
+  automated `PASS` separated from manual `DEFINED`; totals updated to 41.
+- `validation/uat-test-scripts.md` - UAT-011 - UAT-018 added (public service
+  only, no manual queue `UPDATE`); UAT-001 - UAT-010 preserved; summary updated.
+- `docs/interface-troubleshooting.md` - rewritten to the controlled recovery
+  workflow (raw SQL now read-only).
+- `docs/workflow-diagram.md` - compact recovery view added.
+- `docs/demo-script.md` - updated to the five-scenario demo with a recovery
+  segment.
+- `validation/validation-summary.md`, `validation/known-issues.md` (KI-03 moved
+  to resolved), `validation/risk-assessment.md` (recovery risks RA-17 - RA-22),
+  `validation/change-control-log.md` (v1.1 P2-001/P3-001..P3-004 history).
+- `README.md`, `docs/portfolio-review.md`, `docs/hiring-manager-review.md` - v1.1
+  framing, corrected figures, provenance statement, roadmap update.
+- `AUTONOMOUS_STATUS.md` - this status update.
+
+**No other file changed.** No schema, query, sample message, corpus, frozen file,
+CI/workflow file, `src/recovery.py` or any application module other than
+`src/demo_run.py`, and no existing or new test was modified. Public signatures and
+recovery semantics are unchanged.
+
+**Verified figures:** 164 pytest tests pass across eight suites; `python -m
+src.demo_run` exits 0 with five scenarios and every printed claim matching
+persisted state; 41 requirements traced; UAT-001 - UAT-018 present; manual UAT is
+defined, not claimed executed; `git diff --check` clean; new/changed text is
+plain ASCII; `recovery_corpus.json` parses and is unchanged.
+
+**Status:** P3-004 is **completed but awaiting Austin's review** on the draft PR.
+It is not merged or accepted.
 
 ## Blocker resolution (P3-002)
 
@@ -248,7 +300,10 @@ only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
 
 ## Completed-but-unreviewed task branches
 
-None. Both permitted completed-but-unreviewed task slots are available.
+One: `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004, awaiting Austin's
+review on its draft PR). One of the two permitted completed-but-unreviewed task
+slots remains available. Do not start another task while P3-004 is unreviewed
+unless it stays within the two-slot cap and is separately approved.
 
 ## Blocked tasks and reasons
 
@@ -313,15 +368,16 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Approve, revise, or defer the next separately scoped Phase 3 task. No
-  follow-on task is approved yet.
+- Review the P3-004 draft PR and accept, revise, or reject the closeout. It is
+  completed but not accepted.
+- Approve, revise, or defer any next separately scoped task (e.g. P3-005,
+  hardening). None is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Present one bounded follow-on Phase 3 task for Austin's explicit approval.
-**Scheduled routines remain disabled.** No documentation or UAT closeout,
-hardening, P3-004, or later implementation work may begin until its own task ID
-is approved. Do not merge, deploy, release, enable auto-merge, or push to
-`main`.
+Await Austin's review of the P3-004 draft PR. **Scheduled routines remain
+disabled.** No P3-005, hardening, new recovery behavior, UI/API/CLI, transport,
+deployment, authentication, or release work may begin until its own task ID is
+approved. Do not merge, deploy, release, enable auto-merge, or push to `main`.

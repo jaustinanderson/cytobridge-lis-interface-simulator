@@ -1,15 +1,16 @@
-# 5-minute demo script
+# Demo script (~6 minutes)
 
 A screen-share walkthrough of the CytoBridge LIS Interface Simulator for a
-hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
+hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 (what's on screen) and a **say** (the one or two sentences to narrate).
 
 > **Framing to open with:** "This is a synthetic, analyst-first learning project
 > that models one lab workflow - AML/MDS FISH - end to end, plus the HL7/FHIR
-> interfaces around it. All data is synthetic, no PHI. It's *Beaker-adjacent*
-> learning - it is **not** Epic build experience."
+> interfaces around it, and a controlled recovery service for failed inbound
+> messages. All data is synthetic, no PHI. It's *Beaker-adjacent* learning - it
+> is **not** Epic build experience."
 
-**Total: ~5:00.** Have a terminal open at the repo root and the repo browsable.
+**Total: ~6:00.** Have a terminal open at the repo root and the repo browsable.
 
 ---
 
@@ -46,7 +47,7 @@ hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
 
 ## 2:00-3:15 - python -m src.demo_run (the system running)
 
-- **Show:** run `python -m src.demo_run` and scroll through the four scenarios.
+- **Show:** run `python -m src.demo_run` and scroll through the five scenarios.
 - **Say, scenario by scenario:**
   1. "Scenario 1 - a complete order passes validation and finalizes, and you see
      the report summary and the full audit trail."
@@ -58,8 +59,9 @@ hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
   4. "Scenario 4 - inbound: a valid instrument message files results to an open
      order, while an unmatched and a malformed message land in the error queue
      with clear reasons."
-- **Point out:** the printed error-queue lines at the end - "nothing is silently
-  dropped."
+  5. "Scenario 5 - controlled recovery of failed messages, covered in its own
+     segment next."
+- **Point out:** the printed error-queue lines - "nothing is silently dropped."
 
 ## 3:15-3:45 - Sample outbound messages
 
@@ -81,20 +83,41 @@ hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
   troubleshooting doc is the analyst runbook: how to read the reason and resolve
   it."
 
-## 4:15-4:45 - Traceability matrix
+## 4:15-5:00 - Controlled recovery (scenario 5)
+
+- **Show:** the scenario 5 output from `demo_run`, then
+  `docs/interface-troubleshooting.md` and `src/recovery.py`'s three public
+  functions.
+- **Say:** "v1.1 adds a safe, headless way to recover a failed inbound message.
+  Scenario 5 shows the representative cases: a **corrected re-drive** files a
+  fixed message on a *new* message ID while the original stays ERRORED and
+  untouched; an **unchanged retry** replays an ORDER_NOT_FOUND message once the
+  order exists; a **handled failure** rolls everything back and leaves the queue
+  OPEN, then a later valid request succeeds; and **replay/conflict protection** -
+  an identical replay is a no-op, a new request on a resolved item is REJECTED,
+  and reusing a request_id with different parameters is a REQUEST_ID_CONFLICT."
+- **Point out:** "Two safety properties I'd highlight: the original failed
+  message is immutable and only a *new* message can be FILED, and a queue item
+  can have at most one successful recovery. The demo shows representative cases;
+  the automated suite proves all twelve corrected corpus re-drives and both
+  human-approved invariants."
+
+## 5:00-5:30 - Traceability matrix
 
 - **Show:** `validation/traceability-matrix.md`.
-- **Say:** "Every requirement - R-001 through R-019 - maps to the exact file and
-  function that implements it, the `pytest` test that proves it, and a manual UAT
-  script. This is how I'd hand a system to QA or an auditor: nothing is claimed
-  that isn't traced."
+- **Say:** "Every requirement - R-001 through R-041 - maps to the exact file,
+  function, or schema constraint that implements it, the `pytest` test that
+  proves it, and a manual UAT script. I keep two things separate and honest: the
+  automated status is a test that actually passes; the manual UAT status is
+  *defined*, not executed."
 
-## 4:45-5:00 - Validation summary (close)
+## 5:30-6:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
-- **Say:** "The bottom line: 61 automated tests pass, all 19 requirements are
-  fully traced and verified within the synthetic scope, and the demo runs clean.
-  And I wrote down the limitations honestly in `known-issues.md` and
+- **Say:** "The bottom line: 164 automated tests pass across eight suites, all 41
+  requirements are traced to code and passing automated coverage within the
+  synthetic scope, the demo runs clean through five scenarios, and 18 UAT scripts
+  are defined. And I wrote down the limitations honestly in `known-issues.md` and
   `risk-assessment.md` - including that this is Beaker-adjacent learning, not
   Epic build experience."
 
@@ -104,9 +127,18 @@ hiring manager or interviewer. Timed for ~5 minutes. Each step has a **show**
 
 - **"Show me a test."** Open `tests/test_inbound_interfaces.py::`
   `test_invalid_numeric_result_goes_to_error_queue` - "all-or-nothing proven in
-  one test."
-- **"What would you build next?"** The error-queue *resolve/re-drive* workflow
-  (KI-03), followed by the ISCN parser seam if it serves a specific learning goal.
+  one test." For recovery, `tests/test_recovery_service.py::`
+  `test_invariant_I02_duplicate_and_replay_protection` - "one success per item,
+  replay is a no-op, post-resolution requests are rejected."
+- **"How does recovery stay safe?"** Point to `src/recovery.py`: the original
+  message is immutable, only a new message can be FILED, every operation commits
+  or rolls back as a unit, and a handled failure leaves the queue OPEN with the
+  attempted message ERRORED - all transcribed from a frozen design record Austin
+  approved before implementation.
+- **"What would you build next?"** Nothing beyond the approved scope without
+  Austin's sign-off - the error-queue resolve/re-drive workflow (former KI-03) is
+  now built and reviewed; the ISCN parser seam is a candidate only if it serves a
+  specific learning goal.
 - **"How is this different from Epic?"** Point to
   [`portfolio-review.md`](portfolio-review.md) - "I model the *category* of
   system Beaker is; I don't use Epic software or build content."

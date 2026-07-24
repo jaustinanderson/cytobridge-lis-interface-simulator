@@ -22,9 +22,10 @@ validation evidence, and troubleshooting documentation.
 > **Data notice:** All data in this project is **synthetic**. No PHI. No real
 > patient data.
 
-**Verified on `main`:** 61 passing pytest tests, four end-to-end demonstration
-scenarios, and 19/19 requirements with result-level automated coverage plus
-manual UAT definitions. GitHub Actions verifies Python 3.11 and 3.12.
+**Verified on `main`:** 164 passing pytest tests across eight suites, five
+end-to-end demonstration scenarios, and 41/41 requirements with result-level
+automated coverage plus 18 manual UAT definitions. GitHub Actions verifies Python
+3.11 and 3.12.
 
 ## Scope (v1)
 
@@ -122,6 +123,66 @@ runnable samples under [`sample_messages/inbound/`](sample_messages/inbound/).
 > (no MLLP framing, ACKs, or conformance validation). Line endings are lenient.
 > All data is synthetic; no PHI.
 
+## Controlled error-queue recovery (v1.1)
+
+CytoBridge v1.1 adds a **controlled recovery** service so an analyst can safely
+recover a failed inbound message that landed in `interface_error_queue`. It is a
+small, headless Python service ([`src/recovery.py`](src/recovery.py)) with three
+public functions - no UI, API, CLI, scheduler, or transport:
+
+```python
+from src import recovery
+recovery.retry_queue_item(conn, queue_id, *, request_id, actor)
+recovery.redrive_queue_item(conn, queue_id, corrected_payload, *, request_id, actor)
+recovery.get_recovery_history(conn, queue_id)
+```
+
+Each failed queue item carries a structured `failure_code`, `failure_category`,
+and `recovery_policy` that decide what is allowed:
+
+- **Unchanged retry** (`RETRY_ORIGINAL`) - for an OPEN `ORDER_NOT_FOUND` item,
+  once the matching order exists. It reuses an exact copy of the immutable
+  original payload on a **new** message.
+- **Corrected re-drive** (`REDRIVE_CORRECTED`) - for an OPEN `REDRIVE_ONLY` or
+  `RETRY_OR_REDRIVE` item. It processes a caller-supplied corrected payload on a
+  **new** message.
+- **Terminal rejection** - `ORDER_FINALIZED` / `ORDER_CANCELLED` items are
+  `TERMINAL`; recovery is rejected and never reopens or unfinalizes an order.
+
+Safety properties (each transcribed from the frozen design, and proven by tests):
+
+- **Immutability** - the original failed message and the queue's `raw_payload`
+  are never modified; only a new recovery message can reach `FILED`.
+- **Idempotency** - `request_id` is globally unique. A matching replay returns
+  the recorded outcome and writes nothing; a mismatched reuse is a
+  `REQUEST_ID_CONFLICT` (audit-only, fabricates nothing); a queue item has at
+  most **one** `SUCCEEDED` recovery.
+- **Attempt history** - every attempt (`SUCCEEDED` / `FAILED` / `REJECTED`) is
+  recorded with a `payload_sha256` fingerprint and an `outcome_detail`, and is
+  retrievable in order.
+- **Rollback** - each operation commits or rolls back as a unit; a handled
+  failure preserves the attempted message as `ERRORED` and the attempt as
+  `FAILED`, rolls back all filing side effects, and leaves the queue `OPEN` for a
+  later new `request_id`.
+
+The recovery **design, requirements, and test intent were approved and frozen by
+Austin before implementation**; they are pre-implementation decision records:
+[`validation/v1.1-design-record.md`](validation/v1.1-design-record.md),
+[`validation/v1.1-requirements.md`](validation/v1.1-requirements.md), and
+[`validation/v1.1-test-intent.md`](validation/v1.1-test-intent.md). Current-state
+implementation evidence lives in the
+[traceability matrix](validation/traceability-matrix.md) and
+[validation summary](validation/validation-summary.md). The analyst runbook is
+[`docs/interface-troubleshooting.md`](docs/interface-troubleshooting.md), the
+recovery flow is diagrammed in
+[`docs/workflow-diagram.md`](docs/workflow-diagram.md), scenario 5 of
+`python -m src.demo_run` shows representative cases, and the reviewable synthetic
+corpus is under [`sample_messages/recovery/`](sample_messages/recovery/).
+
+> The v1.1 recovery service is a **synchronous, headless, educational**
+> implementation - not a production interface-engine recovery subsystem. All data
+> is synthetic; no PHI.
+
 ### Technology
 
 - **Python** (standard library only at runtime).
@@ -152,31 +213,39 @@ src/
     outbound_hl7.py         HL7 ORU^R01-style message generation (Session 2)
     outbound_fhir.py        FHIR DiagnosticReport-style JSON Bundle (Session 2)
     inbound_hl7.py          inbound ORU-style ingestion + error queue (Session 3)
-  demo_run.py           happy path + missing-probe + outbound export + inbound
+  recovery.py           controlled error-queue recovery service (v1.1)
+  demo_run.py           happy path + missing-probe + outbound + inbound + recovery
 sample_messages/
   outbound/             sample generated HL7 + FHIR messages
   inbound/              sample inbound instrument ORU-style messages
+  recovery/             synthetic recovery corpus (originals + corrected) (v1.1)
 docs/
   interface-mapping.md         outbound + inbound field-by-field mapping
-  interface-troubleshooting.md analyst runbook for inbound error-queue cases
-  demo-script.md               5-minute screen-share walkthrough (Session 4)
-  workflow-diagram.md          Mermaid workflow + interface diagrams (Session 4)
-  portfolio-review.md          what it proves / Epic boundary / resume (Session 4)
-  hiring-manager-review.md     scorecard + resume/interview framing (Session 5)
-validation/                    validation package (Session 4)
-  requirements.md              numbered requirements (R-001...R-019)
-  traceability-matrix.md       requirement -> code -> test -> UAT
-  uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-010)
+  interface-troubleshooting.md analyst runbook + controlled recovery workflow
+  demo-script.md               ~6-minute screen-share walkthrough
+  workflow-diagram.md          Mermaid workflow + interface + recovery diagrams
+  portfolio-review.md          what it proves / Epic boundary / resume
+  hiring-manager-review.md     scorecard + resume/interview framing
+validation/                    validation package
+  requirements.md              v1 numbered requirements (R-001...R-019)
+  v1.1-design-record.md        frozen v1.1 design decision record (pre-impl)
+  v1.1-requirements.md         frozen v1.1 requirements (R-020...R-041) (pre-impl)
+  v1.1-test-intent.md          frozen v1.1 test intent (pre-impl)
+  traceability-matrix.md       requirement -> code -> test -> UAT (R-001...R-041)
+  uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-018)
   validation-summary.md        approach + results summary
   known-issues.md              limitations and tracked issues
-  change-control-log.md        per-session change history (S1-S6)
-  risk-assessment.md           synthetic LIS/interface workflow risks
+  change-control-log.md        per-session + v1.1 task change history
+  risk-assessment.md           synthetic LIS/interface + recovery risks
 tests/
   test_workflow.py      workflow lifecycle + audit + constraints
   test_validation.py    validation rules
   test_outbound_interfaces.py  outbound HL7/FHIR generation + export gating
   test_inbound_interfaces.py   inbound ingestion + error-queue routing
   test_queries.py              result assertions for analyst SQL views
+  test_recovery_schema.py      v1.1 recovery schema + constraints
+  test_failure_classification.py  v1.1 structured failure classification
+  test_recovery_service.py     v1.1 controlled recovery service behavior
 ```
 
 ## Data model highlights
@@ -214,20 +283,23 @@ From the repo root:
 python -m src.demo_run
 ```
 
-This runs four scenarios against a fresh in-memory database: a complete order
+This runs five scenarios against a fresh in-memory database: a complete order
 that passes validation and finalizes (with report summary and audit trail
 printed); an order missing a required probe whose finalization is **blocked**
 with the validation findings shown; outbound export of the finalized order to
-HL7 ORU + FHIR `DiagnosticReport` messages stored in `interface_message`; and
-inbound ingestion - a valid instrument message filing probe results to an open
-order, alongside unmatched/malformed messages landing in the interface error
-queue.
+HL7 ORU + FHIR `DiagnosticReport` messages stored in `interface_message`; inbound
+ingestion - a valid instrument message filing probe results to an open order,
+alongside unmatched/malformed messages landing in the interface error queue; and
+controlled recovery of failed messages - a corrected re-drive, an unchanged
+ORDER_NOT_FOUND retry, a handled failure followed by a later success, and
+duplicate/replay/`REQUEST_ID_CONFLICT` protection, all through the public
+recovery service.
 
 ## Run the tests
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # 61 tests
+python -m pytest -q                   # 164 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python
@@ -261,9 +333,11 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
   boundary, resume bullets, and interview talking points) /
   [hiring-manager review](docs/hiring-manager-review.md) (scorecard + resume/LinkedIn framing)
 
-Every requirement (`R-001`-`R-019`) traces to the code, result-level automated
-`pytest` coverage, and a manual UAT script. This is **Beaker-adjacent learning, not Epic
-build experience** - see [portfolio review](docs/portfolio-review.md).
+Every requirement (`R-001`-`R-041`) traces to the code (file/function or schema
+constraint), result-level automated `pytest` coverage, and a manual UAT script
+(`UAT-001`-`UAT-018`). Automated coverage passes today; the manual UAT layer is
+defined but not executed. This is **Beaker-adjacent learning, not Epic build
+experience** - see [portfolio review](docs/portfolio-review.md).
 
 ## Roadmap
 
@@ -279,11 +353,14 @@ Done:
   (Session 4).
 - [x] Repository CI and maintenance baseline: automated tests/demo, licensing,
   security policy, contribution guidance, Dependabot, and PR checklist.
+- [x] Controlled error-queue recovery (v1.1): headless retry / corrected
+  re-drive / attempt history with original-message immutability, idempotency,
+  transaction-safe rollback, and terminal rejection - designed and approved by
+  Austin, implemented and validated under bounded tasks (P2-001, P3-001 - P3-004).
 
 Next bounded enhancements:
 
 - [ ] ISCN nomenclature parser (seam already present in `reports.py`).
-- [ ] Resolution workflow for error-queue items (re-drive a corrected message).
 
 The headless interface is deliberate. A UI, production transport, additional
 panels, authentication, and clinical deployment remain outside this project's
