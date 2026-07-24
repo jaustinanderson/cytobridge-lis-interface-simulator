@@ -11,23 +11,19 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_TASK_IN_REVIEW` (P3-003 implemented; awaiting Austin's review) |
-| Last accepted baseline commit | `e6fa627bb0815560e2adf9d0c27b459f129db09e` (`main`) |
-| P3-003 starting `main` commit | `2ee1c5b83f26173c4a3e15902411e46fbb47481b` |
-| Active implementation task branch | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` |
-| Draft implementation PR | #19 (draft, targets `main`) |
-| Completed-but-unreviewed task count | 1 (P3-003) |
+| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-003 accepted and closed; no follow-on task approved) |
+| Last accepted baseline commit | `672143ca4ae364d413ef38fdfdedf244fcc89f66` (`main`) |
+| Active implementation task branch | None |
+| Draft implementation PR | None |
+| Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-Austin explicitly approved exactly one task: **P3-003 - Controlled Recovery
-Service Core**. It is implemented on branch
-`claude/v1.1-p3-003-recovery-service-core-pxh0fc` off `main` at
-`2ee1c5b83f26173c4a3e15902411e46fbb47481b` and is now completed but awaiting
-Austin's review. No other Phase 3 task is approved: no documentation or UAT
-closeout, no hardening, no UI/API/CLI, no deployment or release, and no P3-004
-or later work is authorized. The Autonomous Routine remains `DISABLED`.
+None. P3-003 is complete and accepted; it is no longer active or unreviewed.
+No follow-on Phase 3 task is approved. In particular, no documentation or UAT
+closeout, hardening, UI/API/CLI, deployment, release, P3-004, or later work is
+authorized. The Autonomous Routine remains `DISABLED`.
 
 ## Blocker resolution (P3-002)
 
@@ -66,6 +62,7 @@ document, query, or workflow was changed in this continuation.
 | P2-001 - Synthetic Recovery Corpus | Gate 2 passed; PR #13 merged into `main` | `681b8295f0555097af0c7b0ae56ee7069ccbcc5a` |
 | P3-001 - Recovery Data Model and Schema | Independent schema review passed; PR #15 merged into `main` | `dafba1ae2cfe3a8d7e5cad0b5e89926e58dfd90e` |
 | P3-002 - Structured Failure Classification and Terminal Queue Initialization | Independent review passed; PR #17 merged into `main` | `e6fa627bb0815560e2adf9d0c27b459f129db09e` |
+| P3-003 - Controlled Recovery Service Core | Independent re-review passed; PR #19 merged into `main` | `672143ca4ae364d413ef38fdfdedf244fcc89f66` |
 
 P2-001 delivered the approved review-only corpus: fourteen original synthetic
 AML/MDS FISH failure fixtures, twelve corrected fixtures for recoverable cases,
@@ -96,9 +93,11 @@ recovery-attempt write, queue transition after recovery, or idempotency
 behavior. Austin explicitly authorized the two non-frozen existing-test updates
 recorded below before P3-002 was accepted.
 
-## P3-003 - Controlled Recovery Service Core (completed, awaiting review)
+## Accepted P3-003 scope
 
-Austin explicitly approved P3-003 and its bounded scope. The task implements the
+PR #19 passed independent re-review and merged into `main` as
+`672143ca4ae364d413ef38fdfdedf244fcc89f66`. Austin explicitly approved
+P3-003 and its bounded scope. The task implements the
 complete headless recovery-service safety boundary dictated by the frozen design
 record (sections 4-11) and its frozen requirements/test-intent files: unchanged
 retry, corrected re-drive, recovery-attempt history, eligibility and rejection
@@ -184,9 +183,9 @@ test, `src/demo_run.py`, workflow, or CI file was changed. No new table, column,
 index, migration, failure code, category, policy, queue state, or attempt
 outcome was added.
 
-## Review response (draft PR #19)
+## Accepted review response (PR #19)
 
-Independent review found three blockers, all fixed on this branch by changing
+Independent review found three blockers, all fixed before acceptance by changing
 only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
 
 1. **Complete transaction rollback.** The unexpected-error rollback boundary in
@@ -215,7 +214,7 @@ only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
    source (against a tampered `raw_payload`) and cover the null-link and
    dangling-link blockers.
 
-## Test evidence (P3-003, awaiting review; review-response amendment)
+## Test evidence (accepted P3-003)
 
 - `pip install -r requirements-dev.txt`: succeeded.
 - `python -m pytest -q`: **164 passed, 0 failed** (110 pre-existing unchanged
@@ -249,12 +248,7 @@ only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
 
 ## Completed-but-unreviewed task branches
 
-| Task | Branch | Draft PR | State |
-|---|---|---|---|
-| P3-003 - Controlled Recovery Service Core | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` | #19 | Completed; awaiting Austin's review |
-
-One of the two permitted completed-but-unreviewed task slots is now in use; one
-slot remains available.
+None. Both permitted completed-but-unreviewed task slots are available.
 
 ## Blocked tasks and reasons
 
@@ -319,16 +313,15 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Review the P3-003 draft PR and its evidence; accept, request changes, or
-  reject. No follow-on task begins until it is reviewed and its own task ID is
-  approved.
+- Approve, revise, or defer the next separately scoped Phase 3 task. No
+  follow-on task is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Wait for Austin's review of the P3-003 draft PR. No documentation-closeout, UAT,
-hardening, P3-004, or later implementation work is approved and none may begin
-until Austin approves its own task ID. **Scheduled routines remain disabled.**
-Do not merge, approve another task, deploy, release, enable auto-merge, or push
-to `main`.
+Present one bounded follow-on Phase 3 task for Austin's explicit approval.
+**Scheduled routines remain disabled.** No documentation or UAT closeout,
+hardening, P3-004, or later implementation work may begin until its own task ID
+is approved. Do not merge, deploy, release, enable auto-merge, or push to
+`main`.
