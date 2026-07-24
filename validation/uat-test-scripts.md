@@ -517,15 +517,18 @@ recovery itself is invoked only through `redrive_queue_item`.
 
 **Steps:**
 1. Create a fresh OPEN item whose corrected re-drive files **two** results (so a
-   failure on the second write happens after the first has committed within the
-   operation):
+   failure on the second write happens after the first result has been *written*
+   inside the still-open transaction, but **before** that transaction commits):
    `open_order("SYN-8901", "ACC-REC-0901")`, then
    `r = inbound_hl7.ingest_message(conn, original("09_specimen_incompatible.hl7"))`.
 2. Snapshot the order status and the queue row (`status`, `resolved_at`,
    `terminal_at`) read-only, for a before/after comparison.
-3. Inject the fault (UAT setup only): make the **second** `enter_fish_result`
-   raise a handled `InboundError`, after the first result and its
-   `RESULT_ENTERED` event have written:
+3. Inject the fault and run the recovery (UAT setup only): make the **second**
+   `enter_fish_result` raise a handled `InboundError`, after the first result and
+   its `RESULT_ENTERED` event have been written inside the still-open transaction
+   but before it commits. Wrap the replacement and the recovery call in
+   `try/finally` so the real dependency is restored even if the call raises
+   unexpectedly:
 
    ```python
    from src import workflow
@@ -538,13 +541,22 @@ recovery itself is invoked only through `redrive_queue_item`.
            raise inbound_hl7.InboundError(
                "INVALID_INTERPRETATION", "injected handled mid-op failure")
        return real_enter(*args, **kwargs)
+
    workflow.enter_fish_result = flaky_enter
+   try:
+       # Invoke recovery only through the public service.
+       f = recovery.redrive_queue_item(
+           conn, r.queue_id, corrected("09_specimen_incompatible.hl7"),
+           request_id="UAT15B-MID", actor="analyst01",
+       )
+   finally:
+       # Always restore, even if the call raised unexpectedly.
+       workflow.enter_fish_result = real_enter
    ```
-4. Re-drive the **corrected** payload through the service (invoke recovery only
-   this way):
-   `f = recovery.redrive_queue_item(conn, r.queue_id, corrected("09_specimen_incompatible.hl7"), request_id="UAT15B-MID", actor="analyst01")`.
-5. **Restore the injected dependency immediately:**
-   `workflow.enter_fish_result = real_enter`.
+4. Confirm the real dependency is restored before continuing:
+   `workflow.enter_fish_result is real_enter` is `True`.
+5. Confirm the injection fired where intended: `state["calls"] == 2` (the first
+   call ran the real write; the second raised the handled `InboundError`).
 6. Inspect rollback evidence (read-only): `fish_result` for the order,
    `RESULT_ENTERED` and `INBOUND_RESULT_FILED` events for the order, the order
    status, the queue row, the resulting message status, the attempt outcome, and
@@ -552,9 +564,11 @@ recovery itself is invoked only through `redrive_queue_item`.
 7. Re-drive the corrected payload again with a **new** `request_id`:
    `g = recovery.redrive_queue_item(conn, r.queue_id, corrected("09_specimen_incompatible.hl7"), request_id="UAT15B-OK", actor="analyst01")`.
 
-**Expected result:** `f.outcome = FAILED`. Even though the first result and its
-`RESULT_ENTERED` event were written mid-operation, the handled failure **rolls
-them back**: the order has **0** `fish_result`, **0** `RESULT_ENTERED`, and **0**
+**Expected result:** `state["calls"] == 2`, proving the injected failure occurred
+on the intended second call - so the first result and its `RESULT_ENTERED` event
+really were written (inside the still-open transaction) before the fault fired.
+`f.outcome = FAILED`, and the handled failure **rolls those writes back**: the
+order has **0** `fish_result`, **0** `RESULT_ENTERED`, and **0**
 `INBOUND_RESULT_FILED`; the order status is unchanged (`IN_PROCESS`); the queue
 row is unchanged and still `OPEN` with `resolved_at` and `terminal_at` null. The
 attempted message is preserved as `ERRORED` and the attempt is preserved as
@@ -563,7 +577,9 @@ committed cleanly - only an *unexpected* non-`InboundError` would re-raise). The
 later step-7 request with a new `request_id` succeeds (`g.outcome = SUCCEEDED`,
 message `FILED`, queue `RESOLVED`, exactly one `SUCCEEDED` attempt).
 
-**Evidence to capture:** before/after order and queue rows (unchanged through the
+**Evidence to capture:** `state["calls"] == 2` and
+`workflow.enter_fish_result is real_enter` (injection fired on the intended call
+and was restored); before/after order and queue rows (unchanged through the
 FAILED attempt); the zeroed `fish_result` / `RESULT_ENTERED` / `INBOUND_RESULT_FILED`
 counts; the `ERRORED` message and `FAILED` attempt; `conn.in_transaction = False`;
 the later `SUCCEEDED` attempt and `RESOLVED` queue.

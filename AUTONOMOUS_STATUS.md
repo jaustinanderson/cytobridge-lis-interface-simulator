@@ -134,6 +134,36 @@ persisted state; `git diff --check` clean; changed-line text is plain ASCII; all
 relative Markdown links resolve; the full PR remains within the original 14
 authorized files.
 
+### Second review response - residual UAT-015B accuracy
+
+A follow-up review of PR #21 raised one residual documentation issue in the
+UAT-015B fault-injection subcase. Fixed in `validation/uat-test-scripts.md` (plus
+this status record); no other file changed.
+
+1. **Transaction wording corrected.** The subcase no longer says the first result
+   "has committed within the operation" - it has only been *written* inside the
+   still-open transaction. The setup and expected result now state accurately that
+   the second-call fault occurs after the first result and its `RESULT_ENTERED`
+   event have been written but **before** the transaction commits.
+2. **`try/finally` restore.** The temporary `workflow.enter_fish_result`
+   replacement and the `redrive_queue_item` call are now wrapped in `try/finally`
+   so the real dependency is restored even if the call raises unexpectedly, with
+   an explicit follow-up step confirming
+   `workflow.enter_fish_result is real_enter`.
+3. **Injection-point evidence.** `state["calls"] == 2` is now an inspected step
+   and a captured evidence item, proving the injected failure occurred on the
+   intended second call (so a real write preceded the fault).
+
+The revised snippet was executed against a scratch in-memory database to confirm
+it behaves as documented: `state["calls"] == 2`, dependency restored,
+`outcome = FAILED`, zero `fish_result` / `RESULT_ENTERED` / `INBOUND_RESULT_FILED`,
+order and queue rows unchanged and `OPEN`, attempted message `ERRORED`,
+`conn.in_transaction` false, and a later new-`request_id` request `SUCCEEDED` with
+the queue `RESOLVED`. No application code, test, schema, recovery behavior,
+sample, frozen file, or other documentation was changed; 164 pytest tests still
+pass, the demo still exits 0 with five scenarios, and the full PR remains within
+the original 14 authorized files.
+
 P3-004 remains **completed but awaiting Austin's review** - one completed-but-
 unreviewed task. No P3-005 or other follow-on work is approved, and the
 Autonomous Routine remains `DISABLED`.
