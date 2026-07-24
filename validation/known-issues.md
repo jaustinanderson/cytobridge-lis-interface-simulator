@@ -13,13 +13,13 @@ plainly what a system does **not** do.
 | ID | Area | Description | Impact | Disposition |
 |---|---|---|---|---|
 | **KI-02** | Inbound parser | The inbound HL7 parser accepts a small, fixed ORU dialect and packs the per-probe result into `OBX-5` as `scored^abnormal^signal^interp`. It is **not** a general HL7 v2 parser (no repetitions, escaping edge cases, Z-segments, or field-length rules). | Low - by design for an educational simulator. | Documented in `docs/interface-mapping.md`; won't fix (out of scope). |
-| **KI-03** | Error-queue lifecycle | Error-queue entries are created `OPEN`; the schema supports `RESOLVED`/`resolved_at`, but there is no code path or workflow function to resolve/re-drive a queued message (an analyst would run the `UPDATE` by hand, as shown in `docs/interface-troubleshooting.md`). | Low | Deferred - a "resolve + resend" workflow is a candidate future session. |
 
 ## Resolved items
 
 | ID | Resolution |
 |---|---|
 | **KI-01** | Closed by `tests/test_queries.py`: all five previously uncovered analyst views now have deterministic result assertions; the existing inbound suite covers `interface_error_queue.sql`. R-019 is PASS. |
+| **KI-03** | Closed by the v1.1 **controlled error-queue recovery service** (`src/recovery.py`, phases P3-001 through P3-003). An analyst now recovers a failed message headlessly through `retry_queue_item` / `redrive_queue_item` / `get_recovery_history`, which resolve or terminalize the queue item atomically after exactly one successful recovery (or a proven-prohibited action). The controlled service **replaces the former manual `UPDATE ... SET status = 'RESOLVED'`** step; `docs/interface-troubleshooting.md` no longer instructs a manual queue update (raw SQL is now read-only, for investigation). Behavior is proven by `tests/test_recovery_service.py`, `tests/test_recovery_schema.py`, and `tests/test_failure_classification.py`, and traced under R-020 - R-041. |
 
 ## Design limitations (by scope, not defects)
 
@@ -32,6 +32,7 @@ plainly what a system does **not** do.
 | **ISCN** | `reports.py` defines an ISCN parser **seam** (`parse_iscn`) but does not parse ISCN nomenclature; it returns the raw string with `is_valid=False`. |
 | **Clinical logic** | Interpretation consistency is a simple cutoff comparison. There is no clonal-evolution, mosaicism, or multi-probe-pattern reasoning. |
 | **Interface transport** | Messages are passed as in-process strings/files. There is no listener, queue broker, retry/backoff, or network transport. |
+| **Recovery workflow** | The v1.1 controlled recovery is **synchronous, headless, and single-process** (`src/recovery.py`). There is no scheduler, background worker, asynchronous `QUEUED`/`PROCESSING` state, automatic retry/backoff, UI, or API - an analyst calls the service functions directly. It is not a production interface-engine recovery subsystem. |
 | **UI** | Headless by design - no Streamlit/web UI. Analyst interaction is via Python calls and raw SQL. |
 
 ## Explicitly out of scope (won't add in this project)

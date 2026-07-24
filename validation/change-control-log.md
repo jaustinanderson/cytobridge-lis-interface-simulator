@@ -20,6 +20,11 @@ development session. Each session was developed on its own branch and merged to
 | S6 | Repository maintenance | CI on Python 3.11/3.12, licensing, security/contribution guidance, Dependabot, PR checklist | `f15cef1` |
 | S7 | Analyst-query verification | Result-level tests for every analyst SQL view; R-019 moved from PARTIAL to PASS | 2026-07-11 validation maintenance |
 | S8 | v1.1 Phase 1 controls and acceptance | Frozen design, approved/frozen requirements and test intent, builder rules, status control, CODEOWNERS, frozen-file guard | `cc3d395` plus 2026-07-22 Phase 1 closeout |
+| P2-001 | v1.1 synthetic recovery corpus | 14 original + 12 corrected AML/MDS FISH failure fixtures, manifest, guide (review artifact only) | PR #13 merged |
+| P3-001 | v1.1 recovery schema | `interface_error_queue` classification columns + expanded states; `interface_recovery_attempt` table and constraints | PR #15 merged |
+| P3-002 | v1.1 structured failure classification | Fourteen-code classification populated for every inbound failure; OPEN/TERMINAL queue initialization | PR #17 merged |
+| P3-003 | v1.1 controlled recovery service | `src/recovery.py` headless retry/re-drive/history with immutability, idempotency, rollback, terminal rejection | PR #19 merged; status closeout PR #20 merged |
+| P3-004 | v1.1 validation/UAT/portfolio closeout | Recovery demo, R-020-R-041 traceability, UAT-011-UAT-018, troubleshooting/diagram/demo/README/portfolio updates | Draft PR (awaiting Austin's review) |
 
 ---
 
@@ -221,14 +226,108 @@ sample message, or executable test changed.
 
 ---
 
+## v1.1 implementation history (Phase 2-3)
+
+Each v1.1 task was developed on its own `claude/*` branch under one draft pull
+request, reviewed, and accepted by Austin before the next depended on it. The
+prior entries above remain historical facts and are not rewritten.
+
+### P2-001 - Synthetic recovery corpus (PR #13)
+
+**What changed:** added `sample_messages/recovery/` - fourteen original synthetic
+AML/MDS FISH failure fixtures, twelve corrected fixtures for the recoverable
+cases, a machine-readable `recovery_corpus.json` manifest, and a human-readable
+`README.md`. This was a **review artifact only**: no schema change, no recovery
+implementation, no executable test. Every expected value was transcribed from the
+frozen design record, not back-filled from a parser run. Accepted baseline
+`681b8295`.
+
+### P3-001 - Recovery data model and schema (PR #15)
+
+**What changed:** `schema.sql` gained the v1.1 recovery shape - the
+`interface_error_queue` classification columns (`failure_code`,
+`failure_category`, `recovery_policy`), the expanded `OPEN`/`RESOLVED`/`TERMINAL`
+states with `terminal_at`, and the state/timestamp `CHECK`s; plus the new
+`interface_recovery_attempt` table with the exact approved logical fields,
+foreign keys, `request_id` uniqueness, the single-`SUCCEEDED`-per-queue partial
+unique index, and valid action/outcome/resulting-message rules. Added
+`tests/test_recovery_schema.py`. Classification columns were left nullable for
+schema-task sequencing. Accepted baseline `dafba1ae`.
+
+### P3-002 - Structured failure classification (PR #17)
+
+**What changed:** `src/interfaces/inbound_hl7.py` populated the fourteen approved
+failure codes through one authoritative in-code mapping, initialized the twelve
+recoverable failures as `OPEN` and the two order-state failures as `TERMINAL`
+with `terminal_at`. Added `tests/test_failure_classification.py`. Preserved
+reason text, original messages, raw payloads, filing behavior, and order state;
+added no recovery service. Austin explicitly authorized two non-frozen
+existing-test updates before acceptance. Accepted baseline `e6fa627b`.
+
+### P3-003 - Controlled recovery service core (PR #19; status closeout PR #20)
+
+**What changed:** added `src/recovery.py` - the headless service boundary
+`retry_queue_item` / `redrive_queue_item` / `get_recovery_history` - implementing
+the full frozen safety boundary: unchanged retry, corrected re-drive, attempt
+history, eligibility and rejection rules, original-message immutability, queue
+resolution and terminalization, `request_id` replay and `REQUEST_ID_CONFLICT`
+handling, single-success protection, handled-failure rollback, transaction-safe
+persistence, and recovery audit evidence. Threaded a keyword-only
+`commit` control through `src/db.py`, `src/workflow.py`,
+`src/interfaces/__init__.py`, and a private behavior-preserving refactor of
+`src/interfaces/inbound_hl7.py` (extracted `_store_inbound_message` /
+`_validate_inbound` seam). Added `tests/test_recovery_service.py` (54 tests).
+Independent review found three blockers - complete transaction rollback, exact
+stored-classification validation, and RETRY sourcing its payload from the linked
+original `interface_message` - all fixed before acceptance. Accepted baseline
+`672143ca`. PR #20 closed the P3-003 status in `AUTONOMOUS_STATUS.md`; the
+resulting `main` merge commit is `8272bd18`.
+
+### P3-004 - Recovery validation, UAT, and portfolio closeout (this task; draft PR)
+
+**What changed (documentation closeout plus one authorized executable change):**
+
+- `src/demo_run.py` - the **only** executable file changed. Added scenario 5, a
+  deterministic synthetic recovery demonstration through the public recovery
+  service (corrected re-drive, unchanged ORDER_NOT_FOUND retry, handled failure
+  then later success, and duplicate/replay/`REQUEST_ID_CONFLICT` protection).
+  Scenario-count references updated from four to five.
+- `validation/traceability-matrix.md` - added R-020 through R-041 with exact
+  implementing file/function or schema constraint, executable test coverage, and
+  an applicable manual UAT; separated automated `PASS` from manual `DEFINED`;
+  totals updated to 41 requirements.
+- `validation/uat-test-scripts.md` - added UAT-011 through UAT-018 (recovery)
+  through the public service, preserved UAT-001-UAT-010, updated the summary.
+- `docs/interface-troubleshooting.md` - rewritten from the old manual-resend /
+  manual-SQL model to the controlled recovery workflow (raw SQL now read-only).
+- `docs/workflow-diagram.md` - added a compact recovery view.
+- `docs/demo-script.md` - updated to the five-scenario demo with a recovery
+  segment.
+- `validation/validation-summary.md`, `validation/known-issues.md` (KI-03 moved
+  to resolved), `validation/risk-assessment.md` (recovery risks RA-17-RA-22),
+  and this log - updated for v1.1.
+- `README.md`, `docs/portfolio-review.md`, `docs/hiring-manager-review.md` -
+  v1.1 framing, corrected figures, provenance statement, roadmap update.
+- `AUTONOMOUS_STATUS.md` - status control update.
+
+No application module other than `src/demo_run.py`, no schema, query, sample
+message, corpus, frozen file, CI workflow, or existing/new test was changed.
+
+**Status:** **completed but awaiting Austin's review** on the new draft pull
+request. It is **not** merged or accepted; this entry records the work as
+submitted for review, not as accepted.
+
+---
+
 ## Change-control principles used
 
-- **One session = one branch = one PR**, never committed straight to `main`.
-- **Tests accompany behavior** - every code session added matching coverage;
-  the current suite has 61 passing tests, including result assertions for all
-  analyst SQL views.
-- **Scope guardrails** honored every session (no UI/Docker/ORM/new panels/new
-  DB/real HL7-FHIR deps/Epic content; synthetic data only). CI was later added
-  as a maintenance gate without changing application behavior.
+- **One session/task = one branch = one PR**, never committed straight to `main`.
+- **Tests accompany behavior** - every code session and v1.1 task added matching
+  coverage; the current suite has 164 passing tests across eight suites,
+  including result assertions for all analyst SQL views and the full controlled
+  recovery service.
+- **Scope guardrails** honored every session and task (no UI/Docker/ORM/new
+  panels/new DB/real HL7-FHIR deps/Epic content; synthetic data only). CI was
+  added as a maintenance gate without changing application behavior.
 - **Docs kept in step** - `README.md`, `docs/interface-mapping.md`, and (S4) the
   validation package track the code as it grows.
