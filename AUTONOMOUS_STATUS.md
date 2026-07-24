@@ -15,7 +15,7 @@ explicit approval.
 | Last accepted baseline commit | `e6fa627bb0815560e2adf9d0c27b459f129db09e` (`main`) |
 | P3-003 starting `main` commit | `2ee1c5b83f26173c4a3e15902411e46fbb47481b` |
 | Active implementation task branch | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` |
-| Draft implementation PR | #PENDING (draft, targets `main`) |
+| Draft implementation PR | #19 (draft, targets `main`) |
 | Completed-but-unreviewed task count | 1 (P3-003) |
 | Autonomous Routine | `DISABLED` |
 
@@ -193,7 +193,7 @@ outcome was added.
 
 | Task | Branch | Draft PR | State |
 |---|---|---|---|
-| P3-003 - Controlled Recovery Service Core | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` | #PENDING | Completed; awaiting Austin's review |
+| P3-003 - Controlled Recovery Service Core | `claude/v1.1-p3-003-recovery-service-core-pxh0fc` | #19 | Completed; awaiting Austin's review |
 
 One of the two permitted completed-but-unreviewed task slots is now in use; one
 slot remains available.
