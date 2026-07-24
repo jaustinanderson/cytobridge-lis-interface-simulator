@@ -15,7 +15,7 @@ explicit approval.
 | Last accepted baseline commit | `8272bd18de4663180d94e18736726c211f77a361` (`main`, includes P3-003 PR #19 and its status closeout PR #20) |
 | P3-004 starting `main` commit | `8272bd18de4663180d94e18736726c211f77a361` |
 | Active implementation task branch | `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004; the harness-designated branch for this task) |
-| Draft implementation PR | P3-004 draft PR (number recorded below once opened) |
+| Draft implementation PR | #21 (draft) - https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/21 |
 | Completed-but-unreviewed task count | 1 (P3-004) |
 | Autonomous Routine | `DISABLED` |
 
@@ -74,7 +74,7 @@ persisted state; 41 requirements traced; UAT-001 - UAT-018 present; manual UAT i
 defined, not claimed executed; `git diff --check` clean; new/changed text is
 plain ASCII; `recovery_corpus.json` parses and is unchanged.
 
-**Status:** P3-004 is **completed but awaiting Austin's review** on the draft PR.
+**Status:** P3-004 is **completed but awaiting Austin's review** on draft PR #21.
 It is not merged or accepted.
 
 ## Blocker resolution (P3-002)
@@ -301,7 +301,7 @@ only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
 ## Completed-but-unreviewed task branches
 
 One: `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004, awaiting Austin's
-review on its draft PR). One of the two permitted completed-but-unreviewed task
+review on draft PR #21). One of the two permitted completed-but-unreviewed task
 slots remains available. Do not start another task while P3-004 is unreviewed
 unless it stays within the two-slot cap and is separately approved.
 
