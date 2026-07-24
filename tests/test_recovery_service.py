@@ -1169,3 +1169,303 @@ def test_manifest_locates_the_recoverable_fixtures():
         assert entry["corrected_payload"] == f"corrected/{case.fixture}"
         assert (_ORIGINAL_DIR / case.fixture).exists()
         assert (_CORRECTED_DIR / case.fixture).exists()
+
+
+# ===========================================================================
+# Review finding 1 - the unexpected-error rollback boundary covers the entire
+# request, including an unexpected failure after filing completes but before the
+# success bookkeeping commits.
+# ===========================================================================
+
+def _full_snapshot(conn):
+    """Snapshot everything a recovery request could touch, for rollback proofs."""
+    return {
+        "messages": [tuple(r) for r in conn.execute(
+            "SELECT message_id, direction, order_id, control_id, payload, status "
+            "FROM interface_message ORDER BY message_id"
+        ).fetchall()],
+        "fish": [tuple(r) for r in conn.execute(
+            "SELECT result_id, order_id, probe_id, cells_scored, cells_abnormal, "
+            "signal_pattern, interpretation FROM fish_result ORDER BY result_id"
+        ).fetchall()],
+        "attempts": [tuple(r) for r in conn.execute(
+            "SELECT attempt_id, queue_id, resulting_message_id, request_id, action, "
+            "payload_sha256, outcome, actor, outcome_detail FROM "
+            "interface_recovery_attempt ORDER BY attempt_id"
+        ).fetchall()],
+        "result_entered": _count(
+            conn, "SELECT COUNT(*) FROM audit_event WHERE action = 'RESULT_ENTERED'"
+        ),
+        "inbound_filed": _filing_events(conn),
+        "orders": [tuple(r) for r in conn.execute(
+            "SELECT order_id, status FROM lab_order ORDER BY order_id"
+        ).fetchall()],
+        "queues": [tuple(r) for r in conn.execute(
+            "SELECT queue_id, status, resolved_at, terminal_at, raw_payload, "
+            "failure_code, failure_category, recovery_policy "
+            "FROM interface_error_queue ORDER BY queue_id"
+        ).fetchall()],
+    }
+
+
+def test_unexpected_failure_after_filing_rolls_back_entire_request(monkeypatch):
+    conn = create_database(":memory:")
+    try:
+        case = next(c for c in RECOVERABLE if c.case_id == "RC-09")
+        ingest = _make_open_queue_item(conn, case)
+        queue_id = ingest.queue_id
+        before = _full_snapshot(conn)
+
+        # Inject an unexpected (non-InboundError) failure during queue resolution:
+        # this fires after validation, filing, the FILED update, and the
+        # SUCCEEDED-attempt insertion have all written (uncommitted), but before
+        # the final commit.
+        def boom_resolve(*args, **kwargs):
+            raise RuntimeError("unexpected failure during queue resolution")
+
+        monkeypatch.setattr(recovery, "_resolve_queue", boom_resolve)
+        with pytest.raises(RuntimeError):
+            recovery.redrive_queue_item(
+                conn, queue_id, _corrected(case.fixture),
+                request_id="AFTER-FILING", actor="analyst01",
+            )
+        monkeypatch.undo()
+
+        # Entire request rolled back; every tracked table and the transaction
+        # state is exactly as before, and the exception was not converted to FAILED.
+        after = _full_snapshot(conn)
+        assert after["messages"] == before["messages"]
+        assert after["fish"] == before["fish"]
+        assert after["attempts"] == before["attempts"]
+        assert after["result_entered"] == before["result_entered"]
+        assert after["inbound_filed"] == before["inbound_filed"]
+        assert after["orders"] == before["orders"]
+        assert after["queues"] == before["queues"]
+        assert conn.in_transaction is False
+        # Nothing at all persisted for this request.
+        assert _count(conn, "SELECT COUNT(*) FROM interface_recovery_attempt") == 0
+        assert _queue_row(conn, queue_id)["status"] == "OPEN"
+        _fk_ok(conn)
+    finally:
+        conn.close()
+
+
+# ===========================================================================
+# Review finding 2 - the exact stored classification is validated against the
+# authoritative inbound mapping after request-id resolution but before ordinary
+# eligibility. Null, contradictory, or unmappable classification is a blocker
+# that persists nothing.
+# ===========================================================================
+
+def _corrupt_classification(conn, queue_id, **fields):
+    assignments = ", ".join(f"{k} = ?" for k in fields)
+    conn.execute(
+        f"UPDATE interface_error_queue SET {assignments} WHERE queue_id = ?",
+        (*fields.values(), queue_id),
+    )
+    conn.commit()
+
+
+def _assert_classification_blocker_persists_nothing(conn, queue_id, before):
+    after = _full_snapshot(conn)
+    # No attempt, message, result, queue change, order change, or audit event.
+    assert after["messages"] == before["messages"]
+    assert after["fish"] == before["fish"]
+    assert after["attempts"] == before["attempts"]
+    assert after["orders"] == before["orders"]
+    assert after["queues"] == before["queues"]
+    assert _count(conn, "SELECT COUNT(*) FROM interface_recovery_attempt") == 0
+    assert _count(conn, "SELECT COUNT(*) FROM audit_event") == before["audit_total"]
+    assert conn.in_transaction is False
+    _fk_ok(conn)
+
+
+def test_null_classification_is_a_blocker_persisting_nothing():
+    conn = create_database(":memory:")
+    try:
+        case = next(c for c in RECOVERABLE if c.case_id == "RC-09")
+        queue_id = _make_open_queue_item(conn, case).queue_id
+        _corrupt_classification(
+            conn, queue_id,
+            failure_code=None, failure_category=None, recovery_policy=None,
+        )
+        before = _full_snapshot(conn)
+        before["audit_total"] = _count(conn, "SELECT COUNT(*) FROM audit_event")
+        with pytest.raises(recovery.RecoveryError):
+            recovery.redrive_queue_item(
+                conn, queue_id, _corrected(case.fixture),
+                request_id="NULL-CLS", actor="analyst01",
+            )
+        _assert_classification_blocker_persists_nothing(conn, queue_id, before)
+    finally:
+        conn.close()
+
+
+def test_contradictory_category_classification_is_a_blocker():
+    conn = create_database(":memory:")
+    try:
+        # ORDER_NOT_FOUND's authoritative category is ORDER_MATCHING; store a
+        # schema-valid but wrong category (SPECIMEN).
+        ingest = inbound_hl7.ingest_message(conn, _original("05_order_not_found.hl7"))
+        queue_id = ingest.queue_id
+        _corrupt_classification(conn, queue_id, failure_category="SPECIMEN")
+        before = _full_snapshot(conn)
+        before["audit_total"] = _count(conn, "SELECT COUNT(*) FROM audit_event")
+        with pytest.raises(recovery.RecoveryError):
+            recovery.retry_queue_item(
+                conn, queue_id, request_id="CAT-MISMATCH", actor="analyst01"
+            )
+        _assert_classification_blocker_persists_nothing(conn, queue_id, before)
+    finally:
+        conn.close()
+
+
+def test_contradictory_code_policy_classification_is_a_blocker():
+    conn = create_database(":memory:")
+    try:
+        # ORDER_NOT_FOUND's authoritative policy is RETRY_OR_REDRIVE; store a
+        # schema-valid but wrong policy (REDRIVE_ONLY).
+        ingest = inbound_hl7.ingest_message(conn, _original("05_order_not_found.hl7"))
+        queue_id = ingest.queue_id
+        _corrupt_classification(conn, queue_id, recovery_policy="REDRIVE_ONLY")
+        before = _full_snapshot(conn)
+        before["audit_total"] = _count(conn, "SELECT COUNT(*) FROM audit_event")
+        with pytest.raises(recovery.RecoveryError):
+            recovery.redrive_queue_item(
+                conn, queue_id, _corrected("05_order_not_found.hl7"),
+                request_id="POLICY-MISMATCH", actor="analyst01",
+            )
+        _assert_classification_blocker_persists_nothing(conn, queue_id, before)
+    finally:
+        conn.close()
+
+
+def test_request_id_resolution_precedes_classification_validation():
+    """A matching replay and a conflict are both resolved before the stored
+    classification is validated, so corrupt classification does not turn either
+    into a RecoveryError."""
+    conn = create_database(":memory:")
+    try:
+        # RC-08 is REDRIVE_ONLY; a RETRY there is REJECTED and leaves the item OPEN
+        # with a valid attempt recorded under request_id 'PRIOR'.
+        case = next(c for c in RECOVERABLE if c.case_id == "RC-08")
+        queue_id = _make_open_queue_item(conn, case).queue_id
+        prior = recovery.retry_queue_item(
+            conn, queue_id, request_id="PRIOR", actor="analyst01"
+        )
+        assert prior.outcome == "REJECTED"
+
+        # Now corrupt the classification to null.
+        _corrupt_classification(
+            conn, queue_id,
+            failure_code=None, failure_category=None, recovery_policy=None,
+        )
+
+        # A matching replay still returns the recorded attempt (no RecoveryError).
+        replay = recovery.retry_queue_item(
+            conn, queue_id, request_id="PRIOR", actor="analyst01"
+        )
+        assert replay.attempt_id == prior.attempt_id
+        assert replay.outcome == "REJECTED"
+
+        # A conflicting reuse still raises the conflict (not a classification
+        # blocker) and records exactly one REQUEST_ID_CONFLICT audit event.
+        with pytest.raises(recovery.RequestIdConflictError):
+            recovery.retry_queue_item(
+                conn, queue_id, request_id="PRIOR", actor="different-actor"
+            )
+        assert _count(
+            conn,
+            "SELECT COUNT(*) FROM audit_event WHERE action = 'REQUEST_ID_CONFLICT'",
+        ) == 1
+        _fk_ok(conn)
+    finally:
+        conn.close()
+
+
+# ===========================================================================
+# Review finding 3 - RETRY_ORIGINAL sources the payload from the linked original
+# interface_message.payload, never from interface_error_queue.raw_payload.
+# ===========================================================================
+
+def test_retry_sources_payload_from_linked_original_message():
+    conn = create_database(":memory:")
+    try:
+        original = _original("05_order_not_found.hl7")
+        ingest = inbound_hl7.ingest_message(conn, original)
+        queue_id = ingest.queue_id
+        # Prove the source is the linked message, not raw_payload: tamper the queue
+        # raw_payload so the two copies differ. (Recovery must not read this, and
+        # must not rewrite it either.)
+        conn.execute(
+            "UPDATE interface_error_queue SET raw_payload = ? WHERE queue_id = ?",
+            ("TAMPERED-NOT-THE-SOURCE", queue_id),
+        )
+        conn.commit()
+
+        _make_open_order(conn, "SYN-8500", "ACC-REC-0500-NOMATCH")
+        attempt = recovery.retry_queue_item(
+            conn, queue_id, request_id="SRC", actor="analyst01"
+        )
+        assert attempt.outcome == "SUCCEEDED"
+
+        # The new retry message and the fingerprint both come from the original
+        # interface_message.payload, not the tampered raw_payload.
+        new_payload = _message_row(conn, attempt.resulting_message_id)["payload"]
+        assert new_payload == original
+        assert attempt.payload_sha256 == _sha256(original)
+        assert new_payload != "TAMPERED-NOT-THE-SOURCE"
+        # Neither stored copy was rewritten.
+        assert _message_row(conn, ingest.message_id)["payload"] == original
+        assert _queue_row(conn, queue_id)["raw_payload"] == "TAMPERED-NOT-THE-SOURCE"
+        _fk_ok(conn)
+    finally:
+        conn.close()
+
+
+def test_retry_missing_original_message_link_is_a_blocker():
+    conn = create_database(":memory:")
+    try:
+        ingest = inbound_hl7.ingest_message(conn, _original("05_order_not_found.hl7"))
+        queue_id = ingest.queue_id
+        conn.execute(
+            "UPDATE interface_error_queue SET message_id = NULL WHERE queue_id = ?",
+            (queue_id,),
+        )
+        conn.commit()
+        with pytest.raises(recovery.RecoveryError):
+            recovery.retry_queue_item(
+                conn, queue_id, request_id="NO-LINK", actor="analyst01"
+            )
+        assert _count(conn, "SELECT COUNT(*) FROM interface_recovery_attempt") == 0
+        assert _count(conn, "SELECT COUNT(*) FROM audit_event WHERE action = "
+                      "'REQUEST_ID_CONFLICT'") == 0
+        _fk_ok(conn)
+    finally:
+        conn.close()
+
+
+def test_retry_missing_original_message_row_is_a_blocker():
+    conn = create_database(":memory:")
+    try:
+        # Point the queue link at a non-existent message id. Rewire the FK-bearing
+        # column via a fresh message that is then deleted so the link dangles.
+        ingest = inbound_hl7.ingest_message(conn, _original("05_order_not_found.hl7"))
+        queue_id = ingest.queue_id
+        # Temporarily disable FK enforcement only to construct the dangling link
+        # this negative test needs; restore it before exercising recovery.
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute(
+            "UPDATE interface_error_queue SET message_id = 999999 WHERE queue_id = ?",
+            (queue_id,),
+        )
+        conn.commit()
+        conn.execute("PRAGMA foreign_keys = ON")
+
+        with pytest.raises(recovery.RecoveryError):
+            recovery.retry_queue_item(
+                conn, queue_id, request_id="DANGLING", actor="analyst01"
+            )
+        assert _count(conn, "SELECT COUNT(*) FROM interface_recovery_attempt") == 0
+    finally:
+        conn.close()

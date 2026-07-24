@@ -148,6 +148,36 @@ def _load_queue(conn: sqlite3.Connection, queue_id: int) -> sqlite3.Row:
     return row
 
 
+def _original_message_payload(
+    conn: sqlite3.Connection, queue_row: sqlite3.Row
+) -> str:
+    """Return the payload of the queue item's linked original interface_message.
+
+    RETRY_ORIGINAL reuses the exact original inbound payload from
+    ``interface_message.payload`` of the message the queue item links via
+    ``interface_error_queue.message_id`` -- never from
+    ``interface_error_queue.raw_payload``. A null link or a missing message row is
+    a blocker: ``RecoveryError`` is raised before any write, and neither stored
+    copy is modified.
+    """
+    message_id = queue_row["message_id"]
+    if message_id is None:
+        raise RecoveryError(
+            f"Error-queue item {queue_row['queue_id']} has no linked original "
+            f"interface_message to retry."
+        )
+    row = conn.execute(
+        "SELECT payload FROM interface_message WHERE message_id = ?",
+        (message_id,),
+    ).fetchone()
+    if row is None:
+        raise RecoveryError(
+            f"Error-queue item {queue_row['queue_id']} links original "
+            f"interface_message {message_id}, which does not exist."
+        )
+    return row["payload"]
+
+
 def _find_attempt_by_request_id(
     conn: sqlite3.Connection, request_id: str
 ) -> sqlite3.Row | None:
@@ -251,17 +281,17 @@ def retry_queue_item(
 
     Permitted only for an OPEN ``ORDER_NOT_FOUND`` item whose recovery policy is
     ``RETRY_OR_REDRIVE`` (design sec 7). The immutable original payload is read
-    from the queue item's ``raw_payload``; no replacement payload is accepted.
-    Returns the persisted recovery attempt and its outcome. Raises
-    ``RequestIdConflictError`` for a conflicting ``request_id`` and
-    ``RecoveryError`` for contradictory queue state.
+    from the queue item's linked original ``interface_message`` (its
+    ``interface_message.payload``), which is used as the source for both
+    ``payload_sha256`` and the new retry message; no replacement payload is
+    accepted and neither stored copy is rewritten. A missing original-message
+    link or row surfaces as ``RecoveryError`` before any write. Returns the
+    persisted recovery attempt and its outcome. Raises ``RequestIdConflictError``
+    for a conflicting ``request_id`` and ``RecoveryError`` for contradictory
+    queue state.
     """
     queue_row = _load_queue(conn, queue_id)
-    payload = queue_row["raw_payload"]
-    if payload is None:
-        raise RecoveryError(
-            f"Error-queue item {queue_id} has no stored original payload to retry."
-        )
+    payload = _original_message_payload(conn, queue_row)
     return _recover(
         conn,
         queue_row=queue_row,
@@ -321,6 +351,45 @@ def get_recovery_history(
 # Core orchestration
 # ---------------------------------------------------------------------------
 
+def _validate_classification(queue_row: sqlite3.Row) -> None:
+    """Validate the stored classification against the authoritative inbound mapping.
+
+    Runs after request-id replay/conflict resolution and before any queue-state or
+    action eligibility decision. The queue item's ``failure_code``,
+    ``failure_category``, and ``recovery_policy`` must all be populated and must
+    equal exactly the ``(category, policy)`` the single authoritative mapping in
+    ``inbound_hl7`` (``_FAILURE_CLASSIFICATION``) assigns to that code. Null,
+    contradictory, or unmappable classification raises ``RecoveryError``; because
+    this runs before any write, no attempt, message, result, queue change, order
+    change, or audit event is persisted. No second mapping is introduced here --
+    the existing authoritative one is reused.
+    """
+    queue_id = queue_row["queue_id"]
+    code = queue_row["failure_code"]
+    category = queue_row["failure_category"]
+    policy = queue_row["recovery_policy"]
+    if code is None or category is None or policy is None:
+        raise RecoveryError(
+            f"Queue item {queue_id} has incomplete classification "
+            f"(failure_code={code!r}, failure_category={category!r}, "
+            f"recovery_policy={policy!r}); cannot decide recovery eligibility."
+        )
+    expected = inbound_hl7._FAILURE_CLASSIFICATION.get(code)
+    if expected is None:
+        raise RecoveryError(
+            f"Queue item {queue_id} has unmappable failure_code={code!r}; it is "
+            f"not in the authoritative failure classification mapping."
+        )
+    if category != expected.category or policy != expected.policy:
+        raise RecoveryError(
+            f"Queue item {queue_id} has contradictory classification: stored "
+            f"(failure_code={code}, failure_category={category}, "
+            f"recovery_policy={policy}) does not match the authoritative triple "
+            f"(failure_code={code}, failure_category={expected.category}, "
+            f"recovery_policy={expected.policy})."
+        )
+
+
 def _recover(
     conn: sqlite3.Connection,
     *,
@@ -335,8 +404,10 @@ def _recover(
     1. Compute the payload fingerprint for the request.
     2. Resolve ``request_id`` (replay vs conflict) BEFORE any queue-state or
        action eligibility check.
-    3. For a fresh request, check queue-state and action eligibility.
-    4. Reject, or run permitted processing under one transaction.
+    3. Validate the exact stored classification against the authoritative mapping
+       (still after request-id resolution, but before ordinary eligibility).
+    4. For a fresh request, check queue-state and action eligibility.
+    5. Reject, or run permitted processing under one transaction.
     """
     queue_id = queue_row["queue_id"]
     payload_sha256 = _payload_sha256(payload)
@@ -369,7 +440,13 @@ def _recover(
             f"request; rejected as {_CONFLICT_ACTION}.",
         )
 
-    # --- Step 3: eligibility (fresh request only). -------------------------
+    # --- Step 3: classification validation (before ordinary eligibility). --
+    # Null, contradictory, or unmappable classification is a blocker that
+    # persists nothing; it is checked after request-id resolution but before any
+    # queue-state or action eligibility decision.
+    _validate_classification(queue_row)
+
+    # --- Step 4: eligibility (fresh request only). -------------------------
     status = queue_row["status"]
     if status != "OPEN":
         # A new request against a RESOLVED or TERMINAL item is REJECTED with an
@@ -389,15 +466,6 @@ def _recover(
 
     code = queue_row["failure_code"]
     policy = queue_row["recovery_policy"]
-    if code is None or policy is None:
-        # Contradictory/unknown classification on an OPEN item: the frozen design
-        # dictates no outcome, so surface a blocker rather than fabricate one.
-        raise RecoveryError(
-            f"Queue item {queue_id} is OPEN but has incomplete classification "
-            f"(failure_code={code!r}, recovery_policy={policy!r}); cannot decide "
-            f"recovery eligibility."
-        )
-
     if action == _RETRY:
         if not (code == "ORDER_NOT_FOUND" and policy == "RETRY_OR_REDRIVE"):
             return _reject(
@@ -423,7 +491,7 @@ def _recover(
                 f"which is not a valid policy for an OPEN item."
             )
 
-    # --- Step 4: permitted processing. -------------------------------------
+    # --- Step 5: permitted processing. -------------------------------------
     return _process(
         conn,
         queue_id=queue_id,
@@ -526,55 +594,85 @@ def _process(
       attempt, and queue OPEN -> TERMINAL, when processing establishes the target
       order is now FINALIZED or CANCELLED.
 
-    An unexpected (non-``InboundError``) failure rolls the whole request back and
-    re-raises, leaving no partial state.
+    The rollback boundary covers the entire permitted request -- recovery-message
+    creation, validation and filing, the FILED update, SUCCEEDED-attempt
+    insertion, queue resolution, terminalization/handled-failure bookkeeping, and
+    the final commit. Any unexpected (non-``InboundError``) exception at any stage
+    rolls the whole request back and re-raises, leaving ``conn.in_transaction``
+    false and no partial message, result, attempt, audit, order, or queue change.
+    Handled ``InboundError`` semantics are unchanged: a non-terminal inbound error
+    yields a FAILED attempt and a terminal one a REJECTED attempt; generic
+    exceptions and database errors are never converted into FAILED.
     """
-    # Store the new INBOUND message inside a fresh transaction (the DML opens it).
-    message_id = inbound_hl7._store_inbound_message(conn, payload, commit=False)
-    # Savepoint after the message insert: a handled failure rolls filing writes
-    # back to here while keeping the attempted message.
-    conn.execute("SAVEPOINT recovery_processing")
     try:
-        _parsed, order, results = inbound_hl7._validate_inbound(conn, payload)
-        filed_codes = inbound_hl7._file_results(
-            conn, order, results, message_id, actor, commit=False
-        )
-        inbound_hl7._update_message(
-            conn, message_id, status="FILED", order_id=order["order_id"], commit=False
-        )
-    except inbound_hl7.InboundError as err:
-        if err.code in _TERMINAL_INBOUND_CODES:
-            # Dynamic OPEN -> TERMINAL: recovery is now prohibited. Discard the
-            # attempted message entirely (no processing message) and record only
-            # a REJECTED attempt plus the terminalization.
-            conn.rollback()
+        # Store the new INBOUND message inside a fresh transaction (the DML opens
+        # it). A savepoint after the insert lets a handled failure roll filing
+        # writes back while keeping the attempted message.
+        message_id = inbound_hl7._store_inbound_message(conn, payload, commit=False)
+        conn.execute("SAVEPOINT recovery_processing")
+        try:
+            _parsed, order, results = inbound_hl7._validate_inbound(conn, payload)
+            filed_codes = inbound_hl7._file_results(
+                conn, order, results, message_id, actor, commit=False
+            )
+            inbound_hl7._update_message(
+                conn, message_id, status="FILED", order_id=order["order_id"],
+                commit=False,
+            )
+        except inbound_hl7.InboundError as err:
+            if err.code in _TERMINAL_INBOUND_CODES:
+                # Dynamic OPEN -> TERMINAL: recovery is now prohibited. Discard the
+                # attempted message entirely (no processing message) and record
+                # only a REJECTED attempt plus the terminalization.
+                conn.rollback()
+                attempt_id = _insert_attempt(
+                    conn,
+                    queue_id=queue_id,
+                    resulting_message_id=None,
+                    request_id=request_id,
+                    action=action,
+                    payload_sha256=payload_sha256,
+                    outcome="REJECTED",
+                    actor=actor,
+                    outcome_detail=(
+                        f"Recovery rejected: target order is now {err.code}; "
+                        f"queue item {queue_id} moved OPEN -> TERMINAL. {err}"
+                    ),
+                    commit=False,
+                )
+                _terminalize_queue(conn, queue_id, commit=False)
+                conn.commit()
+                return _load_attempt(conn, attempt_id)
+
+            # Handled non-terminal failure: roll back any partial filing side
+            # effects, preserve the attempted message as ERRORED, and record a
+            # FAILED attempt. The queue item stays OPEN for a later new request_id.
+            conn.execute("ROLLBACK TO SAVEPOINT recovery_processing")
+            conn.execute("RELEASE SAVEPOINT recovery_processing")
+            inbound_hl7._update_message(
+                conn, message_id, status="ERRORED", commit=False
+            )
             attempt_id = _insert_attempt(
                 conn,
                 queue_id=queue_id,
-                resulting_message_id=None,
+                resulting_message_id=message_id,
                 request_id=request_id,
                 action=action,
                 payload_sha256=payload_sha256,
-                outcome="REJECTED",
+                outcome="FAILED",
                 actor=actor,
                 outcome_detail=(
-                    f"Recovery rejected: target order is now {err.code}; "
-                    f"queue item {queue_id} moved OPEN -> TERMINAL. {err}"
+                    f"Recovery processing failed ({err.code}); attempted message "
+                    f"preserved as ERRORED, queue item {queue_id} left OPEN. {err}"
                 ),
                 commit=False,
             )
-            _terminalize_queue(conn, queue_id, commit=False)
             conn.commit()
             return _load_attempt(conn, attempt_id)
 
-        # Handled non-terminal failure: roll back any partial filing side effects,
-        # preserve the attempted message as ERRORED, and record a FAILED attempt.
-        # The queue item stays OPEN so a later new request_id may try again.
-        conn.execute("ROLLBACK TO SAVEPOINT recovery_processing")
+        # Success: commit the new FILED message, filing side effects, the
+        # SUCCEEDED attempt, and the queue resolution together.
         conn.execute("RELEASE SAVEPOINT recovery_processing")
-        inbound_hl7._update_message(
-            conn, message_id, status="ERRORED", commit=False
-        )
         attempt_id = _insert_attempt(
             conn,
             queue_id=queue_id,
@@ -582,41 +680,22 @@ def _process(
             request_id=request_id,
             action=action,
             payload_sha256=payload_sha256,
-            outcome="FAILED",
+            outcome="SUCCEEDED",
             actor=actor,
             outcome_detail=(
-                f"Recovery processing failed ({err.code}); attempted message "
-                f"preserved as ERRORED, queue item {queue_id} left OPEN. {err}"
+                f"Recovery succeeded via {action}; new message {message_id} FILED "
+                f"to order {order['order_id']} ({len(filed_codes)} probe "
+                f"result(s)); queue item {queue_id} moved OPEN -> RESOLVED."
             ),
             commit=False,
         )
+        _resolve_queue(conn, queue_id, commit=False)
         conn.commit()
         return _load_attempt(conn, attempt_id)
     except Exception:
-        # Unexpected failure: discard the entire new request and re-raise. It is
-        # never converted into a FAILED attempt.
+        # Any unexpected failure anywhere in the request -- including during
+        # success/terminal/handled bookkeeping or the final commit -- discards the
+        # entire new request and re-raises. It is never converted into a FAILED
+        # attempt. A handled InboundError returns above and never reaches here.
         conn.rollback()
         raise
-
-    # Success: commit the new FILED message, filing side effects, the SUCCEEDED
-    # attempt, and the queue resolution together.
-    conn.execute("RELEASE SAVEPOINT recovery_processing")
-    attempt_id = _insert_attempt(
-        conn,
-        queue_id=queue_id,
-        resulting_message_id=message_id,
-        request_id=request_id,
-        action=action,
-        payload_sha256=payload_sha256,
-        outcome="SUCCEEDED",
-        actor=actor,
-        outcome_detail=(
-            f"Recovery succeeded via {action}; new message {message_id} FILED to "
-            f"order {order['order_id']} ({len(filed_codes)} probe result(s)); "
-            f"queue item {queue_id} moved OPEN -> RESOLVED."
-        ),
-        commit=False,
-    )
-    _resolve_queue(conn, queue_id, commit=False)
-    conn.commit()
-    return _load_attempt(conn, attempt_id)

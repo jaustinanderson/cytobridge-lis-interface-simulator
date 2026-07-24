@@ -120,19 +120,33 @@ from the frozen files.
   for prior SUCCEEDED, FAILED, and REJECTED outcomes; any mismatch is exposed as
   a distinct `RequestIdConflictError` (`REQUEST_ID_CONFLICT`) that fabricates no
   recovery attempt and records exactly one `audit_event`. `payload_sha256` is the
-  lowercase SHA-256 of the exact UTF-8 request payload (the immutable original
-  for retry, the caller-supplied corrected payload for re-drive); classification
-  is never inferred from reason strings. Eligibility follows the frozen rules;
-  permitted processing reuses the inbound seam and commits success (new FILED
-  message + FISH results + filing audit + SUCCEEDED attempt + queue
-  OPEN -> RESOLVED), a handled failure (attempted message ERRORED + FAILED
-  attempt, all filing side effects rolled back, queue left OPEN), a rejection
-  (single REJECTED attempt, plus the approved dynamic OPEN -> TERMINAL when
-  processing establishes the target order is now FINALIZED/CANCELLED), or a
-  request-id conflict (audit event only) atomically. Unexpected (non-inbound)
-  failures roll back the whole request and re-raise; they are never converted to
-  FAILED. Contradictory/unknown classification is surfaced as a `RecoveryError`
-  blocker rather than a fabricated outcome.
+  lowercase SHA-256 of the exact UTF-8 request payload: for `RETRY_ORIGINAL` that
+  payload is read from the queue item's linked original `interface_message`
+  (`interface_message.payload` resolved via `interface_error_queue.message_id`),
+  never from `interface_error_queue.raw_payload`, and is the source for both the
+  fingerprint and the new retry message; for `REDRIVE_CORRECTED` it is the
+  caller-supplied corrected payload. Neither stored copy is rewritten; a null
+  original-message link or a missing message row surfaces as a `RecoveryError`
+  before any write. After request-id resolution and before ordinary
+  queue-state/action eligibility, the stored `failure_code` / `failure_category`
+  / `recovery_policy` are validated against the single authoritative mapping in
+  `inbound_hl7` (no second mapping); null, contradictory, or unmappable
+  classification is a `RecoveryError` blocker that persists no attempt, message,
+  result, queue change, order change, or audit event. Classification is never
+  inferred from reason strings. Eligibility follows the frozen rules; permitted
+  processing reuses the inbound seam and commits success (new FILED message +
+  FISH results + filing audit + SUCCEEDED attempt + queue OPEN -> RESOLVED), a
+  handled failure (attempted message ERRORED + FAILED attempt, all filing side
+  effects rolled back, queue left OPEN), a rejection (single REJECTED attempt,
+  plus the approved dynamic OPEN -> TERMINAL when processing establishes the
+  target order is now FINALIZED/CANCELLED), or a request-id conflict (audit event
+  only) atomically. The rollback boundary spans the entire permitted request --
+  message creation, validation, filing, the FILED update, SUCCEEDED-attempt
+  insertion, queue resolution, terminalization/handled-failure bookkeeping, and
+  the final commit -- so any unexpected (non-inbound) failure at any stage rolls
+  the whole request back, re-raises, and leaves `conn.in_transaction` false; such
+  failures and database errors are never converted to FAILED, and handled
+  `InboundError` semantics are unchanged.
 - `src/db.py`: added a keyword-only `commit=True` control to `execute`; the
   default preserves every existing caller. Recovery uses the non-committing path
   under one explicit transaction with a savepoint.
@@ -146,7 +160,7 @@ from the frozen files.
   authoritative fourteen-code mapping, and normal success/error-queue routing are
   unchanged. Recovery does not call the legacy ingest path and never creates a
   second `interface_error_queue` item.
-- `tests/test_recovery_service.py` (new): 46 executable tests transcribed from
+- `tests/test_recovery_service.py` (new): 54 executable tests transcribed from
   the frozen design and test-intent, covering all twelve corrected re-drives, the
   ORDER_NOT_FOUND unchanged retry, RETRY rejection for every REDRIVE_ONLY class,
   terminal-item rejection, the dynamic OPEN -> TERMINAL case for currently
@@ -157,25 +171,66 @@ from the frozen files.
   REJECTED attempts, recovery-history ordering with conflict exclusion,
   file-backed durability after success and after a handled failure with no
   dangling transaction, and PRAGMA foreign_key_check emptiness across every
-  outcome.
+  outcome. The review-response amendment adds eight tests: an unexpected failure
+  after filing but before the success commit rolls the whole request back;
+  null / contradictory-category / contradictory-code-policy classification each
+  block and persist nothing; request-id replay and conflict are resolved before
+  classification validation; and RETRY sources its payload from the linked
+  original message (proven against a tampered `raw_payload`) with a null link and
+  a dangling link both surfaced as blockers.
 
 No schema, query, frozen document, sample message, corpus manifest, existing
 test, `src/demo_run.py`, workflow, or CI file was changed. No new table, column,
 index, migration, failure code, category, policy, queue state, or attempt
 outcome was added.
 
-## Test evidence (P3-003, awaiting review)
+## Review response (draft PR #19)
+
+Independent review found three blockers, all fixed on this branch by changing
+only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
+
+1. **Complete transaction rollback.** The unexpected-error rollback boundary in
+   `_process` now wraps the entire permitted request (message creation through
+   the final commit, including SUCCEEDED-attempt insertion, queue resolution, and
+   terminalization/handled-failure bookkeeping). Any unexpected exception at any
+   stage rolls the whole request back, re-raises, and leaves
+   `conn.in_transaction` false. Handled `InboundError` semantics are preserved and
+   generic/database errors are still never converted to FAILED. A new test injects
+   a failure during queue resolution (after filing) and proves messages, FISH
+   results, attempts, RESULT_ENTERED / INBOUND_RESULT_FILED events, order status,
+   queue status/timestamps, and transaction state are all unchanged.
+2. **Exact stored classification validated.** After request-id replay/conflict
+   resolution but before ordinary queue/action eligibility, `_validate_classification`
+   confirms `failure_code`, `failure_category`, and `recovery_policy` are all
+   populated and form the exact triple in `inbound_hl7`'s existing authoritative
+   mapping (no second mapping). Null, contradictory, or unmappable classification
+   raises `RecoveryError` and persists nothing. New tests cover null, a category
+   mismatch, a code/policy mismatch, and prove request-id handling runs first.
+3. **RETRY uses the original interface_message payload.** `RETRY_ORIGINAL` now
+   resolves the queue item's linked original `interface_message` and reads
+   `interface_message.payload`, using that exact value for both `payload_sha256`
+   and the new retry message; it does not read `interface_error_queue.raw_payload`
+   and rewrites neither stored copy. A missing link or missing row surfaces as
+   `RecoveryError` without writes. New tests prove the linked message is the
+   source (against a tampered `raw_payload`) and cover the null-link and
+   dangling-link blockers.
+
+## Test evidence (P3-003, awaiting review; review-response amendment)
 
 - `pip install -r requirements-dev.txt`: succeeded.
-- `python -m pytest -q`: **156 passed, 0 failed** (110 pre-existing unchanged
-  plus 46 new recovery-service tests).
+- `python -m pytest -q`: **164 passed, 0 failed** (110 pre-existing unchanged
+  plus 54 recovery-service tests: 46 original plus 8 added for the review
+  response).
 - `python -m src.demo_run`: ran cleanly, exit 0.
 - Both human-approved invariants (I-01, I-02) pass without weakening.
 - All twelve corrected re-drives succeed; the ORDER_NOT_FOUND unchanged retry
-  succeeds byte-for-byte after a matching order becomes available.
+  succeeds byte-for-byte after a matching order becomes available, sourced from
+  the linked original `interface_message.payload`.
 - Success, FAILED, REJECTED, matching replay, REQUEST_ID_CONFLICT,
-  terminalization, and history behaviors pass; handled-failure rollback and
-  unexpected-error rollback pass; file-backed durability passes.
+  terminalization, and history behaviors pass; handled-failure rollback,
+  unexpected-error rollback (including after filing but before the success
+  commit), classification-blocker, and retry-payload-source behaviors pass;
+  file-backed durability passes.
 - Exactly one successful recovery exists per queue item; no duplicate filing
   event occurs through replay or a post-resolution request; no recovery creates a
   second error-queue item.
@@ -184,6 +239,9 @@ outcome was added.
 - `schema.sql` still initializes a fresh database and reruns safely;
   `recovery_corpus.json` parses and is unmodified from `main`.
 - New and changed text is plain ASCII; `git diff --check` is clean.
+- The review-response amendment (on top of `ec75ecdb`) changes only
+  `src/recovery.py`, `tests/test_recovery_service.py`, and this
+  `AUTONOMOUS_STATUS.md`.
 - The complete diff from `main` contains only the authorized files: `src/db.py`,
   `src/workflow.py`, `src/interfaces/__init__.py`,
   `src/interfaces/inbound_hl7.py`, `src/recovery.py`,
