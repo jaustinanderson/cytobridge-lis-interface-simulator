@@ -17,6 +17,25 @@ explicit approval.
 | Draft implementation PR | None |
 | Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
+| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 5 closed initial findings, 0 open) |
+
+## Audit findings control
+
+`AUDIT_FINDINGS.md` is the canonical, reviewer-maintained record for material
+mistakes, near misses, post hoc corrections, inaccurate evidence, and planning
+failures. The initial record contains five closed findings from the P3-004 review
+cycle.
+
+Every future approved task specification must require the builder to report
+either an `AUDIT CANDIDATE` with evidence and immediate containment, or
+`No audit candidate identified`. Claude and other builders flag candidates;
+the independent reviewer confirms and logs official findings. Builders do not
+edit the ledger unless the task explicitly authorizes that file.
+
+A correction alone does not close a finding. The reviewer must verify both the
+immediate correction and a prevention/control measure. This audit control does
+not approve P3-005 or any other implementation task and does not enable the
+Autonomous Routine.
 
 ## Approved and unblocked task IDs
 
@@ -466,6 +485,10 @@ acceptance (see "Blocker resolution").
 ## Next permitted action
 
 Present one bounded follow-on Phase 3 task for Austin's explicit approval.
+Its task specification must include the audit-candidate reporting requirement
+from `AUDIT_FINDINGS.md`, exact evidence expectations, and an explicit
+prevention response for any confirmed finding.
+
 **Scheduled routines remain disabled.** No P3-005, hardening, new recovery
 behavior, UI/API/CLI, transport, deployment, authentication, or release work may
 begin until its own task ID is approved. Do not merge, deploy, release, enable
