@@ -11,26 +11,25 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_P3_004_IN_REVIEW` (P3-003 accepted and closed; P3-004 completed and awaiting Austin's review) |
-| Last accepted baseline commit | `8272bd18de4663180d94e18736726c211f77a361` (`main`, includes P3-003 PR #19 and its status closeout PR #20) |
-| P3-004 starting `main` commit | `8272bd18de4663180d94e18736726c211f77a361` |
-| Active implementation task branch | `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004; the harness-designated branch for this task) |
-| Draft implementation PR | #21 (draft) - https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/21 |
-| Completed-but-unreviewed task count | 1 (P3-004) |
+| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-004 accepted and closed; no follow-on task approved) |
+| Last accepted baseline commit | `406509ad2847efdf5dc6a09f7f6de52e3dfb514b` (`main`, P3-004 PR #21 merge commit) |
+| Active implementation task branch | None |
+| Draft implementation PR | None |
+| Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-**Austin explicitly approved P3-004 - Recovery Validation, UAT, and Portfolio
-Closeout.** It is the one approved, now-completed task on the active branch above.
-P3-003 remains accepted and closed (no longer active or unreviewed).
+None. P3-004 - Recovery Validation, UAT, and Portfolio Closeout is complete,
+accepted, and merged; it is no longer active or unreviewed. P3-003 remains
+accepted and closed.
 
 No further Phase 3 task is approved. In particular, **P3-005, hardening, new
 recovery behavior, new failure handling, a UI/API/CLI, transport, deployment,
 authentication, and release work are NOT approved**. The Autonomous Routine
 remains `DISABLED`.
 
-## P3-004 scope (completed, awaiting review)
+## Accepted P3-004 scope
 
 P3-004 is a documentation and validation closeout for the accepted controlled
 recovery implementation (P3-001 through P3-003). The **only executable change**
@@ -74,10 +73,11 @@ persisted state; 41 requirements traced; UAT-001 - UAT-018 present; manual UAT i
 defined, not claimed executed; `git diff --check` clean; new/changed text is
 plain ASCII; `recovery_corpus.json` parses and is unchanged.
 
-**Status:** P3-004 is **completed but awaiting Austin's review** on draft PR #21.
-It is not merged or accepted.
+**Status:** P3-004 passed independent final review. Austin accepted the closeout
+and authorized merge of PR #21, which merged into `main` as
+`406509ad2847efdf5dc6a09f7f6de52e3dfb514b`.
 
-## P3-004 review response (draft PR #21)
+## P3-004 review response (PR #21)
 
 Independent review of PR #21 found documentation/validation findings (no code or
 recovery-behavior defect). All were fixed on the same branch within the original
@@ -164,9 +164,10 @@ sample, frozen file, or other documentation was changed; 164 pytest tests still
 pass, the demo still exits 0 with five scenarios, and the full PR remains within
 the original 14 authorized files.
 
-P3-004 remains **completed but awaiting Austin's review** - one completed-but-
-unreviewed task. No P3-005 or other follow-on work is approved, and the
-Autonomous Routine remains `DISABLED`.
+P3-004 passed independent final re-review and was accepted by Austin before PR
+#21 merged into `main` as
+`406509ad2847efdf5dc6a09f7f6de52e3dfb514b`. No P3-005 or other follow-on work
+is approved, and the Autonomous Routine remains `DISABLED`.
 
 ## Blocker resolution (P3-002)
 
@@ -206,6 +207,7 @@ document, query, or workflow was changed in this continuation.
 | P3-001 - Recovery Data Model and Schema | Independent schema review passed; PR #15 merged into `main` | `dafba1ae2cfe3a8d7e5cad0b5e89926e58dfd90e` |
 | P3-002 - Structured Failure Classification and Terminal Queue Initialization | Independent review passed; PR #17 merged into `main` | `e6fa627bb0815560e2adf9d0c27b459f129db09e` |
 | P3-003 - Controlled Recovery Service Core | Independent re-review passed; PR #19 merged into `main` | `672143ca4ae364d413ef38fdfdedf244fcc89f66` |
+| P3-004 - Recovery Validation, UAT, and Portfolio Closeout | Independent final review passed; Austin accepted the closeout; PR #21 merged into `main` | `406509ad2847efdf5dc6a09f7f6de52e3dfb514b` |
 
 P2-001 delivered the approved review-only corpus: fourteen original synthetic
 AML/MDS FISH failure fixtures, twelve corrected fixtures for recoverable cases,
@@ -391,10 +393,7 @@ only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
 
 ## Completed-but-unreviewed task branches
 
-One: `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004, awaiting Austin's
-review on draft PR #21). One of the two permitted completed-but-unreviewed task
-slots remains available. Do not start another task while P3-004 is unreviewed
-unless it stays within the two-slot cap and is separately approved.
+None. Both permitted completed-but-unreviewed task slots are available.
 
 ## Blocked tasks and reasons
 
@@ -459,8 +458,6 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Review the P3-004 draft PR and accept, revise, or reject the closeout. It is
-  completed but not accepted.
 - Approve, revise, or defer any next separately scoped task (e.g. P3-005,
   hardening). None is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
@@ -468,7 +465,8 @@ acceptance (see "Blocker resolution").
 
 ## Next permitted action
 
-Await Austin's review of the P3-004 draft PR. **Scheduled routines remain
-disabled.** No P3-005, hardening, new recovery behavior, UI/API/CLI, transport,
-deployment, authentication, or release work may begin until its own task ID is
-approved. Do not merge, deploy, release, enable auto-merge, or push to `main`.
+Present one bounded follow-on Phase 3 task for Austin's explicit approval.
+**Scheduled routines remain disabled.** No P3-005, hardening, new recovery
+behavior, UI/API/CLI, transport, deployment, authentication, or release work may
+begin until its own task ID is approved. Do not merge, deploy, release, enable
+auto-merge, or push to `main`.
