@@ -11,19 +11,162 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-003 accepted and closed; no follow-on task approved) |
-| Last accepted baseline commit | `672143ca4ae364d413ef38fdfdedf244fcc89f66` (`main`) |
-| Active implementation task branch | None |
-| Draft implementation PR | None |
-| Completed-but-unreviewed task count | 0 |
+| Current phase | `PHASE_3_P3_004_IN_REVIEW` (P3-003 accepted and closed; P3-004 completed and awaiting Austin's review) |
+| Last accepted baseline commit | `8272bd18de4663180d94e18736726c211f77a361` (`main`, includes P3-003 PR #19 and its status closeout PR #20) |
+| P3-004 starting `main` commit | `8272bd18de4663180d94e18736726c211f77a361` |
+| Active implementation task branch | `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004; the harness-designated branch for this task) |
+| Draft implementation PR | #21 (draft) - https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/21 |
+| Completed-but-unreviewed task count | 1 (P3-004) |
 | Autonomous Routine | `DISABLED` |
 
 ## Approved and unblocked task IDs
 
-None. P3-003 is complete and accepted; it is no longer active or unreviewed.
-No follow-on Phase 3 task is approved. In particular, no documentation or UAT
-closeout, hardening, UI/API/CLI, deployment, release, P3-004, or later work is
-authorized. The Autonomous Routine remains `DISABLED`.
+**Austin explicitly approved P3-004 - Recovery Validation, UAT, and Portfolio
+Closeout.** It is the one approved, now-completed task on the active branch above.
+P3-003 remains accepted and closed (no longer active or unreviewed).
+
+No further Phase 3 task is approved. In particular, **P3-005, hardening, new
+recovery behavior, new failure handling, a UI/API/CLI, transport, deployment,
+authentication, and release work are NOT approved**. The Autonomous Routine
+remains `DISABLED`.
+
+## P3-004 scope (completed, awaiting review)
+
+P3-004 is a documentation and validation closeout for the accepted controlled
+recovery implementation (P3-001 through P3-003). The **only executable change**
+is adding a deterministic synthetic recovery demonstration to `src/demo_run.py`
+through the existing public recovery service; no product semantics were invented.
+
+**Files changed (authorized only):**
+
+- `src/demo_run.py` - added scenario 5, a controlled-recovery demonstration
+  through the public service (`retry_queue_item` / `redrive_queue_item` /
+  `get_recovery_history` / `RequestIdConflictError`): corrected re-drive,
+  unchanged ORDER_NOT_FOUND retry, handled failure then later success, and
+  duplicate/replay/`REQUEST_ID_CONFLICT` protection. Scenario count updated
+  four -> five. No private helper is called and no attempt/queue state is written
+  by hand.
+- `validation/traceability-matrix.md` - R-020 - R-041 mapped to implementing
+  file/function or schema constraint, executable test, and applicable UAT;
+  automated `PASS` separated from manual `DEFINED`; totals updated to 41.
+- `validation/uat-test-scripts.md` - UAT-011 - UAT-018 added (public service
+  only, no manual queue `UPDATE`); UAT-001 - UAT-010 preserved; summary updated.
+- `docs/interface-troubleshooting.md` - rewritten to the controlled recovery
+  workflow (raw SQL now read-only).
+- `docs/workflow-diagram.md` - compact recovery view added.
+- `docs/demo-script.md` - updated to the five-scenario demo with a recovery
+  segment.
+- `validation/validation-summary.md`, `validation/known-issues.md` (KI-03 moved
+  to resolved), `validation/risk-assessment.md` (recovery risks RA-17 - RA-22),
+  `validation/change-control-log.md` (v1.1 P2-001/P3-001..P3-004 history).
+- `README.md`, `docs/portfolio-review.md`, `docs/hiring-manager-review.md` - v1.1
+  framing, corrected figures, provenance statement, roadmap update.
+- `AUTONOMOUS_STATUS.md` - this status update.
+
+**No other file changed.** No schema, query, sample message, corpus, frozen file,
+CI/workflow file, `src/recovery.py` or any application module other than
+`src/demo_run.py`, and no existing or new test was modified. Public signatures and
+recovery semantics are unchanged.
+
+**Verified figures:** 164 pytest tests pass across eight suites; `python -m
+src.demo_run` exits 0 with five scenarios and every printed claim matching
+persisted state; 41 requirements traced; UAT-001 - UAT-018 present; manual UAT is
+defined, not claimed executed; `git diff --check` clean; new/changed text is
+plain ASCII; `recovery_corpus.json` parses and is unchanged.
+
+**Status:** P3-004 is **completed but awaiting Austin's review** on draft PR #21.
+It is not merged or accepted.
+
+## P3-004 review response (draft PR #21)
+
+Independent review of PR #21 found documentation/validation findings (no code or
+recovery-behavior defect). All were fixed on the same branch within the original
+14 authorized files; the amendment touched only these ten: `src/demo_run.py`,
+`README.md`, `docs/demo-script.md`, `docs/hiring-manager-review.md`,
+`docs/workflow-diagram.md`, `validation/uat-test-scripts.md`,
+`validation/validation-summary.md`, `validation/risk-assessment.md`,
+`validation/known-issues.md`, and this `AUTONOMOUS_STATUS.md`.
+
+1. **UAT-015 now genuinely proves mid-operation rollback.** UAT-015 keeps the
+   natural invalid-payload FAILED -> later-success case but no longer calls its
+   zero writes "rollback after filing" (that payload fails validation before
+   `_file_results` runs). A new subcase 15B mirrors
+   `test_handled_mid_operation_failure_rolls_back_all_side_effects`: it injects an
+   `InboundError` on the second `enter_fish_result` (after the first result and
+   `RESULT_ENTERED` wrote) through the public `redrive_queue_item`, and proves the
+   rollback removes all FISH rows / `RESULT_ENTERED` / `INBOUND_RESULT_FILED`,
+   leaves the order and queue unchanged and OPEN, preserves the ERRORED message
+   and FAILED attempt, shows `conn.in_transaction` false, then a new `request_id`
+   succeeds. The fault injection is UAT setup only (no private helper, no manual
+   queue update).
+2. **Handled-failure language corrected** in `docs/demo-script.md`,
+   `docs/hiring-manager-review.md`, `validation/validation-summary.md`, and
+   `validation/risk-assessment.md`: a handled `InboundError` rolls back the filing
+   side effects and queue resolution and then **commits** the approved
+   handled-failure outcome (ERRORED message + FAILED attempt, queue OPEN); only an
+   **unexpected** non-`InboundError` rolls back the whole request and re-raises.
+3. **Recovery diagram corrected** in `docs/workflow-diagram.md`: SUCCEEDED,
+   FAILED, and REJECTED each record an `interface_recovery_attempt` evidence node;
+   `INBOUND_RESULT_FILED` is a separate audit event reached only from SUCCEEDED;
+   `REQUEST_ID_CONFLICT` is audit-only. FAILED/REJECTED no longer imply a filing
+   event.
+4. **Remaining current-state facts corrected:** the hiring-manager scorecard now
+   reads five scenarios and an approximately six-minute script; the README
+   demo-script label is consistent; the branch-sensitive "Verified on `main`"
+   wording is replaced with a current-tree verified-state statement that does not
+   imply P3-004 is merged; `known-issues.md` persistence wording notes that the
+   demo and most tests use in-memory SQLite while targeted recovery tests verify
+   file-backed durability, with migration/pooling/concurrency limits remaining.
+   Historical four-scenario and 61-test figures are preserved only where labeled
+   historical.
+5. **Demo evidence tightened** in `src/demo_run.py`: the immutability claim now
+   compares `message_id`, `payload`, `control_id`, `status`, `created_at`, and the
+   queue `raw_payload` before/after; the handled-FAILED demonstration reports
+   accurately that the invalid payload produced no filing side effects (with
+   read-only `RESULT_ENTERED` / `INBOUND_RESULT_FILED` counts) and does not claim
+   it exercised mid-operation rollback.
+
+No test, schema, query, sample, corpus, frozen file, interface mapping, public
+signature, or recovery behavior was changed in this review response. After the
+amendment: 164 pytest tests still pass across eight suites; `python -m
+src.demo_run` exits 0 with five scenarios and every printed claim matching
+persisted state; `git diff --check` clean; changed-line text is plain ASCII; all
+relative Markdown links resolve; the full PR remains within the original 14
+authorized files.
+
+### Second review response - residual UAT-015B accuracy
+
+A follow-up review of PR #21 raised one residual documentation issue in the
+UAT-015B fault-injection subcase. Fixed in `validation/uat-test-scripts.md` (plus
+this status record); no other file changed.
+
+1. **Transaction wording corrected.** The subcase no longer says the first result
+   "has committed within the operation" - it has only been *written* inside the
+   still-open transaction. The setup and expected result now state accurately that
+   the second-call fault occurs after the first result and its `RESULT_ENTERED`
+   event have been written but **before** the transaction commits.
+2. **`try/finally` restore.** The temporary `workflow.enter_fish_result`
+   replacement and the `redrive_queue_item` call are now wrapped in `try/finally`
+   so the real dependency is restored even if the call raises unexpectedly, with
+   an explicit follow-up step confirming
+   `workflow.enter_fish_result is real_enter`.
+3. **Injection-point evidence.** `state["calls"] == 2` is now an inspected step
+   and a captured evidence item, proving the injected failure occurred on the
+   intended second call (so a real write preceded the fault).
+
+The revised snippet was executed against a scratch in-memory database to confirm
+it behaves as documented: `state["calls"] == 2`, dependency restored,
+`outcome = FAILED`, zero `fish_result` / `RESULT_ENTERED` / `INBOUND_RESULT_FILED`,
+order and queue rows unchanged and `OPEN`, attempted message `ERRORED`,
+`conn.in_transaction` false, and a later new-`request_id` request `SUCCEEDED` with
+the queue `RESOLVED`. No application code, test, schema, recovery behavior,
+sample, frozen file, or other documentation was changed; 164 pytest tests still
+pass, the demo still exits 0 with five scenarios, and the full PR remains within
+the original 14 authorized files.
+
+P3-004 remains **completed but awaiting Austin's review** - one completed-but-
+unreviewed task. No P3-005 or other follow-on work is approved, and the
+Autonomous Routine remains `DISABLED`.
 
 ## Blocker resolution (P3-002)
 
@@ -248,7 +391,10 @@ only `src/recovery.py`, `tests/test_recovery_service.py`, and this document:
 
 ## Completed-but-unreviewed task branches
 
-None. Both permitted completed-but-unreviewed task slots are available.
+One: `claude/v1.1-p3-004-recovery-closeout-jl3snt` (P3-004, awaiting Austin's
+review on draft PR #21). One of the two permitted completed-but-unreviewed task
+slots remains available. Do not start another task while P3-004 is unreviewed
+unless it stays within the two-slot cap and is separately approved.
 
 ## Blocked tasks and reasons
 
@@ -313,15 +459,16 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Approve, revise, or defer the next separately scoped Phase 3 task. No
-  follow-on task is approved yet.
+- Review the P3-004 draft PR and accept, revise, or reject the closeout. It is
+  completed but not accepted.
+- Approve, revise, or defer any next separately scoped task (e.g. P3-005,
+  hardening). None is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Present one bounded follow-on Phase 3 task for Austin's explicit approval.
-**Scheduled routines remain disabled.** No documentation or UAT closeout,
-hardening, P3-004, or later implementation work may begin until its own task ID
-is approved. Do not merge, deploy, release, enable auto-merge, or push to
-`main`.
+Await Austin's review of the P3-004 draft PR. **Scheduled routines remain
+disabled.** No P3-005, hardening, new recovery behavior, UI/API/CLI, transport,
+deployment, authentication, or release work may begin until its own task ID is
+approved. Do not merge, deploy, release, enable auto-merge, or push to `main`.
