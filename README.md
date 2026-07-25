@@ -25,9 +25,9 @@ validation evidence, and troubleshooting documentation.
 **Verified state (this codebase):** 164 passing pytest tests across eight suites,
 five end-to-end demonstration scenarios, and 41/41 requirements with result-level
 automated coverage that passes today, plus 18 manual UAT definitions (defined,
-not executed). GitHub Actions verifies Python 3.11 and 3.12. (The v1.1
-controlled-recovery documentation closeout is under review; these figures
-describe the current tree and do not assert that closeout is merged to `main`.)
+not executed). GitHub Actions verifies Python 3.11 and 3.12. The v1.1
+controlled-recovery documentation closeout passed independent review and merged
+through PR #21 at `406509ad`.
 
 ## Scope (v1)
 

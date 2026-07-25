@@ -24,7 +24,7 @@ development session. Each session was developed on its own branch and merged to
 | P3-001 | v1.1 recovery schema | `interface_error_queue` classification columns + expanded states; `interface_recovery_attempt` table and constraints | PR #15 merged |
 | P3-002 | v1.1 structured failure classification | Fourteen-code classification populated for every inbound failure; OPEN/TERMINAL queue initialization | PR #17 merged |
 | P3-003 | v1.1 controlled recovery service | `src/recovery.py` headless retry/re-drive/history with immutability, idempotency, rollback, terminal rejection | PR #19 merged; status closeout PR #20 merged |
-| P3-004 | v1.1 validation/UAT/portfolio closeout | Recovery demo, R-020-R-041 traceability, UAT-011-UAT-018, troubleshooting/diagram/demo/README/portfolio updates | Draft PR (awaiting Austin's review) |
+| P3-004 | v1.1 validation/UAT/portfolio closeout | Recovery demo, R-020-R-041 traceability, UAT-011-UAT-018, troubleshooting/diagram/demo/README/portfolio updates | PR #21 merged (`406509ad`) |
 
 ---
 
@@ -283,7 +283,7 @@ original `interface_message` - all fixed before acceptance. Accepted baseline
 `672143ca`. PR #20 closed the P3-003 status in `AUTONOMOUS_STATUS.md`; the
 resulting `main` merge commit is `8272bd18`.
 
-### P3-004 - Recovery validation, UAT, and portfolio closeout (this task; draft PR)
+### P3-004 - Recovery validation, UAT, and portfolio closeout (PR #21; accepted)
 
 **What changed (documentation closeout plus one authorized executable change):**
 
@@ -313,9 +313,9 @@ resulting `main` merge commit is `8272bd18`.
 No application module other than `src/demo_run.py`, no schema, query, sample
 message, corpus, frozen file, CI workflow, or existing/new test was changed.
 
-**Status:** **completed but awaiting Austin's review** on the new draft pull
-request. It is **not** merged or accepted; this entry records the work as
-submitted for review, not as accepted.
+**Status:** Passed independent final review and was accepted by Austin. PR #21
+merged into `main` as `406509ad2847efdf5dc6a09f7f6de52e3dfb514b` on
+2026-07-24.
 
 ---
 
