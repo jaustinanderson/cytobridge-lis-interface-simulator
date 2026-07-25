@@ -93,6 +93,9 @@ explicitly what the next transition still requires.
 
 Accordingly:
 
+- A `CONFIRMED` finding records **Confirmation evidence**, and states that
+  **Correction evidence**, **Control evidence**, and **Closure evidence** are
+  *pending* until those later lifecycle prerequisites occur.
 - A `CORRECTED` finding records **Correction evidence**, and states that
   **Control evidence** and **Closure evidence** are *pending* (that is, awaiting
   the next lifecycle step) rather than treating them as missing fields.
@@ -102,10 +105,12 @@ Accordingly:
 - An `ACCEPTED_RISK` finding records **Accepted-risk evidence**: Austin's
   explicit acceptance and rationale.
 
-A pending evidence line is a satisfied requirement, not an omission. All seven
-findings below are `CONTROLLED`; each records Correction evidence and Control
-evidence, and marks Closure evidence as pending with the specific prerequisite
-named.
+A pending evidence line is a satisfied requirement, not an omission. Nine
+findings are recorded below. AF-2026-001 through AF-2026-007 are `CONTROLLED`;
+each records Correction evidence and Control evidence and marks Closure evidence
+as pending. AF-2026-008 and AF-2026-009 are `CONFIRMED`; each records
+Confirmation evidence and marks Correction, Control, and Closure evidence as
+pending.
 
 ## Summary
 
@@ -118,12 +123,16 @@ named.
 | AF-2026-005 | UAT snippet confused written with committed and lacked guaranteed cleanup | Procedure robustness | Medium | CONTROLLED |
 | AF-2026-006 | Findings were closed before prevention controls were verified | Governance status | Medium | CONTROLLED |
 | AF-2026-007 | Post-merge closeout left branch-time status claims on main | State accuracy/governance | Medium | CONTROLLED |
+| AF-2026-008 | Authorization merge omitted a required post-merge state transition | State accuracy/governance | Medium | CONFIRMED |
+| AF-2026-009 | Status contract required a commit to record its own final head | Evidence design/governance | Medium | CONFIRMED |
 
 **Current lifecycle position.** AF-2026-001 through AF-2026-007 are
 `CONTROLLED`: every immediate defect or inaccurate claim has been fixed, and
 each preventive control has been independently accepted. AF-2026-001 through
 AF-2026-006 were controlled through PR #23; AF-2026-007 was controlled through
-PR #25. No finding is `CLOSED`.
+PR #25. AF-2026-008 and AF-2026-009 are `CONFIRMED`: their diagnoses are
+supported, but correction, control, and closure transitions remain pending.
+No finding is `CLOSED`.
 
 **Control acceptance evidence.** PR #23 passed independent final review at head
 `4ad36e0e73781c32d7a399875b94888ee835541e`; Austin explicitly authorized its
@@ -139,6 +148,12 @@ control entered `main` as
 `8620feb24d83955d8ac3755e34a8e63d59ed8690` on 2026-07-25. This supplies
 correction and control evidence for AF-2026-007; it does not supply closure
 evidence.
+
+**AF-2026-008 and AF-2026-009 confirmation evidence.** Independent review of
+P3-005 authorization PR #27 at head
+`a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` confirmed both defects before
+merge. The task remains blocked, the PR remains unmerged, and neither finding
+has correction, control, or closure evidence yet.
 
 ## Findings
 
@@ -410,3 +425,101 @@ evidence.
   `8620feb24d83955d8ac3755e34a8e63d59ed8690`.
 - **Closure evidence:** Pending - a later accepted task closeout must demonstrate
   the repository-wide branch-sensitive sweep and cite its results.
+
+### AF-2026-008 - Authorization merge omitted a post-merge state transition
+
+- **Date:** 2026-07-25
+- **Scope:** P3-005 authorization PR #27; `AUTONOMOUS_STATUS.md` authorization,
+  acceptance, and manual-dispatch gates
+- **Classification:** State accuracy/governance
+- **Severity:** Medium
+- **Diagnosis:** The authorization draft said P3-005 would become approved and
+  unblocked as soon as PR #27 merged, while the same committed status document
+  would still describe the authorization as pending review and unmerged. The
+  merge event therefore had no defined transition that reconciled live state
+  before execution.
+- **Evidence and impact:** At reviewed head
+  `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d`, the current-state table,
+  approved-task section, authorization state, execution gate, questions, and
+  next-action text all made merge the direct unblocking event. If merged as
+  written, `main` would carry contradictory state claims and could be used to
+  dispatch P3-005 before a reviewer recorded the accepted authorization
+  baseline. This would repeat the branch-sensitive failure controlled by
+  AF-2026-007 at an authorization boundary.
+- **What should have happened:** The plan should have separated Austin's task
+  approval, merge of the authorization contract, a post-merge status-only
+  acceptance closeout, and manual dispatch into distinct gates. Execution
+  should remain fail-closed until the closeout records the exact authorization
+  merge and reconciles every live-state surface.
+- **Immediate correction:** Amend PR #27 so its merge accepts the task contract
+  but does not unblock or dispatch P3-005. Require a separate status-only
+  acceptance closeout, independent review, and closeout merge before a human
+  may dispatch the pilot from the exact closeout baseline.
+- **Root cause:** The authorization design tried to make one in-tree status
+  record describe both its pre-merge review state and its post-merge accepted
+  state, and conflated acceptance of the contract with operational unblocking.
+- **Future prevention/control:** Whenever a merge changes task authorization or
+  execution state, define an explicit post-merge reconciliation gate. Keep the
+  task blocked until a status-only closeout records the merge evidence,
+  reconciles branch-sensitive claims, passes independent review, and enters
+  `main`.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONFIRMED
+- **Confirmation evidence:** Independent review of PR #27 at
+  `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` identified the missing state
+  transition before merge; P3-005 remained blocked and no execution began.
+- **Correction evidence:** Pending - requires the amended authorization contract
+  and its later status-only acceptance closeout to be independently reviewed and
+  merged.
+- **Control evidence:** Pending - requires independent acceptance of the
+  post-merge reconciliation rule and evidence that the closeout gate is in
+  force.
+- **Closure evidence:** Pending - requires a later approved task to demonstrate
+  authorization merge, status closeout, and manual dispatch in the required
+  order.
+
+### AF-2026-009 - Status contract required a commit to record its own final head
+
+- **Date:** 2026-07-25
+- **Scope:** P3-005 authorization PR #27; `AUTONOMOUS_STATUS.md` evidence and
+  draft-PR recording requirements
+- **Classification:** Evidence design/governance
+- **Severity:** Medium
+- **Diagnosis:** The task contract required the committed status document to
+  record the draft PR's exact final head SHA. Adding a commit SHA to a file
+  changes that commit and produces a different head, so the requirement was
+  self-referential and could not be satisfied truthfully.
+- **Evidence and impact:** At reviewed head
+  `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d`, the authorized status update
+  included "draft PR/head" while completion also required the exact head SHA.
+  Writing head H into `AUTONOMOUS_STATUS.md` would create head H-prime; writing
+  H-prime would create another head. A builder could loop indefinitely or leave
+  a stale SHA in the canonical status record, weakening the evidence chain.
+- **What should have happened:** The in-tree status record should contain only
+  stable identifiers available before its final commit: the execution baseline,
+  task branch, and draft PR number. After every file commit is pushed, the PR
+  description should record the exact final head SHA as external metadata.
+- **Immediate correction:** Amend PR #27 to prohibit a self-referential final
+  head in `AUTONOMOUS_STATUS.md`, require branch and PR number there, and require
+  the PR description to be updated with the final head only after all file
+  commits are pushed. Any later file commit requires the description to be
+  refreshed again.
+- **Root cause:** The evidence design did not distinguish facts stored inside a
+  commit from metadata that can be known only after that commit exists.
+- **Future prevention/control:** Split commit-addressable evidence into in-tree
+  and out-of-tree layers. A committed file must never be required to identify
+  its own final commit; final-head evidence belongs in PR metadata and is checked
+  only after the last push.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONFIRMED
+- **Confirmation evidence:** Independent review of PR #27 at
+  `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` proved the head requirement was
+  unsatisfiable by construction; no execution record was created.
+- **Correction evidence:** Pending - requires the amended recording contract to
+  be independently reviewed and merged.
+- **Control evidence:** Pending - requires independent acceptance of the
+  in-tree/out-of-tree evidence-separation rule.
+- **Closure evidence:** Pending - requires a later approved task to record branch
+  and PR number in-tree and the exact final head in PR metadata after the last
+  push.
+
