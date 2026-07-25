@@ -11,13 +11,13 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_AUDIT_CORRECTION_REQUIRED` (AF-2026-007 confirmed; no follow-on task approved) |
-| Last accepted baseline commit | `de775d891bea997cf12d6e873e020978df1d6fc5` (`main`, audit-protocol closeout PR #24 merge commit) |
+| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (AF-2026-007 controlled; no follow-on task approved) |
+| Last accepted baseline commit | `8620feb24d83955d8ac3755e34a8e63d59ed8690` (`main`, AF-2026-007 correction PR #25 merge commit) |
 | Active implementation task branch | None |
 | Draft implementation PR | None |
 | Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
-| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 7 confirmed findings: AF-2026-001 through AF-2026-006 `CONTROLLED`, AF-2026-007 `CONFIRMED`; none `CLOSED`) |
+| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 7 confirmed findings, all `CONTROLLED`; none `CLOSED`) |
 
 ## Audit findings control (ACTIVE - independently accepted)
 
@@ -44,11 +44,11 @@ The ledger's three post-diagnosis states remain distinct:
 - `CLOSED` - later independent evidence from an approved task or pilot shows
   that the correction and the preventive control operated as intended.
 
-The first six findings are `CONTROLLED`. Independent review, Austin's merge
-authorization, and the PR #23 merge supply their required control evidence.
-AF-2026-007 is `CONFIRMED`: its immediate correction and stronger post-merge
-state-sweep control are proposed but not yet independently accepted on `main`.
-No finding is `CLOSED`.
+All seven findings are `CONTROLLED`. Independent review, Austin's merge
+authorization, and the PR #23 merge supply the control evidence for AF-2026-001
+through AF-2026-006. Independent review, Austin's merge authorization, and the
+PR #25 merge supply correction and control evidence for AF-2026-007. No finding
+is `CLOSED`.
 
 This audit control does not approve P3-005 or any other implementation task, does
 not authorize implementation work, and does not enable the Autonomous Routine.
@@ -58,7 +58,7 @@ PR #24 status-only closeout. The later pre-pilot repository sweep confirmed
 AF-2026-007; it does not retroactively turn that earlier statement into evidence
 that every branch-sensitive repository claim was checked.
 
-## Active audit correction - AF-2026-007
+## Accepted audit correction - AF-2026-007
 
 The pre-pilot canonical-fact sweep found two stale P3-004 acceptance claims on
 accepted `main`: the README still described the closeout as under review, and
@@ -66,12 +66,21 @@ the change-control summary/detail still described PR #21 as a draft awaiting
 Austin's review and not merged. `AUDIT_FINDINGS.md` records the formal diagnosis,
 correction, cause, and stronger prevention rule.
 
-The proposed correction changes only `README.md`,
-`validation/change-control-log.md`, `AUDIT_FINDINGS.md`, and this status
-document. It does not change application code, tests, schema, recovery behavior,
-samples, frozen files, product semantics, or the autonomous execution boundary.
-Until the correction is independently reviewed, accepted, and merged,
-AF-2026-007 remains `CONFIRMED`.
+PR #25 passed independent final review at head
+`fc1c1b2846522362c5170cfe997bcf877b5f4aeb`; Austin authorized its merge, and
+the correction plus stronger state-sweep control entered `main` at
+`8620feb24d83955d8ac3755e34a8e63d59ed8690`. AF-2026-007 is therefore
+`CONTROLLED`, not `CLOSED`; closure still requires operating evidence from a
+later accepted task closeout.
+
+**AF-2026-007 closeout audit report:** No new audit candidate identified. The
+closeout checked `P3-004`, `under review`, `awaiting review`, `draft PR`, and
+`not merged` across `README.md`, `validation/change-control-log.md`,
+`AUDIT_FINDINGS.md`, and this status document. Remaining hits are accepted-state
+records, historical diagnosis/control text, or the unrelated
+`pending_review.sql` application filename; no residual branch-time current-state
+claim remains. This same-closeout check does not supply the later operating
+evidence required for `CLOSED`.
 
 ## Approved and unblocked task IDs
 
@@ -514,20 +523,17 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Independently review and accept or reject the AF-2026-007 correction before
-  any P3-005 pilot authorization is proposed.
-- Approve, revise, or defer any later separately scoped task (e.g. P3-005,
+- Approve, revise, or defer any next separately scoped task (e.g. P3-005,
   hardening). None is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
   `DISABLED` unless Austin explicitly authorizes it.
 
 ## Next permitted action
 
-Independently review the AF-2026-007 correction. Do not propose or start P3-005
-until that correction is accepted and merged and its lifecycle status is
-reconciled. The later task specification must include the active audit-candidate
-reporting requirement, exact evidence expectations, and an explicit prevention
-response for any confirmed finding.
+Present one bounded follow-on Phase 3 task for Austin's explicit approval. Its
+task specification must include the active audit-candidate reporting
+requirement, exact evidence expectations, and an explicit prevention response
+for any confirmed finding.
 
 **Scheduled routines remain disabled.** No P3-005, hardening, new recovery
 behavior, UI/API/CLI, transport, deployment, authentication, or release work may
