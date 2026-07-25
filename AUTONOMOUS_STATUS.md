@@ -11,14 +11,15 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `P3_005_AUTHORIZATION_AMENDMENT_PENDING_REVIEW` (Austin authorized the bounded pilot; execution remains blocked through authorization merge and the required post-merge acceptance closeout) |
-| Last accepted baseline commit | `2617f71b7efecba9f054230e7e0488de77c41ad2` (`main`, AF-2026-007 status closeout PR #26 merge commit) |
+| Current phase | `P3_005_APPROVED_AWAITING_MANUAL_DISPATCH` (the bounded pilot is the sole approved task after this closeout enters `main`; it has not been dispatched) |
+| Accepted authorization baseline commit | `beb62ed13e76525fc29545de23f51382e4e98412` (`main`, amended P3-005 authorization PR #27 merge commit) |
+| Manual dispatch baseline | Pending - a human must supply the exact merge commit of this status-only closeout after that commit exists |
 | Active implementation task branch | None |
 | Draft implementation PR | None |
 | Completed-but-unreviewed task count | 0 |
-| Authorized manual pilot | `P3-005` (one dispatch only; blocked until a separate post-merge acceptance closeout is reviewed and merged) |
+| Authorized manual pilot | `P3-005` only (one explicit human dispatch from the exact closeout merge; not yet dispatched) |
 | Autonomous Routine | `DISABLED` |
-| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 9 confirmed findings: 7 `CONTROLLED`, 2 `CONFIRMED`; none `CLOSED`) |
+| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 9 confirmed findings, all `CONTROLLED`; none `CLOSED`) |
 
 ## Audit findings control (ACTIVE - independently accepted)
 
@@ -45,20 +46,21 @@ The ledger's three post-diagnosis states remain distinct:
 - `CLOSED` - later independent evidence from an approved task or pilot shows
   that the correction and the preventive control operated as intended.
 
-AF-2026-001 through AF-2026-007 are `CONTROLLED`. Independent review,
-Austin's merge authorization, and the PR #23 merge supply the control evidence
-for AF-2026-001 through AF-2026-006. Independent review, Austin's merge
-authorization, and the PR #25 merge supply correction and control evidence for
-AF-2026-007. AF-2026-008 and AF-2026-009 are `CONFIRMED`; correction, control,
-and closure evidence remain pending. No finding is `CLOSED`.
+All nine findings are `CONTROLLED`. Independent review, Austin's merge
+authorization, and the PR #23 merge supply the control evidence for AF-2026-001
+through AF-2026-006. Independent review, Austin's merge authorization, and the
+PR #25 merge supply correction and control evidence for AF-2026-007. Independent
+review of the amended PR #27 contract, Austin's merge authorization, and its
+merge supply correction and control evidence for AF-2026-008 and AF-2026-009.
+No finding is `CLOSED`.
 
 This audit control does not itself approve implementation work. Austin separately
-authorized the bounded P3-005 pilot recorded below. Merge of this authorization
-change accepts the task contract but does not make it executable. P3-005 remains
-blocked until a separate status-only acceptance closeout records the exact merge
-evidence, reconciles live state, passes independent review, and merges into
-`main`. Only then may a human dispatch the pilot once from the exact closeout
-baseline. The Autonomous Routine remains `DISABLED`.
+authorized the bounded P3-005 pilot recorded below. PR #27 accepted the task
+contract but did not make it executable. This status-only closeout records that
+merge evidence and reconciles live authorization state. When this closeout
+enters `main`, P3-005 becomes the sole approved and unblocked task, but it still
+does not begin automatically: a human must explicitly dispatch it once from the
+exact closeout merge commit. The Autonomous Routine remains `DISABLED`.
 
 **Prior closeout audit report:** No audit candidate was identified during the
 PR #24 status-only closeout. The later pre-pilot repository sweep confirmed
@@ -89,7 +91,7 @@ records, historical diagnosis/control text, or the unrelated
 claim remains. This same-closeout check does not supply the later operating
 evidence required for `CLOSED`.
 
-## Confirmed P3-005 authorization-review findings
+## Accepted P3-005 authorization corrections
 
 Independent review of PR #27 at head
 `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` confirmed AF-2026-008 and
@@ -98,26 +100,44 @@ authorization merge and operational unblocking were incorrectly collapsed.
 AF-2026-009 records the self-referential requirement for an in-tree status file
 to contain its own final head SHA.
 
-Both findings remain `CONFIRMED`. This amendment proposes the immediate
-corrections and preventive rules, but neither finding may transition merely
-because the branch was edited. The required post-merge status-only acceptance
-closeout must cite the accepted merge evidence and apply only the lifecycle
-status that evidence supports. P3-005 remains blocked throughout that closeout.
+The corrected contract at final head
+`7439a3da2d8fb90b94ea2ba0c6c265a42aaf9f87` separated authorization,
+post-merge acceptance closeout, and manual dispatch; removed the
+self-referential head requirement; and added the preventive rules. PR #27
+passed independent final review, Austin authorized its merge, and the accepted
+contract entered `main` as
+`beb62ed13e76525fc29545de23f51382e4e98412`.
+
+AF-2026-008 and AF-2026-009 are therefore `CONTROLLED`, not `CLOSED`. This
+status-only closeout records the accepted merge, applies the post-merge
+reconciliation gate, and leaves final-head evidence outside its own commit.
+Closure still requires later operating evidence from P3-005. No UAT runs while
+this closeout is open.
+
+**P3-005 acceptance-closeout audit report:** No new audit candidate identified.
+The closeout searched `P3-005`, `under review`, `awaiting review`, `draft PR`,
+and `not merged` across the Markdown repository, including `README.md`,
+`validation/change-control-log.md`, `AUDIT_FINDINGS.md`, and this status
+document. Remaining non-current-state hits are historical diagnosis/control
+records, task-contract requirements, or the unrelated `pending_review.sql`
+application filename and its UAT instruction. No residual live claim says PR
+#27 is open, pending review, or unmerged.
 
 ## Approved and unblocked task IDs
 
-None. Austin has approved the bounded P3-005 task contract, but operational
-execution remains blocked before and after this authorization PR merges.
+**P3-005 only, effective when this closeout enters `main`.** Austin approved the
+bounded task contract, and PR #27 accepted it. This closeout makes the task
+eligible for one explicit human dispatch; it does not itself dispatch or execute
+the pilot.
 
 Austin explicitly authorized **P3-005 - v1.1 Recovery UAT Evidence Pilot** on
-2026-07-25. Merge of this exact authorization change accepts the contract only.
-A separate status-only acceptance closeout must then record the PR #27 merge
-commit, reconcile this live state, apply evidence-supported lifecycle updates
-for AF-2026-008 and AF-2026-009, pass independent review, and merge into `main`.
-Only that closeout may identify P3-005 as the sole approved and unblocked task.
-A human may then dispatch it manually exactly once from the closeout merge
-commit. The approval does not enable a scheduled or recurring runner and does
-not authorize any other task.
+2026-07-25. PR #27 passed independent final review and entered `main` as
+`beb62ed13e76525fc29545de23f51382e4e98412`. This closeout records that accepted
+state and the evidence-supported `CONTROLLED` transitions for AF-2026-008 and
+AF-2026-009. After this closeout is independently reviewed and merged, a human
+may dispatch P3-005 manually exactly once from its merge commit. The approval
+does not enable a scheduled or recurring runner and does not authorize any
+other task.
 
 ### P3-005 task contract
 
@@ -126,17 +146,18 @@ not authorize any other task.
 produce one standalone execution report. This is an evidence-only pilot; it
 must not change product behavior or rewrite the approved UAT procedures.
 
-**Authorization state:** `APPROVED_BY_AUSTIN / BLOCKED_PENDING_POST_MERGE_ACCEPTANCE_CLOSEOUT`.
+**Authorization state:** `APPROVED / AWAITING_EXPLICIT_MANUAL_DISPATCH_FROM_CLOSEOUT_MERGE`.
 
 **Execution gate and ordering:**
 
-1. This authorization PR must pass independent review and merge into `main`.
-   Its merge accepts the contract but does not unblock or dispatch P3-005.
-2. A separate status-only acceptance closeout must branch from that exact merge,
-   record PR #27 and its merge commit, reconcile every live authorization claim,
-   and apply only evidence-supported lifecycle transitions for AF-2026-008 and
-   AF-2026-009. The closeout must pass independent review and merge into `main`.
-   It authorizes no UAT execution while open.
+1. Authorization PR #27 passed independent review and merged into `main` as
+   `beb62ed13e76525fc29545de23f51382e4e98412`, accepting the contract without
+   dispatching P3-005.
+2. This status-only acceptance closeout branches from that exact merge, records
+   the accepted authorization, reconciles every live authorization claim, and
+   applies the evidence-supported `CONTROLLED` transitions for AF-2026-008 and
+   AF-2026-009. It must pass independent review and merge into `main`; no UAT may
+   execute while it is open.
 3. A human dispatcher must provide the exact resulting closeout merge commit SHA
    and manually dispatch P3-005 once.
 4. The builder must fetch the remote, confirm `origin/main` equals that exact
@@ -732,28 +753,24 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Independently review and decide whether to merge this amended P3-005
-  authorization change.
-- After authorization acceptance, separately review and decide whether to merge
-  the required status-only acceptance closeout.
-- Only after that closeout merges, manually dispatch P3-005 once from its exact
-  merge commit.
+- After this status-only closeout passes independent review and merges, manually
+  dispatch P3-005 once from its exact merge commit.
+- After the later P3-005 evidence PR passes independent review, decide separately
+  whether to accept and merge it.
 - Decide separately whether the Autonomous Routine may ever be enabled. It
   remains `DISABLED` unless Austin explicitly authorizes that distinct change.
 
 ## Next permitted action
 
-Complete this two-file governance amendment on draft PR #27 and stop for
-independent review. No P3-005 execution may begin from the authorization branch.
+Await an explicit human dispatch of P3-005 from the exact merge commit that
+brings this status-only closeout into `main`. Merge of the closeout is necessary
+but is not itself a dispatch. No builder may infer dispatch from merge or begin
+the UAT sequence while this closeout is open.
 
-If PR #27 is accepted and merged, the only next permitted action is the
-status-only acceptance closeout defined above. That closeout may update only
-the governance state and lifecycle evidence needed to reconcile the accepted
-authorization; it may not execute a UAT or dispatch P3-005.
-
-Only after the closeout passes independent review and merges may a human
-manually dispatch P3-005 once from the exact closeout merge commit. The builder
-may then create one evidence branch and one draft PR and must stop.
+After Austin supplies the exact closeout merge commit and explicitly dispatches
+P3-005 once, the builder may create `agent/p3-005-recovery-uat-evidence`, execute
+the bounded contract, open one draft evidence PR, and stop for independent
+review.
 
 **Scheduled routines remain disabled.** P3-005 may begin only after both the
 authorization change and the separate acceptance closeout are independently
