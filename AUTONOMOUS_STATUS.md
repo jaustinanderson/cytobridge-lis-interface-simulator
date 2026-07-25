@@ -12,55 +12,49 @@ explicit approval.
 | Field | Value |
 |---|---|
 | Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (P3-004 accepted and closed; no follow-on task approved) |
-| Last accepted baseline commit | `406509ad2847efdf5dc6a09f7f6de52e3dfb514b` (`main`, P3-004 PR #21 merge commit) |
+| Last accepted baseline commit | `553e43e209c13bc809c9be0e5f892129fdc4244a` (`main`, audit-findings governance PR #23 merge commit) |
 | Active implementation task branch | None |
 | Draft implementation PR | None |
 | Completed-but-unreviewed task count | 0 |
 | Autonomous Routine | `DISABLED` |
-| Audit findings protocol | `PROPOSED` - not yet in force (`AUDIT_FINDINGS.md`, draft PR #23, unmerged and not independently accepted; 6 confirmed findings, all `CORRECTED`; none `CONTROLLED` or `CLOSED`) |
+| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`, accepted through PR #23 and merged at `553e43e209c13bc809c9be0e5f892129fdc4244a`; 6 confirmed findings, all `CONTROLLED`; none `CLOSED`) |
 
-## Audit findings control (PROPOSED - not yet accepted)
+## Audit findings control (ACTIVE - independently accepted)
 
-**This control is a proposal, not a rule in force.** It exists only on the
-unmerged draft pull request #23. It has not been independently accepted and is
-not part of `main`. Nothing in this section may be cited as an accepted or
-operating governance control until that acceptance happens; until then it
-describes what is being proposed, not what already governs the project.
+`AUDIT_FINDINGS.md` is the canonical, reviewer-maintained record for material
+mistakes, near misses, post hoc corrections, inaccurate evidence, and planning
+failures. PR #23 passed independent final review at head
+`4ad36e0e73781c32d7a399875b94888ee835541e`; Austin authorized its merge, and
+the accepted control entered `main` as
+`553e43e209c13bc809c9be0e5f892129fdc4244a`.
 
-Under the proposal, `AUDIT_FINDINGS.md` would be the canonical,
-reviewer-maintained record for material mistakes, near misses, post hoc
-corrections, inaccurate evidence, and planning failures. The initial record
-contains five corrected P3-004 findings plus one corrected governance-status
-finding from this control's own first draft.
-
-The proposal would require every future approved task specification to have the
-builder report either an `AUDIT CANDIDATE` with evidence and immediate
-containment, or `No audit candidate identified`. Claude and other builders would
-flag candidates; the independent reviewer would confirm and log official
-findings. Builders would not edit the ledger unless the task explicitly
-authorizes that file.
+Every future approved task specification must require the builder to report
+either an `AUDIT CANDIDATE` with evidence and immediate containment, or
+`No audit candidate identified`. Claude and other builders flag candidates;
+the independent reviewer confirms and logs official findings. Builders do not
+edit the ledger unless the task explicitly authorizes that file.
 
 ### Finding lifecycle as applied here
 
-The ledger's three post-diagnosis states are distinct and are tracked
-separately:
+The ledger's three post-diagnosis states remain distinct:
 
 - `CORRECTED` - the immediate defect or inaccurate claim is fixed.
 - `CONTROLLED` - the preventive rule, check, template, or gate has been added
-  **and independently accepted**. This does **not** require pilot evidence.
+  and independently accepted. This does not require pilot evidence.
 - `CLOSED` - later independent evidence from an approved task or pilot shows
   that the correction and the preventive control operated as intended.
 
-All six initial findings are `CORRECTED`. **None is `CONTROLLED`**, because the
-preventive controls are proposed in this unmerged pull request and have not been
-independently accepted yet; independent acceptance alone would be enough to reach
-`CONTROLLED`. **None is `CLOSED`**, because no approved task or pilot has yet
-produced evidence that the controls operated as intended. The two transitions are
-independent prerequisites and must not be conflated.
+All six initial findings are `CONTROLLED`. Independent review, Austin's merge
+authorization, and the PR #23 merge supply the required control evidence. None
+is `CLOSED`: no later approved task or pilot has yet demonstrated that the
+controls operated as intended.
 
 This audit control does not approve P3-005 or any other implementation task, does
-not authorize any implementation work, and does not enable the Autonomous
-Routine.
+not authorize implementation work, and does not enable the Autonomous Routine.
+
+**Closeout audit report:** No audit candidate identified. This status-only
+closeout records the accepted governance state and does not claim pilot evidence
+or close any finding.
 
 ## Approved and unblocked task IDs
 
@@ -502,10 +496,6 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Review the proposed audit-findings control on draft PR #23 and accept, revise,
-  or reject it. It is unmerged and not yet independently accepted, so it is not
-  in force. Acceptance would move the six findings to `CONTROLLED`; it would not
-  by itself close them.
 - Approve, revise, or defer any next separately scoped task (e.g. P3-005,
   hardening). None is approved yet.
 - Decide separately when the autonomous Routine may be enabled. It remains
@@ -513,12 +503,10 @@ acceptance (see "Blocker resolution").
 
 ## Next permitted action
 
-Present one bounded follow-on Phase 3 task for Austin's explicit approval.
-**If** the audit-findings control on PR #23 is independently accepted, that task
-specification must include its audit-candidate reporting requirement, exact
-evidence expectations, and an explicit prevention response for any confirmed
-finding. Until that acceptance, the requirement is proposed rather than binding,
-and this status document does not treat it as an operating control.
+Present one bounded follow-on Phase 3 task for Austin's explicit approval. Its
+task specification must include the active audit-candidate reporting
+requirement, exact evidence expectations, and an explicit prevention response
+for any confirmed finding.
 
 **Scheduled routines remain disabled.** No P3-005, hardening, new recovery
 behavior, UI/API/CLI, transport, deployment, authentication, or release work may
