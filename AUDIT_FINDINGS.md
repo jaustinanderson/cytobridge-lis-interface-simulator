@@ -50,13 +50,25 @@ recorded.
 
 - `CONFIRMED`: diagnosis is supported by evidence.
 - `CORRECTED`: the immediate defect or inaccurate claim has been fixed.
-- `CONTROLLED`: a preventive check, task rule, template, or gate has been added.
-- `CLOSED`: the correction and preventive control have both been independently
-  verified.
+- `CONTROLLED`: the preventive rule, check, template, or gate has been added
+  **and independently accepted**.
+- `CLOSED`: later independent evidence from an approved task or pilot
+  demonstrates that the correction and the preventive control operated as
+  intended.
 - `ACCEPTED_RISK`: Austin explicitly accepts the remaining risk and rationale.
 
-A finding is not closed merely because the code or sentence was corrected.
-Closure requires a prevention measure and evidence that the measure is in place.
+These three states are distinct and must not be collapsed:
+
+| To reach | What is required | What is **not** required |
+|---|---|---|
+| `CORRECTED` | The immediate defect or inaccurate claim is fixed. | A preventive control. |
+| `CONTROLLED` | The preventive rule/check/template/gate exists and has been independently accepted. | Pilot or later-task evidence. Acceptance of the control is enough. |
+| `CLOSED` | Later independent evidence from an approved task or pilot shows the correction and the control operated as intended. | - |
+
+A finding is not corrected into closure: fixing the sentence or the code reaches
+`CORRECTED` only. Adding and having the preventive measure accepted reaches
+`CONTROLLED`; it does **not** additionally require pilot evidence. Only `CLOSED`
+requires later operating evidence from an approved task or pilot.
 
 ## Required fields
 
@@ -71,7 +83,28 @@ Every confirmed finding must record:
 7. Immediate correction.
 8. Root cause or contributing process weakness.
 9. Future prevention/control.
-10. Owner, status, and closure evidence.
+10. Owner, status, and **lifecycle evidence**.
+
+**Lifecycle evidence** means the evidence appropriate to the finding's *current*
+status - correction evidence, control evidence, closure evidence, or
+accepted-risk evidence - not closure evidence in every case. A finding is
+complete when it records the evidence its current status supports and states
+explicitly what the next transition still requires.
+
+Accordingly:
+
+- A `CORRECTED` finding records **Correction evidence**, and states that
+  **Control evidence** and **Closure evidence** are *pending* (that is, awaiting
+  the next lifecycle step) rather than treating them as missing fields.
+- A `CONTROLLED` finding adds **Control evidence** (the accepted preventive
+  measure) and states that **Closure evidence** is pending.
+- A `CLOSED` finding adds **Closure evidence** from the approved task or pilot.
+- An `ACCEPTED_RISK` finding records **Accepted-risk evidence**: Austin's
+  explicit acceptance and rationale.
+
+A pending evidence line is a satisfied requirement, not an omission. The six
+findings below are all `CORRECTED`; each records Correction evidence and marks
+Control and Closure evidence as pending with the specific prerequisite named.
 
 ## Summary
 
@@ -83,6 +116,15 @@ Every confirmed finding must record:
 | AF-2026-004 | Current-state counts and claim strength drifted | State accuracy | Medium | CORRECTED |
 | AF-2026-005 | UAT snippet confused written with committed and lacked guaranteed cleanup | Procedure robustness | Medium | CORRECTED |
 | AF-2026-006 | Findings were closed before prevention controls were verified | Governance status | Medium | CORRECTED |
+
+**Current lifecycle position.** All six findings are `CORRECTED`: every immediate
+defect and inaccurate claim has been fixed and merged. None is `CONTROLLED`,
+because the preventive controls in this ledger are proposed in an unmerged draft
+pull request and have not yet been independently accepted. None is `CLOSED`,
+because no approved task or pilot has yet produced evidence that the controls
+operated as intended. Each finding names its own next prerequisite; the two
+transitions are independent, and reaching `CONTROLLED` does not require pilot
+evidence.
 
 ## Findings
 
@@ -118,6 +160,11 @@ Every confirmed finding must record:
 - **Correction evidence:** Corrected UAT merged through PR #21; the final procedure
   records `state["calls"] == 2`, pre-commit writes, rolled-back evidence, and
   `conn.in_transaction is false`.
+- **Control evidence:** Pending - requires independent acceptance of the
+  fault-path UAT rule stated above (name the injection point, prove the pre-fault
+  milestone, verify persisted and transaction state).
+- **Closure evidence:** Pending - requires later evidence from an approved task or
+  pilot that a fault-path UAT was written under that rule.
 
 ### AF-2026-002 - Transaction outcomes were described too broadly
 
@@ -147,6 +194,11 @@ Every confirmed finding must record:
 - **Status:** CORRECTED
 - **Correction evidence:** Corrected language merged through PR #21 and independently
   re-reviewed against the recovery service and tests.
+- **Control evidence:** Pending - requires independent acceptance of the
+  outcome-by-outcome persistence-matrix rule for transactional workflows.
+- **Closure evidence:** Pending - requires later evidence from an approved task or
+  pilot that summary transaction language was reconciled against that matrix
+  before approval.
 
 ### AF-2026-003 - Diagram implied false filing audit evidence
 
@@ -172,6 +224,11 @@ Every confirmed finding must record:
 - **Status:** CORRECTED
 - **Correction evidence:** Corrected diagram merged through PR #21 and independently
   checked against service behavior.
+- **Control evidence:** Pending - requires independent acceptance of the rule that
+  diagrams are testable claims whose every outcome edge is checked against
+  persisted events.
+- **Closure evidence:** Pending - requires later evidence from an approved task or
+  pilot that a validation diagram was reviewed edge-by-edge under that rule.
 
 ### AF-2026-004 - Current-state claims drifted during a large closeout
 
@@ -202,6 +259,11 @@ Every confirmed finding must record:
 - **Correction evidence:** Corrections merged through PR #21; repository-wide stale
   checks, demo execution, link checks, ASCII checks, and independent review
   passed.
+- **Control evidence:** Pending - requires independent acceptance of the closeout
+  rule (define canonical figures first, search for superseded values afterward,
+  label historical figures, compare every field an immutability claim names).
+- **Closure evidence:** Pending - requires later evidence from an approved closeout
+  task that a canonical fact sheet and stale-claim sweep were used.
 
 ### AF-2026-005 - UAT procedure wording and cleanup were not robust
 
@@ -233,6 +295,11 @@ Every confirmed finding must record:
 - **Status:** CORRECTED
 - **Correction evidence:** Residual correction commit `4c5e08a` merged through PR
   #21; the revised snippet and full suite were independently re-run.
+- **Control evidence:** Pending - requires independent acceptance of the rule that
+  executable UAT snippets are code (deterministic setup, unconditional teardown,
+  injection-point evidence, exact vocabulary, independent dry run).
+- **Closure evidence:** Pending - requires later evidence from an approved task or
+  pilot that a UAT snippet was authored and dry-run under that rule.
 
 ### AF-2026-006 - Finding closure was claimed before control verification
 
@@ -253,8 +320,10 @@ Every confirmed finding must record:
   control, and CLOSED should require later independent evidence that the control
   operated as intended.
 - **Immediate correction:** AF-2026-001 through AF-2026-005 now remain CORRECTED.
-  Their transition to CONTROLLED or CLOSED is explicitly deferred. This finding
-  is recorded instead of silently fixing the summary.
+  Their transitions to CONTROLLED and to CLOSED are explicitly deferred, and are
+  deferred *separately*: CONTROLLED awaits independent acceptance of the
+  preventive control, CLOSED awaits later operating evidence. This finding is
+  recorded instead of silently fixing the summary.
 - **Root cause:** The initial record treated documenting a prevention measure as
   equivalent to implementing and verifying it.
 - **Future prevention/control:** Status transitions must cite evidence that every
@@ -263,5 +332,12 @@ Every confirmed finding must record:
 - **Owner:** Independent reviewer / audit record keeper
 - **Status:** CORRECTED
 - **Correction evidence:** PR #23 amendment corrects all premature status and
-  evidence labels. CONTROLLED/CLOSED transitions remain pending independent
-  acceptance and pilot evidence.
+  evidence labels, and reconciles the lifecycle definitions so that `CONTROLLED`
+  requires independent acceptance of the preventive control only, while `CLOSED`
+  requires later operating evidence from an approved task or pilot.
+- **Control evidence:** Pending - requires independent acceptance of the rule that
+  a status transition must cite evidence for every lifecycle prerequisite, and
+  that a finding may not be closed in the same unreviewed change that first
+  proposes its preventive control.
+- **Closure evidence:** Pending - requires later evidence from an approved task or
+  pilot that a finding transitioned only on cited, matching lifecycle evidence.
