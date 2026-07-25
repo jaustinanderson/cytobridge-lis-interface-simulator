@@ -15,7 +15,7 @@ explicit approval.
 | Accepted authorization baseline commit | `beb62ed13e76525fc29545de23f51382e4e98412` (`main`, amended P3-005 authorization PR #27 merge commit) |
 | Manual dispatch baseline | `6f20a41dedf0087e22388b65230b70a0d58c94f8` (`main`, P3-005 acceptance-closeout PR #28 merge commit) |
 | Active implementation task branch | `agent/p3-005-recovery-uat-evidence` |
-| Draft implementation PR | Pending creation; this field must be replaced with the exact PR number before final publication |
+| Draft implementation PR | [#29](https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/29) (open, draft, pending independent review) |
 | Completed-but-unreviewed task count | 1 (`P3-005`) |
 | Authorized manual pilot | `P3-005` was dispatched exactly once from `6f20a41dedf0087e22388b65230b70a0d58c94f8`; no second dispatch is authorized |
 | Autonomous Routine | `DISABLED` |
@@ -358,10 +358,10 @@ PASS is not acceptance and supplies no builder-authorized finding transition.
 All nine findings remain `CONTROLLED`; none is `CLOSED`. The independent
 reviewer decides whether the evidence supports any later lifecycle change.
 
-The draft PR number is pending initial publication and must be committed into
-the stable status fields before the branch is handed off. The committed status
-must not record its own final head SHA. After the final file commit, the PR
-description must record that exact head and be refreshed if the head changes.
+Draft PR #29 is the stable publication record. The committed status records the
+PR number but must not record its own final head SHA. After the final file
+commit, the PR description must record that exact head and be refreshed if the
+head changes.
 
 ## Accepted P3-004 scope
 
@@ -799,10 +799,9 @@ acceptance (see "Blocker resolution").
 
 ## Next permitted action
 
-Complete publication of the single P3-005 draft evidence PR, record its stable
-PR number in this file, record the exact final head in PR metadata, wait for CI,
-and stop for independent review. The builder may not merge the PR, perform a
-second dispatch, start another task, or change any finding lifecycle state.
+Await independent review of draft PR #29 after its final head and CI evidence
+are recorded in PR metadata. The builder may not merge the PR, perform a second
+dispatch, start another task, or change any finding lifecycle state.
 
 **Scheduled routines remain disabled.** Hardening, new recovery behavior,
 UI/API/CLI, transport, deployment, authentication, release work, a second
