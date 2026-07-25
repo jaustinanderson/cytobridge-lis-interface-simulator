@@ -11,11 +11,12 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `PHASE_3_READY_FOR_TASK_APPROVAL` (AF-2026-007 controlled; no follow-on task approved) |
-| Last accepted baseline commit | `8620feb24d83955d8ac3755e34a8e63d59ed8690` (`main`, AF-2026-007 correction PR #25 merge commit) |
+| Current phase | `P3_005_AUTHORIZATION_PENDING_REVIEW` (Austin authorized the bounded pilot; execution remains blocked until this authorization PR is independently reviewed and merged) |
+| Last accepted baseline commit | `2617f71b7efecba9f054230e7e0488de77c41ad2` (`main`, AF-2026-007 status closeout PR #26 merge commit) |
 | Active implementation task branch | None |
 | Draft implementation PR | None |
 | Completed-but-unreviewed task count | 0 |
+| Authorized manual pilot | `P3-005` (one dispatch only; blocked until this authorization PR merges) |
 | Autonomous Routine | `DISABLED` |
 | Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 7 confirmed findings, all `CONTROLLED`; none `CLOSED`) |
 
@@ -50,8 +51,11 @@ through AF-2026-006. Independent review, Austin's merge authorization, and the
 PR #25 merge supply correction and control evidence for AF-2026-007. No finding
 is `CLOSED`.
 
-This audit control does not approve P3-005 or any other implementation task, does
-not authorize implementation work, and does not enable the Autonomous Routine.
+This audit control does not itself approve implementation work. Austin separately
+authorized the bounded P3-005 pilot recorded below. That authorization becomes
+executable only after this authorization change is independently reviewed and
+merged into `main`, followed by one explicit manual dispatch. The Autonomous
+Routine remains `DISABLED`.
 
 **Prior closeout audit report:** No audit candidate was identified during the
 PR #24 status-only closeout. The later pre-pilot repository sweep confirmed
@@ -84,15 +88,171 @@ evidence required for `CLOSED`.
 
 ## Approved and unblocked task IDs
 
-None. P3-004 - Recovery Validation, UAT, and Portfolio Closeout is complete,
-accepted, and merged; it is no longer active or unreviewed. P3-003 remains
-accepted and closed. AF-2026-007 is a governance correction, not an
-implementation task approval.
+None while this authorization PR is unmerged.
 
-No further Phase 3 task is approved. In particular, **P3-005, hardening, new
-recovery behavior, new failure handling, a UI/API/CLI, transport, deployment,
-authentication, and release work are NOT approved**. The Autonomous Routine
-remains `DISABLED`.
+Austin explicitly authorized **P3-005 - v1.1 Recovery UAT Evidence Pilot** on
+2026-07-25. Once this exact authorization change passes independent review and
+merges into `main`, P3-005 becomes the sole approved and unblocked task. It may
+then be dispatched manually exactly once. The approval does not enable a
+scheduled or recurring runner and does not authorize any other task.
+
+### P3-005 task contract
+
+**Purpose:** Execute UAT-011 through UAT-018 exactly as defined in
+`validation/uat-test-scripts.md`, capture observed synthetic evidence, and
+produce one standalone execution report. This is an evidence-only pilot; it
+must not change product behavior or rewrite the approved UAT procedures.
+
+**Authorization state:** `APPROVED_BY_AUSTIN / BLOCKED_PENDING_AUTHORIZATION_PR_MERGE`.
+
+**Execution gate and ordering:**
+
+1. This authorization PR must pass independent review and merge into `main`.
+2. A human dispatcher must provide the exact resulting `main` commit SHA and
+   manually dispatch P3-005 once.
+3. The builder must fetch the remote, confirm `origin/main` equals that exact
+   dispatched SHA, confirm no P3-005 branch or PR is already active, and branch
+   directly from it as `agent/p3-005-recovery-uat-evidence`.
+4. The builder executes the task, opens one draft PR, and stops for independent
+   review. It may not merge its own PR.
+5. No second task and no recurring runner may start while the P3-005 draft PR is
+   unreviewed.
+
+**Only authorized repository changes during execution:**
+
+- Create
+  `validation/v1.1-recovery-uat-execution-report.md`.
+- Update `AUTONOMOUS_STATUS.md` only to record the exact execution baseline,
+  task branch, draft PR/head, completion or blocker state, validation evidence,
+  and the required audit-candidate report.
+
+The file-backed `uat_recovery.db`, temporary Python snippets, captured raw
+console files, virtual environments, and caches are scratch artifacts only.
+They must remain outside the commit and be deleted or excluded before the draft
+PR is opened.
+
+**Explicitly prohibited repository changes:**
+
+- No application code, test, schema, query, sample-message, corpus, fixture,
+  frozen record, UAT-definition, README, workflow, CI, or dependency change.
+- No change to `AUDIT_FINDINGS.md`; the independent reviewer owns official
+  findings and lifecycle transitions.
+- No helper script, generated database, console log, screenshot, or binary
+  artifact may be committed.
+- No new product semantic, recovery behavior, failure handling, interface,
+  UI/API/CLI, transport, deployment, authentication, or release work.
+- No PHI or external clinical system; use only the repository's synthetic data.
+- No merge, deploy, release, auto-merge, direct push to `main`, or Autonomous
+  Routine enablement.
+
+**Pre-execution baseline:**
+
+- Record the dispatched commit SHA, UTC date/time, tester/builder identity,
+  Python version, platform, and dependency-install result in a canonical fact
+  sheet at the top of the new report.
+- From a clean tree, install `requirements-dev.txt` in an isolated environment.
+- Run `python -m pytest -q` and `python -m src.demo_run`. Record the exact
+  observed test count and demo scenario count. Either command failing is a stop
+  condition; do not begin the UAT sequence.
+- Verify `validation/uat-test-scripts.md`,
+  `sample_messages/recovery/recovery_corpus.json`, and the frozen v1.1 records
+  are unchanged from the dispatched baseline.
+
+**Required UAT execution and evidence:**
+
+- Execute UAT-011, UAT-012, UAT-013, UAT-014, UAT-015A, UAT-015B, UAT-016,
+  UAT-017, and UAT-018 in order using their stated preconditions and public
+  service calls. Use fresh synthetic state wherever the procedure requires it.
+- For every UAT/subcase, record the setup, exact command or snippet used,
+  expected result, observed values/rows/counts, evidence comparison, and an
+  explicit `PASS` or `FAIL`. A script definition, automated test, or demo
+  claim is not manual execution evidence.
+- UAT-012 must compare every field named by the immutability claim plus queue
+  `raw_payload`; do not infer whole-record immutability from a subset.
+- UAT-015B must prove `state["calls"] == 2`, unconditional dependency
+  restoration, the first in-transaction write before the injected fault, the
+  exact rolled-back and preserved records, and
+  `conn.in_transaction is False`.
+- The report must include an outcome-to-persisted-record matrix for observed
+  `SUCCEEDED`, `FAILED`, `REJECTED`, replay, and
+  `REQUEST_ID_CONFLICT` behavior, using exact transaction language.
+- Check the recovery portion of `docs/workflow-diagram.md` edge by edge against
+  the observed attempt, message, queue, filing-event, and conflict evidence.
+  Record the reconciliation in the report; do not edit the diagram.
+- UAT-018 must use a file-backed scratch database, verify durability after
+  reopen, `conn.in_transaction is False`, and an empty
+  `PRAGMA foreign_key_check`, then remove the scratch database.
+- Treat every executable UAT snippet as code: deterministic setup,
+  unconditional teardown, explicit injection-point evidence, exact vocabulary,
+  and an independent dry run are required.
+
+**Audit-control evidence required in the report:**
+
+- AF-2026-001: injection point and pre-fault milestone evidence.
+- AF-2026-002: outcome-by-outcome persistence matrix.
+- AF-2026-003: edge-by-edge diagram reconciliation.
+- AF-2026-004: canonical facts, repository-wide stale-claim search, and
+  field-complete immutability comparison.
+- AF-2026-005: deterministic snippet setup/teardown, exact transaction
+  vocabulary, injection evidence, and dry-run result.
+- AF-2026-006: no finding status transition without matching lifecycle evidence;
+  the builder may identify candidate evidence but may not close a finding.
+- AF-2026-007: branch-sensitive state sweep for `P3-005`, `under review`,
+  `awaiting review`, `draft PR`, and `not merged`, covering at least
+  `README.md`, `validation/change-control-log.md`, `AUDIT_FINDINGS.md`,
+  the execution report, and this status document. List searched terms and
+  affected files. Because the task PR is not yet merged, this pre-merge sweep
+  alone cannot close AF-2026-007.
+
+The independent reviewer, not the builder, decides whether the pilot supplies
+closure evidence for any finding. The builder must not mark any finding
+`CLOSED` or imply that executing a check proves the preventive control
+effective without review.
+
+**Stop conditions and containment:**
+
+Stop the UAT sequence immediately if any of the following occurs: baseline
+mismatch; dirty or conflicting scope; failed baseline test/demo; failed UAT;
+ambiguous expected result; observed/evidence mismatch; unavailable evidence;
+unrestored instrumentation; dangling transaction; foreign-key violation; need
+to alter an unauthorized file; need to invent semantics; or an audit candidate.
+
+On a stop:
+
+1. Preserve only synthetic, non-sensitive evidence.
+2. Record the completed steps and exact blocker in the authorized report.
+3. Set P3-005 to `BLOCKED` in this status document.
+4. Report an `AUDIT CANDIDATE` with evidence and immediate containment when
+   applicable.
+5. Open at most one draft PR containing only the authorized partial report and
+   status update, then stop for Austin and independent review. Do not continue
+   later UATs merely to accumulate more results.
+
+**Completion and acceptance criteria:**
+
+- All nine named UAT executions/subcases pass with direct observed evidence.
+- The baseline suite and demo pass, and the post-execution suite and demo pass
+  with their exact counts recorded.
+- The canonical fact sheet, persistence matrix, diagram reconciliation,
+  immutable-field comparison, UAT-015B injection/cleanup evidence, UAT-018
+  durability/FK evidence, and branch-sensitive sweep are complete.
+- The execution report clearly separates observed manual evidence, automated
+  evidence, and inference. Unsupported claims are prohibited.
+- Repository scope is exactly the new report plus this status document.
+- `git diff --check` is clean; both changed files are plain ASCII; all relative
+  Markdown links resolve; no scratch artifact is tracked.
+- The branch is directly based on the dispatched `main` SHA and is not behind
+  it when the draft PR opens.
+- The builder reports exactly one of:
+  - `AUDIT CANDIDATE: <diagnosis, evidence, containment, decision needed>`; or
+  - `No audit candidate identified`.
+- One draft PR is opened with the exact baseline, head SHA, scope, validation,
+  UAT result table, and audit report in its description. The builder then stops.
+- P3-005 is not accepted or complete merely because the builder reports PASS.
+  Independent review and Austin's later merge authorization remain required.
+
+No hardening or other Phase 3 work is approved. The Autonomous Routine remains
+`DISABLED`.
 
 ## Accepted P3-004 scope
 
@@ -523,19 +683,26 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- Approve, revise, or defer any next separately scoped task (e.g. P3-005,
-  hardening). None is approved yet.
-- Decide separately when the autonomous Routine may be enabled. It remains
-  `DISABLED` unless Austin explicitly authorizes it.
+- Independently review and decide whether to merge this P3-005 authorization
+  change.
+- After acceptance, manually dispatch P3-005 once from the exact authorization
+  merge commit.
+- Decide separately whether the Autonomous Routine may ever be enabled. It
+  remains `DISABLED` unless Austin explicitly authorizes that distinct change.
 
 ## Next permitted action
 
-Present one bounded follow-on Phase 3 task for Austin's explicit approval. Its
-task specification must include the active audit-candidate reporting
-requirement, exact evidence expectations, and an explicit prevention response
-for any confirmed finding.
+Open this governance-only authorization as a draft PR and stop for independent
+review. No P3-005 execution may begin from the authorization branch.
 
-**Scheduled routines remain disabled.** No P3-005, hardening, new recovery
-behavior, UI/API/CLI, transport, deployment, authentication, or release work may
-begin until its own task ID is approved. Do not merge, deploy, release, enable
-auto-merge, or push to `main`.
+If the authorization PR is accepted and merged, the next permitted action is
+one manual dispatch of P3-005 from the exact merge commit under the task contract
+above. The builder may create one evidence branch and one draft PR, then must
+stop.
+
+**Scheduled routines remain disabled.** P3-005 may begin only after this
+authorization change is independently reviewed and merged and a human manually
+dispatches it once. Hardening, new recovery behavior, UI/API/CLI, transport,
+deployment, authentication, release work, and every other task remain
+unapproved. Do not merge, deploy, release, enable auto-merge, or push to
+`main`.
