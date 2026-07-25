@@ -105,9 +105,10 @@ Accordingly:
 - An `ACCEPTED_RISK` finding records **Accepted-risk evidence**: Austin's
   explicit acceptance and rationale.
 
-A pending evidence line is a satisfied requirement, not an omission. Nine
-findings are recorded below. All nine are `CONTROLLED`; each records Correction
-evidence and Control evidence and marks Closure evidence as pending.
+A pending evidence line is a satisfied requirement, not an omission. Eleven
+findings are recorded below. Nine are `CONTROLLED` and two are `CONFIRMED`.
+Each records the lifecycle evidence appropriate to its current state and marks
+later evidence as pending.
 
 ## Summary
 
@@ -122,13 +123,16 @@ evidence and Control evidence and marks Closure evidence as pending.
 | AF-2026-007 | Post-merge closeout left branch-time status claims on main | State accuracy/governance | Medium | CONTROLLED |
 | AF-2026-008 | Authorization merge omitted a required post-merge state transition | State accuracy/governance | Medium | CONTROLLED |
 | AF-2026-009 | Status contract required a commit to record its own final head | Evidence design/governance | Medium | CONTROLLED |
+| AF-2026-010 | Publication prerequisites were not preflighted before UAT execution | Planning/dependency control | Medium | CONFIRMED |
+| AF-2026-011 | P3-005 evidence handoff omitted contract-required reproducibility evidence | Evidence completeness | High | CONFIRMED |
 
-**Current lifecycle position.** All nine findings are `CONTROLLED`: every
-immediate defect or inaccurate claim has been fixed, and each preventive
-control has been independently accepted. AF-2026-001 through AF-2026-006 were
-controlled through PR #23; AF-2026-007 was controlled through PR #25; and
-AF-2026-008 plus AF-2026-009 were corrected and controlled through amended
-PR #27. No finding is `CLOSED`.
+**Current lifecycle position.** AF-2026-001 through AF-2026-009 are
+`CONTROLLED`: every immediate defect or inaccurate claim has been fixed, and
+each preventive control has been independently accepted. AF-2026-001 through
+AF-2026-006 were controlled through PR #23; AF-2026-007 was controlled through
+PR #25; and AF-2026-008 plus AF-2026-009 were corrected and controlled through
+amended PR #27. AF-2026-010 and AF-2026-011 are `CONFIRMED`; correction,
+control, and closure evidence remain pending. No finding is `CLOSED`.
 
 **Control acceptance evidence.** PR #23 passed independent final review at head
 `4ad36e0e73781c32d7a399875b94888ee835541e`; Austin explicitly authorized its
@@ -532,3 +536,121 @@ supply closure evidence.
 - **Closure evidence:** Pending - requires a later approved task to record branch
   and PR number in-tree and the exact final head in PR metadata after the last
   push.
+
+### AF-2026-010 - Publication prerequisites were not preflighted before UAT execution
+
+- **Date:** 2026-07-25
+- **Scope:** P3-005 execution and publication; local evidence commit
+  `9fd9fb8d5d1ff85c2a6113bb30ad5080f1781354`; draft PR #29
+- **Classification:** Planning/dependency control
+- **Severity:** Medium
+- **Diagnosis:** The P3-005 execution gate verified the repository baseline,
+  branch collision, test environment, and UAT prerequisites, but did not verify
+  an authenticated GitHub publication path before the recorded UAT began. The
+  validated local evidence commit therefore existed before the builder
+  discovered that the workspace had neither GitHub CLI authentication nor Git
+  push credentials.
+- **Evidence and impact:** After all nine UAT entries passed and local commit
+  `9fd9fb8d5d1ff85c2a6113bb30ad5080f1781354` was created, direct publication
+  stopped because `gh` was unavailable and the HTTPS remote had no usable
+  credentials. No remote branch was created by the rejected push. Publication
+  required a second explicit authorization and a connected-app fallback that
+  reconstructed an equivalent Git tree. GitHub commit
+  `61e9e2d0c2a006155451cfca607265e75f6ef400` and the local commit share tree
+  `740c6bf572a8322558d48ff7f3c03d3a55eaf279`; final status metadata then
+  produced PR head `245ecedc96944f5e24314e58ff02a9cd4431f422`. The evidence
+  was preserved, but the unplanned handoff increased delay, commit-chain
+  complexity, and the risk of stranded or incorrectly substituted evidence.
+- **What should have happened:** Before recorded execution, the task should
+  have verified one authorized, authenticated publication route capable of
+  creating the required branch and draft PR. If preserving an existing local
+  commit SHA was material, that exact path should have been proven available;
+  otherwise the contract should have defined an explicitly authorized
+  equivalent-tree fallback before execution.
+- **Immediate correction:** Keep PR #29 blocked from merge; disclose the failed
+  publication preflight in the execution report and status record; preserve the
+  local/equivalent commit and shared-tree evidence in PR metadata; and require
+  independent review of the corrected handoff.
+- **Root cause:** Execution-environment readiness and remote-publication
+  readiness were treated as separate phases. The plan assumed that a validated
+  local commit could be pushed without making publication authentication and
+  commit-identity preservation part of the pre-execution gate.
+- **Future prevention/control:** Every repository task that must publish
+  evidence must preflight, before irreversible or expensive execution: the
+  accepted remote baseline, branch/PR collision state, an authenticated write
+  route, whether exact local commit identity must be preserved, and any
+  explicitly approved equivalent-tree fallback. A missing route is a
+  pre-execution stop condition.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONFIRMED
+- **Confirmation evidence:** Independent review of PR #29 at head
+  `245ecedc96944f5e24314e58ff02a9cd4431f422` compared the P3-005 contract,
+  publication history, PR description, and local/equivalent tree chain and
+  confirmed that publication credentials were discovered missing only after
+  UAT execution and local commit creation.
+- **Correction evidence:** Pending - requires an independently accepted
+  amendment that reconciles the report, status record, and PR metadata.
+- **Control evidence:** Pending - requires an independently accepted
+  publication-preflight gate or template.
+- **Closure evidence:** Pending - requires a later approved task to demonstrate
+  the accepted publication preflight before execution begins.
+
+### AF-2026-011 - P3-005 evidence handoff was incomplete
+
+- **Date:** 2026-07-25
+- **Scope:** P3-005 execution report and draft PR #29 at reviewed head
+  `245ecedc96944f5e24314e58ff02a9cd4431f422`
+- **Classification:** Evidence completeness
+- **Severity:** High
+- **Diagnosis:** The execution report recorded PASS outcomes and detailed
+  observations, but the handoff omitted contract-required exact commands or
+  snippets for several UATs, omitted the actual read-only pre-fault capture code
+  for UAT-015B, and did not quote a required UAT-017 `outcome_detail` example.
+  The PR description also omitted the required UAT result table. At the same
+  time, the report and status said `No audit candidate identified` even though
+  the PR description acknowledged the publication-preflight gap.
+- **Evidence and impact:** The P3-005 contract in `AUTONOMOUS_STATUS.md`
+  requires setup, exact command or snippet, expected result, observed
+  values/rows/counts, comparison, and PASS/FAIL for every UAT/subcase. At
+  reviewed head `245ecedc96944f5e24314e58ff02a9cd4431f422`, UAT-011,
+  UAT-014, UAT-016, and UAT-018 had prose summaries but no exact executing
+  snippet; the UAT-015B block contained only a comment where milestone queries
+  should have appeared; UAT-017 paraphrased details instead of supplying the
+  required example; and the PR body had no UAT result table. The underlying
+  behavior may be correct, but the submitted evidence could not independently
+  prove every required handoff element and was not merge-ready.
+- **What should have happened:** Before deleting or discarding scratch evidence
+  and before opening the draft PR, the builder should have mapped every
+  completion criterion to an exact report section and PR-body field. The report
+  should have captured the actual executed snippets and outputs directly,
+  including the UAT-015B in-transaction queries and a full UAT-017 detail
+  string.
+- **Immediate correction:** Keep PR #29 blocked. Do not reconstruct the deleted
+  runner as historical fact. Run a clearly labeled independent replay in fresh
+  synthetic state with new request IDs, add the exact replay command/snippets,
+  actual UAT-015B capture code, and full UAT-017 details to the report, add the
+  UAT result table to the PR description, and correct the audit-candidate
+  statements in the report and status.
+- **Root cause:** The final review emphasized the accuracy of PASS observations,
+  repository scope, regression results, and commit equivalence, but did not
+  perform a line-by-line handoff-completeness check against every P3-005
+  completion requirement before publication.
+- **Future prevention/control:** Add an evidence-handoff manifest to every
+  validation task. Before publication it must map each contract requirement to
+  the exact report section and PR metadata, verify that any executed snippet is
+  reproduced or retained as non-repository scratch evidence through review,
+  and prohibit reconstructing deleted tooling as historical fact. A missing
+  mapping is a publication stop condition.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONFIRMED
+- **Confirmation evidence:** Independent review of PR #29 at head
+  `245ecedc96944f5e24314e58ff02a9cd4431f422` compared the full report and PR
+  description line by line with the accepted P3-005 evidence and completion
+  contract and identified the omissions above. The review kept the PR draft
+  and unmerged.
+- **Correction evidence:** Pending - requires an independently accepted replay
+  amendment and corrected PR description.
+- **Control evidence:** Pending - requires an independently accepted
+  evidence-handoff manifest/checklist.
+- **Closure evidence:** Pending - requires a later approved evidence task to
+  demonstrate the accepted handoff control before publication.
