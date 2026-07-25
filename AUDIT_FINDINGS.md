@@ -106,11 +106,8 @@ Accordingly:
   explicit acceptance and rationale.
 
 A pending evidence line is a satisfied requirement, not an omission. Nine
-findings are recorded below. AF-2026-001 through AF-2026-007 are `CONTROLLED`;
-each records Correction evidence and Control evidence and marks Closure evidence
-as pending. AF-2026-008 and AF-2026-009 are `CONFIRMED`; each records
-Confirmation evidence and marks Correction, Control, and Closure evidence as
-pending.
+findings are recorded below. All nine are `CONTROLLED`; each records Correction
+evidence and Control evidence and marks Closure evidence as pending.
 
 ## Summary
 
@@ -123,16 +120,15 @@ pending.
 | AF-2026-005 | UAT snippet confused written with committed and lacked guaranteed cleanup | Procedure robustness | Medium | CONTROLLED |
 | AF-2026-006 | Findings were closed before prevention controls were verified | Governance status | Medium | CONTROLLED |
 | AF-2026-007 | Post-merge closeout left branch-time status claims on main | State accuracy/governance | Medium | CONTROLLED |
-| AF-2026-008 | Authorization merge omitted a required post-merge state transition | State accuracy/governance | Medium | CONFIRMED |
-| AF-2026-009 | Status contract required a commit to record its own final head | Evidence design/governance | Medium | CONFIRMED |
+| AF-2026-008 | Authorization merge omitted a required post-merge state transition | State accuracy/governance | Medium | CONTROLLED |
+| AF-2026-009 | Status contract required a commit to record its own final head | Evidence design/governance | Medium | CONTROLLED |
 
-**Current lifecycle position.** AF-2026-001 through AF-2026-007 are
-`CONTROLLED`: every immediate defect or inaccurate claim has been fixed, and
-each preventive control has been independently accepted. AF-2026-001 through
-AF-2026-006 were controlled through PR #23; AF-2026-007 was controlled through
-PR #25. AF-2026-008 and AF-2026-009 are `CONFIRMED`: their diagnoses are
-supported, but correction, control, and closure transitions remain pending.
-No finding is `CLOSED`.
+**Current lifecycle position.** All nine findings are `CONTROLLED`: every
+immediate defect or inaccurate claim has been fixed, and each preventive
+control has been independently accepted. AF-2026-001 through AF-2026-006 were
+controlled through PR #23; AF-2026-007 was controlled through PR #25; and
+AF-2026-008 plus AF-2026-009 were corrected and controlled through amended
+PR #27. No finding is `CLOSED`.
 
 **Control acceptance evidence.** PR #23 passed independent final review at head
 `4ad36e0e73781c32d7a399875b94888ee835541e`; Austin explicitly authorized its
@@ -149,11 +145,18 @@ control entered `main` as
 correction and control evidence for AF-2026-007; it does not supply closure
 evidence.
 
-**AF-2026-008 and AF-2026-009 confirmation evidence.** Independent review of
-P3-005 authorization PR #27 at head
-`a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` confirmed both defects before
-merge. The task remains blocked, the PR remains unmerged, and neither finding
-has correction, control, or closure evidence yet.
+**AF-2026-008 and AF-2026-009 control acceptance evidence.** Independent review
+of P3-005 authorization PR #27 at original head
+`a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` confirmed both defects. The
+amended contract at final head
+`7439a3da2d8fb90b94ea2ba0c6c265a42aaf9f87` separated authorization,
+post-merge acceptance closeout, and manual dispatch; removed the
+self-referential in-tree head requirement; and defined the corresponding
+preventive rules. PR #27 passed independent final review, Austin explicitly
+authorized its merge, and the corrected contract and controls entered `main`
+as `beb62ed13e76525fc29545de23f51382e4e98412` on 2026-07-25. This supplies
+correction and control evidence for AF-2026-008 and AF-2026-009; it does not
+supply closure evidence.
 
 ## Findings
 
@@ -464,16 +467,19 @@ has correction, control, or closure evidence yet.
   reconciles branch-sensitive claims, passes independent review, and enters
   `main`.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CONFIRMED
-- **Confirmation evidence:** Independent review of PR #27 at
-  `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` identified the missing state
-  transition before merge; P3-005 remained blocked and no execution began.
-- **Correction evidence:** Pending - requires the amended authorization contract
-  and its later status-only acceptance closeout to be independently reviewed and
-  merged.
-- **Control evidence:** Pending - requires independent acceptance of the
-  post-merge reconciliation rule and evidence that the closeout gate is in
-  force.
+- **Status:** CONTROLLED
+- **Correction evidence:** PR #27 amended the task contract at final head
+  `7439a3da2d8fb90b94ea2ba0c6c265a42aaf9f87` to separate contract
+  authorization, the status-only acceptance closeout, and manual dispatch.
+  After independent final review and Austin's explicit merge authorization, the
+  correction entered `main` as
+  `beb62ed13e76525fc29545de23f51382e4e98412`. This closeout records that
+  accepted merge and reconciles the live authorization state before execution.
+- **Control evidence:** The explicit post-merge reconciliation gate was
+  independently reviewed and accepted through PR #27 and entered `main` at
+  `beb62ed13e76525fc29545de23f51382e4e98412`. The gate keeps P3-005 blocked
+  throughout this closeout and requires a separate human dispatch from the
+  exact closeout merge commit.
 - **Closure evidence:** Pending - requires a later approved task to demonstrate
   authorization merge, status closeout, and manual dispatch in the required
   order.
@@ -511,15 +517,18 @@ has correction, control, or closure evidence yet.
   its own final commit; final-head evidence belongs in PR metadata and is checked
   only after the last push.
 - **Owner:** Independent reviewer / audit record keeper
-- **Status:** CONFIRMED
-- **Confirmation evidence:** Independent review of PR #27 at
-  `a8c972d64f47e44dc634e8a6bb6a92f714c4fc9d` proved the head requirement was
-  unsatisfiable by construction; no execution record was created.
-- **Correction evidence:** Pending - requires the amended recording contract to
-  be independently reviewed and merged.
-- **Control evidence:** Pending - requires independent acceptance of the
-  in-tree/out-of-tree evidence-separation rule.
+- **Status:** CONTROLLED
+- **Correction evidence:** PR #27 amended the recording contract at final head
+  `7439a3da2d8fb90b94ea2ba0c6c265a42aaf9f87` so committed status records use
+  only stable identifiers and final-head evidence remains in PR metadata. After
+  independent final review and Austin's explicit merge authorization, the
+  correction entered `main` as
+  `beb62ed13e76525fc29545de23f51382e4e98412`.
+- **Control evidence:** The in-tree/out-of-tree evidence-separation rule was
+  independently reviewed and accepted through PR #27 and entered `main` at
+  `beb62ed13e76525fc29545de23f51382e4e98412`. This closeout applies the same
+  rule by recording the stable PR #27 merge while leaving its own eventual merge
+  commit for the human dispatch record after that commit exists.
 - **Closure evidence:** Pending - requires a later approved task to record branch
   and PR number in-tree and the exact final head in PR metadata after the last
   push.
-
