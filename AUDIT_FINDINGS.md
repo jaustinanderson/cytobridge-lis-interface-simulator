@@ -102,10 +102,11 @@ Accordingly:
 - An `ACCEPTED_RISK` finding records **Accepted-risk evidence**: Austin's
   explicit acceptance and rationale.
 
-A pending evidence line is a satisfied requirement, not an omission. The six
-findings below are all `CONTROLLED`; each records Correction evidence and Control
-evidence, and marks Closure evidence as pending with the specific prerequisite
-named.
+A pending evidence line is a satisfied requirement, not an omission. The first
+six findings below are `CONTROLLED`; each records Correction evidence and
+Control evidence, and marks Closure evidence as pending with the specific
+prerequisite named. AF-2026-007 is `CONFIRMED`; its proposed correction and
+stronger closeout control have not yet been independently accepted or merged.
 
 ## Summary
 
@@ -117,12 +118,14 @@ named.
 | AF-2026-004 | Current-state counts and claim strength drifted | State accuracy | Medium | CONTROLLED |
 | AF-2026-005 | UAT snippet confused written with committed and lacked guaranteed cleanup | Procedure robustness | Medium | CONTROLLED |
 | AF-2026-006 | Findings were closed before prevention controls were verified | Governance status | Medium | CONTROLLED |
+| AF-2026-007 | Post-merge closeout left branch-time status claims on main | State accuracy/governance | Medium | CONFIRMED |
 
-**Current lifecycle position.** All six findings are `CONTROLLED`: every
-immediate defect or inaccurate claim has been fixed, and each preventive control
-was independently accepted through PR #23. None is `CLOSED`, because no later
-approved task or pilot has yet produced evidence that the controls operated as
-intended.
+**Current lifecycle position.** AF-2026-001 through AF-2026-006 are
+`CONTROLLED`: every immediate defect or inaccurate claim has been fixed, and
+each preventive control was independently accepted through PR #23. AF-2026-007
+is `CONFIRMED`; the correction and stronger closeout control are proposed in the
+current governance change but are not yet accepted on `main`. No finding is
+`CLOSED`.
 
 **Control acceptance evidence.** PR #23 passed independent final review at head
 `4ad36e0e73781c32d7a399875b94888ee835541e`; Austin explicitly authorized its
@@ -350,3 +353,52 @@ does not supply closure evidence.
   `553e43e209c13bc809c9be0e5f892129fdc4244a`.
 - **Closure evidence:** Pending - requires later evidence from an approved task or
   pilot that a finding transitioned only on cited, matching lifecycle evidence.
+
+### AF-2026-007 - Post-merge closeout left branch-time status claims on main
+
+- **Date:** 2026-07-25
+- **Scope:** P3-004 post-merge closeout; README and change-control record after
+  PR #21
+- **Classification:** State accuracy/governance
+- **Severity:** Medium
+- **Diagnosis:** PR #21 merged the accepted P3-004 closeout into `main`, but the
+  README still said the closeout was "under review" and the change-control
+  summary and P3-004 detail still said it was a draft awaiting Austin's review
+  and was not merged.
+- **Evidence and impact:** `main` reached merge commit
+  `406509ad2847efdf5dc6a09f7f6de52e3dfb514b`, and later governance work reached
+  `de775d891bea997cf12d6e873e020978df1d6fc5`, while those two branch-time claims
+  remained. A portfolio reviewer reading the public entry points could receive
+  a state story that contradicted the repository history and live control
+  record.
+- **What should have happened:** The P3-004 acceptance closeout should have
+  reconciled every branch-sensitive current-state claim, including the README
+  and human-readable change-control record, or explicitly labeled any retained
+  text as a historical snapshot.
+- **Immediate correction:** This governance change replaces the README's
+  under-review statement with the accepted PR #21 merge evidence and updates
+  both P3-004 change-control locations to the accepted merge state.
+- **Root cause:** The status-only closeout treated `AUTONOMOUS_STATUS.md` as the
+  complete post-merge state surface. The earlier stale-claim sweep focused on
+  the P3-004 branch diff and did not assign a post-merge owner or checklist for
+  public and historical-summary documents whose branch-time wording would
+  become stale only after merge.
+- **Future prevention/control:** Every task-acceptance closeout must run a
+  repository-wide branch-sensitive state sweep for the task ID and terms such as
+  `under review`, `awaiting review`, `draft PR`, and `not merged`. It must
+  reconcile at least the live control record, public README/current-state
+  claims, and change-control summary/detail, and either update branch-time text
+  or label it explicitly as historical. The closeout report must list the
+  searched terms and affected files.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONFIRMED
+- **Confirmation evidence:** Exact stale claims were found on accepted `main` at
+  `de775d891bea997cf12d6e873e020978df1d6fc5` and reconciled against the PR #21
+  merge commit and Git history.
+- **Correction evidence:** Pending - the correction exists only in the current
+  unmerged governance change and requires independent review, Austin's merge
+  authorization, and merge to `main`.
+- **Control evidence:** Pending - the stronger post-merge sweep rule above must
+  be independently accepted.
+- **Closure evidence:** Pending - a later accepted task closeout must demonstrate
+  the repository-wide branch-sensitive sweep and cite its results.
