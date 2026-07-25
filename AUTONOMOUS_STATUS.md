@@ -11,15 +11,15 @@ explicit approval.
 
 | Field | Value |
 |---|---|
-| Current phase | `P3_005_APPROVED_AWAITING_MANUAL_DISPATCH` (the bounded pilot is the sole approved task after this closeout enters `main`; it has not been dispatched) |
+| Current phase | `P3_005_EVIDENCE_AMENDED_PENDING_INDEPENDENT_REREVIEW` (all nine required UAT entries passed; first review blocked merge; independent replay amendment is unaccepted and unmerged) |
 | Accepted authorization baseline commit | `beb62ed13e76525fc29545de23f51382e4e98412` (`main`, amended P3-005 authorization PR #27 merge commit) |
-| Manual dispatch baseline | Pending - a human must supply the exact merge commit of this status-only closeout after that commit exists |
-| Active implementation task branch | None |
-| Draft implementation PR | None |
-| Completed-but-unreviewed task count | 0 |
-| Authorized manual pilot | `P3-005` only (one explicit human dispatch from the exact closeout merge; not yet dispatched) |
+| Manual dispatch baseline | `6f20a41dedf0087e22388b65230b70a0d58c94f8` (`main`, P3-005 acceptance-closeout PR #28 merge commit) |
+| Active implementation task branch | `agent/p3-005-recovery-uat-evidence` |
+| Draft implementation PR | [#29](https://github.com/jaustinanderson/cytobridge-lis-interface-simulator/pull/29) (open, draft, evidence amended after failed review, pending independent re-review) |
+| Completed-but-unreviewed task count | 1 (`P3-005`) |
+| Authorized manual pilot | `P3-005` was dispatched exactly once from `6f20a41dedf0087e22388b65230b70a0d58c94f8`; no second dispatch is authorized |
 | Autonomous Routine | `DISABLED` |
-| Audit findings protocol | `ACTIVE` (`AUDIT_FINDINGS.md`; 9 confirmed findings, all `CONTROLLED`; none `CLOSED`) |
+| Audit findings protocol | `ACTIVE` (`main` ledger: 9 findings, all `CONTROLLED`; independent review confirmed AF-2026-010 and AF-2026-011 in separate draft governance PR #30; none `CLOSED`) |
 
 ## Audit findings control (ACTIVE - independently accepted)
 
@@ -46,21 +46,25 @@ The ledger's three post-diagnosis states remain distinct:
 - `CLOSED` - later independent evidence from an approved task or pilot shows
   that the correction and the preventive control operated as intended.
 
-All nine findings are `CONTROLLED`. Independent review, Austin's merge
-authorization, and the PR #23 merge supply the control evidence for AF-2026-001
-through AF-2026-006. Independent review, Austin's merge authorization, and the
-PR #25 merge supply correction and control evidence for AF-2026-007. Independent
-review of the amended PR #27 contract, Austin's merge authorization, and its
-merge supply correction and control evidence for AF-2026-008 and AF-2026-009.
+All nine findings in the accepted `main` ledger are `CONTROLLED`. Independent
+review, Austin's merge authorization, and the PR #23 merge supply the control
+evidence for AF-2026-001 through AF-2026-006. Independent review, Austin's
+merge authorization, and the PR #25 merge supply correction and control
+evidence for AF-2026-007. Independent review of the amended PR #27 contract,
+Austin's merge authorization, and its merge supply correction and control
+evidence for AF-2026-008 and AF-2026-009. The later PR #29 review confirmed
+AF-2026-010 and AF-2026-011; their proposed `CONFIRMED` records are isolated in
+draft governance PR #30, with correction, control, and closure evidence pending.
 No finding is `CLOSED`.
 
 This audit control does not itself approve implementation work. Austin separately
 authorized the bounded P3-005 pilot recorded below. PR #27 accepted the task
-contract but did not make it executable. This status-only closeout records that
-merge evidence and reconciles live authorization state. When this closeout
-enters `main`, P3-005 becomes the sole approved and unblocked task, but it still
-does not begin automatically: a human must explicitly dispatch it once from the
-exact closeout merge commit. The Autonomous Routine remains `DISABLED`.
+contract; PR #28 performed the required status-only acceptance closeout and
+entered `main` as `6f20a41dedf0087e22388b65230b70a0d58c94f8`. Austin then
+explicitly dispatched P3-005 once from that exact commit. The evidence execution
+passed; its first independent review blocked merge, and the replay-backed
+amendment remains unaccepted and unmerged pending independent re-review. The
+Autonomous Routine remains `DISABLED`.
 
 **Prior closeout audit report:** No audit candidate was identified during the
 PR #24 status-only closeout. The later pre-pilot repository sweep confirmed
@@ -125,19 +129,20 @@ application filename and its UAT instruction. No residual live claim says PR
 
 ## Approved and unblocked task IDs
 
-**P3-005 only, effective when this closeout enters `main`.** Austin approved the
-bounded task contract, and PR #27 accepted it. This closeout makes the task
-eligible for one explicit human dispatch; it does not itself dispatch or execute
-the pilot.
+**P3-005 only, dispatched once and awaiting independent review.** Austin
+approved the bounded task contract, PR #27 accepted it, and PR #28 completed the
+required acceptance closeout. Austin explicitly dispatched the task from the
+PR #28 merge commit. The recorded execution passed; that result is not accepted
+or complete until independent review and Austin's separate merge authorization.
 
 Austin explicitly authorized **P3-005 - v1.1 Recovery UAT Evidence Pilot** on
 2026-07-25. PR #27 passed independent final review and entered `main` as
-`beb62ed13e76525fc29545de23f51382e4e98412`. This closeout records that accepted
-state and the evidence-supported `CONTROLLED` transitions for AF-2026-008 and
-AF-2026-009. After this closeout is independently reviewed and merged, a human
-may dispatch P3-005 manually exactly once from its merge commit. The approval
-does not enable a scheduled or recurring runner and does not authorize any
-other task.
+`beb62ed13e76525fc29545de23f51382e4e98412`. PR #28 recorded the accepted state
+and evidence-supported `CONTROLLED` transitions for AF-2026-008 and
+AF-2026-009, passed independent review, and entered `main` as
+`6f20a41dedf0087e22388b65230b70a0d58c94f8`. Austin manually dispatched
+P3-005 once from that exact merge. The approval does not enable a scheduled or
+recurring runner and does not authorize any other task.
 
 ### P3-005 task contract
 
@@ -146,7 +151,7 @@ other task.
 produce one standalone execution report. This is an evidence-only pilot; it
 must not change product behavior or rewrite the approved UAT procedures.
 
-**Authorization state:** `APPROVED / AWAITING_EXPLICIT_MANUAL_DISPATCH_FROM_CLOSEOUT_MERGE`.
+**Authorization state:** `DISPATCHED_ONCE / EXECUTION_RECORDED / PENDING_INDEPENDENT_REVIEW`.
 
 **Execution gate and ordering:**
 
@@ -323,6 +328,55 @@ On a stop:
 
 No hardening or other Phase 3 work is approved. The Autonomous Routine remains
 `DISABLED`.
+
+### P3-005 execution record (pending independent re-review)
+
+Austin manually dispatched P3-005 from exact `main` commit
+`6f20a41dedf0087e22388b65230b70a0d58c94f8` on 2026-07-25. The builder
+fetched the remote, confirmed `origin/main` matched that SHA, confirmed no
+P3-005 branch or PR already existed, and created
+`agent/p3-005-recovery-uat-evidence` directly from it.
+
+The standalone evidence is
+[`validation/v1.1-recovery-uat-execution-report.md`](validation/v1.1-recovery-uat-execution-report.md).
+The execution recorded:
+
+- isolated development dependency installation: PASS;
+- baseline `python -m pytest -q`: PASS, 164 tests;
+- baseline `python -m src.demo_run`: PASS, five scenarios;
+- separate disposable dry run: initial scratch-query defect contained and
+  corrected; complete fresh-state rerun PASS; scratch database removed;
+- UAT-011, UAT-012, UAT-013, UAT-014, UAT-015A, UAT-015B, UAT-016, UAT-017,
+  and UAT-018: all PASS with direct observed evidence;
+- post-execution `python -m pytest -q`: PASS, 164 tests;
+- post-execution `python -m src.demo_run`: PASS, five scenarios;
+- UAT-018 file-backed database: reopened successfully, foreign-key check empty,
+  no dangling transaction, and scratch file removed;
+- protected baseline records unchanged;
+- original audit report: `No audit candidate identified` (superseded by
+  independent review);
+- independent review: AF-2026-010 and AF-2026-011 confirmed; PR #29 blocked;
+- correction evidence: fresh independent replay with new `REPLAY-*` request
+  IDs supplied the omitted command/snippet evidence, actual UAT-015B pre-fault
+  capture code, and full UAT-017 `outcome_detail` values;
+- formal finding records: separate draft governance PR #30, both
+  `CONFIRMED`, no later lifecycle state claimed.
+
+Only this status file and the new execution report may differ from the dispatch
+baseline. No application behavior, schema, test, UAT definition, frozen record,
+corpus, workflow, dependency, or CI file is authorized to change. The recorded
+PASS is not acceptance and supplies no builder-authorized finding transition.
+The nine accepted baseline findings remain `CONTROLLED`; none is `CLOSED`.
+AF-2026-010 and AF-2026-011 remain proposed at `CONFIRMED` in draft governance
+PR #30. The independent reviewer decides whether the amendment supports any
+later lifecycle change.
+
+Draft PR #29 is the stable evidence publication record. The committed status
+records the PR number but must not record its own final head SHA. After the
+amendment's final file commit, the PR description must record that exact head,
+the replay result table, both confirmed findings, and refreshed validation
+evidence. Draft PR #30 is the separate one-file governance record; neither PR
+authorizes the other's merge.
 
 ## Accepted P3-004 scope
 
@@ -753,28 +807,22 @@ acceptance (see "Blocker resolution").
 
 ## Questions requiring Austin
 
-- After this status-only closeout passes independent review and merges, manually
-  dispatch P3-005 once from its exact merge commit.
-- After the later P3-005 evidence PR passes independent review, decide separately
-  whether to accept and merge it.
+- After amended P3-005 evidence PR #29 passes independent re-review, decide
+  separately whether to accept and merge it.
+- After governance PR #30 passes independent review, decide separately whether
+  to accept its two `CONFIRMED` finding records.
 - Decide separately whether the Autonomous Routine may ever be enabled. It
   remains `DISABLED` unless Austin explicitly authorizes that distinct change.
 
 ## Next permitted action
 
-Await an explicit human dispatch of P3-005 from the exact merge commit that
-brings this status-only closeout into `main`. Merge of the closeout is necessary
-but is not itself a dispatch. No builder may infer dispatch from merge or begin
-the UAT sequence while this closeout is open.
+Await independent re-review of amended draft PR #29 and independent review of
+draft governance PR #30 after both final heads and CI evidence are recorded in
+their PR metadata. The builder may not merge either PR, perform a second
+dispatch, start another implementation task, or claim any finding lifecycle
+state beyond the separate PR #30 proposal of `CONFIRMED`.
 
-After Austin supplies the exact closeout merge commit and explicitly dispatches
-P3-005 once, the builder may create `agent/p3-005-recovery-uat-evidence`, execute
-the bounded contract, open one draft evidence PR, and stop for independent
-review.
-
-**Scheduled routines remain disabled.** P3-005 may begin only after both the
-authorization change and the separate acceptance closeout are independently
-reviewed and merged and a human manually dispatches it once. Hardening, new
-recovery behavior, UI/API/CLI, transport, deployment, authentication, release
-work, and every other task remain unapproved. Do not merge, deploy, release,
-enable auto-merge, or push to `main`.
+**Scheduled routines remain disabled.** Hardening, new recovery behavior,
+UI/API/CLI, transport, deployment, authentication, release work, a second
+P3-005 dispatch, and every other task remain unapproved. Do not merge, deploy,
+release, enable auto-merge, or push to `main`.
