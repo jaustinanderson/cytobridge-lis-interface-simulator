@@ -25,6 +25,7 @@ development session. Each session was developed on its own branch and merged to
 | P3-002 | v1.1 structured failure classification | Fourteen-code classification populated for every inbound failure; OPEN/TERMINAL queue initialization | PR #17 merged |
 | P3-003 | v1.1 controlled recovery service | `src/recovery.py` headless retry/re-drive/history with immutability, idempotency, rollback, terminal rejection | PR #19 merged; status closeout PR #20 merged |
 | P3-004 | v1.1 validation/UAT/portfolio closeout | Recovery demo, R-020-R-041 traceability, UAT-011-UAT-018, troubleshooting/diagram/demo/README/portfolio updates | PR #21 merged (`406509ad`) |
+| P3-005 + finalization | v1.1 recovery UAT execution and finalization | UAT-011-UAT-018 executed and passed (incl. UAT-015A/B); AF-2026-010 - AF-2026-012 recorded; governance simplified; v1.1 declared complete | 2026-07-25/26; evidence in `v1.1-recovery-uat-execution-report.md` |
 
 ---
 
@@ -316,6 +317,31 @@ message, corpus, frozen file, CI workflow, or existing/new test was changed.
 **Status:** Passed independent final review and was accepted by Austin. PR #21
 merged into `main` as `406509ad2847efdf5dc6a09f7f6de52e3dfb514b` on
 2026-07-24.
+
+### P3-005 and v1.1 finalization (2026-07-25 / 2026-07-26)
+
+**What changed (documentation and governance only; no application code,
+schema, test, query, sample-message, or corpus change):**
+
+- Austin explicitly dispatched the bounded P3-005 pilot once from `main`
+  commit `6f20a41d`. UAT-011 through UAT-018 were manually executed on
+  2026-07-25 and passed, including both UAT-015 subcases, and were confirmed
+  by an independent replay in fresh synthetic state. The durable evidence is
+  [`v1.1-recovery-uat-execution-report.md`](v1.1-recovery-uat-execution-report.md).
+- Three process findings were recorded in `AUDIT_FINDINGS.md`: AF-2026-010
+  (the publication path was not preflighted before execution), AF-2026-011
+  (the first evidence handoff was incomplete), and AF-2026-012 (the
+  governance process became recursively self-maintaining and was stopped by
+  Austin, who requested the meta-evaluation).
+- The v1.1 finalization consolidation, explicitly authorized and supervised
+  by Austin, reduced `AUTONOMOUS_STATUS.md` to durable facts, consolidated
+  the UAT evidence at proportional length, corrected every live UAT-status
+  claim, added the mandatory progress/meta-analysis checkpoint and
+  loop-detection stop triggers to the audit protocol, added the root
+  `AGENTS.md` (with a `CLAUDE.md` pointer to it) and the pull-request
+  template's "Progress and loop check" section, and declared CytoBridge v1.1
+  complete. The Autonomous Routine remains disabled; future enhancements
+  require a new bounded authorization from Austin.
 
 ---
 

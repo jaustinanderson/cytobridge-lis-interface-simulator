@@ -24,8 +24,9 @@ A review of the CytoBridge LIS Interface Simulator from the perspective of an
 > troubleshooting) and 7 (validation / UAT maturity), but breadth (one panel,
 > educational interfaces, in-memory) is unchanged, so re-scoring is not warranted
 > on that basis alone. Current evidence is **164 passing tests across eight
-> suites**, **41/41 requirements** with passing automated coverage (manual UAT
-> defined, not executed), and **five** clean demo scenarios. A notable maturity
+> suites**, **41/41 requirements** with passing automated coverage (the v1.1
+> recovery UATs, UAT-011 - UAT-018, manually executed and passed; the v1 manual
+> UATs defined, not executed), and **five** clean demo scenarios. A notable maturity
 > signal: the recovery behavior was specified in a **frozen, pre-implementation
 > design record** and proven against two human-approved invariants. Provenance is
 > stated plainly - the recovery safety design and decisions were the owner's,

@@ -32,8 +32,11 @@ Validation is layered:
    `test_inbound_interfaces.py`, `test_queries.py`, `test_recovery_schema.py`,
    `test_failure_classification.py`, `test_recovery_service.py`).
 3. **Manual UAT** - 18 analyst-style acceptance scripts (`UAT-001`-`UAT-018`)
-   in [`uat-test-scripts.md`](uat-test-scripts.md). These are **defined, not
-   executed**.
+   in [`uat-test-scripts.md`](uat-test-scripts.md). UAT-011-UAT-018 (including
+   both UAT-015 subcases) were **manually executed and passed** on 2026-07-25,
+   with recorded evidence in the
+   [recovery UAT execution report](v1.1-recovery-uat-execution-report.md);
+   UAT-001-UAT-010 are **defined, not executed**.
 4. **Traceability** - every requirement mapped to code (file/function or schema
    constraint), automated test, and UAT in the
    [traceability matrix](traceability-matrix.md).
@@ -48,7 +51,7 @@ Validation is layered:
 | Automated tests | **164 passed** (`pytest`, eight suites) |
 | Requirements traced | 41 / 41 mapped to code + test + UAT |
 | Requirements with automated coverage passing | 41 / 41 |
-| Manual UAT | 18 / 18 **defined** (not executed; no manual pass claimed) |
+| Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not executed |
 | Demo scenarios | 5 / 5 run clean (`python -m src.demo_run`, exit 0) |
 | Reproducibility | Deterministic - in-memory DB seeded from `schema.sql`; fixed sample messages and recovery corpus |
 
@@ -62,17 +65,20 @@ Validation is layered:
 | Outbound interfaces (HL7, FHIR, finalized-only) | R-008, R-009 | PASS | DEFINED |
 | Inbound interfaces (store, file, error-queue routing) | R-010-R-015, R-017, R-018 | PASS | DEFINED |
 | Analyst SQL views | R-019 | PASS | DEFINED |
-| Recovery classification | R-020, R-021 | PASS | DEFINED |
-| Recovery immutability/lineage | R-022-R-024 | PASS | DEFINED |
-| Recovery retry/re-drive/terminal | R-025-R-029 | PASS | DEFINED |
-| Recovery state model | R-030, R-031 | PASS | DEFINED |
-| Recovery outcomes/history | R-032, R-033 | PASS | DEFINED |
-| Recovery idempotency/atomicity | R-034-R-038, R-041 | PASS | DEFINED |
-| Recovery service/audit | R-039, R-040 | PASS | DEFINED |
+| Recovery classification | R-020, R-021 | PASS | PASS |
+| Recovery immutability/lineage | R-022-R-024 | PASS | PASS |
+| Recovery retry/re-drive/terminal | R-025-R-029 | PASS | PASS |
+| Recovery state model | R-030, R-031 | PASS | PASS |
+| Recovery outcomes/history | R-032, R-033 | PASS | PASS |
+| Recovery idempotency/atomicity | R-034-R-038, R-041 | PASS | PASS |
+| Recovery service/audit | R-039, R-040 | PASS | PASS |
 
-The **automated** column is a test that runs and passes; the **manual UAT**
-column is `DEFINED` (a written procedure exists) and is not a claim that a tester
-executed it. No document in this package asserts a manual UAT passed.
+The **automated** column is a test that runs and passes. In the **manual UAT**
+column, `DEFINED` means a written procedure exists but no tester has executed
+it (the v1 rows, UAT-001-UAT-010), while `PASS` means the procedure was
+manually executed and passed on 2026-07-25 with recorded evidence in the
+[recovery UAT execution report](v1.1-recovery-uat-execution-report.md)
+(the v1.1 rows, UAT-011-UAT-018).
 
 ## v1.1 controlled-recovery evidence
 
@@ -138,14 +144,19 @@ python -m pytest -q                   # -> 164 passed
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 ```
 
-Then execute the manual layer with [`uat-test-scripts.md`](uat-test-scripts.md)
-and record results in its summary table before claiming any manual pass.
+The v1.1 manual layer (UAT-011-UAT-018) has been executed; its recorded
+evidence is in the
+[recovery UAT execution report](v1.1-recovery-uat-execution-report.md). To
+execute the remaining v1 manual layer (UAT-001-UAT-010), run
+[`uat-test-scripts.md`](uat-test-scripts.md) and record results before
+claiming a manual pass.
 
 ## Conclusion
 
-Within its stated synthetic scope, the simulator meets all 41 requirements, each
-backed by result-level automated coverage that runs and passes today and a
-defined (not executed) manual UAT. The workflow, validation, outbound generation,
+Within its stated synthetic scope, the simulator meets all 41 requirements,
+each backed by result-level automated coverage that runs and passes today and
+a manual UAT that is executed-and-passed for v1.1 recovery (UAT-011-UAT-018)
+and defined (not executed) for v1. The workflow, validation, outbound generation,
 inbound ingestion/error-queue, and controlled recovery behaviors are traceable,
 reproducible, and demonstrated end-to-end. This remains an **educational,
 synthetic, non-regulatory** portfolio artifact - not a validated medical device,

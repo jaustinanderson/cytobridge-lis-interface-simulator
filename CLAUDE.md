@@ -2,6 +2,11 @@
 
 Read this file on every run. It is short on purpose.
 
+Also read and follow the root [`AGENTS.md`](AGENTS.md) on every run. Its
+progress and meta-analysis checkpoint, publication preflight, loop-detection
+stop triggers, status discipline, and evidence-proportionality rules are
+mandatory for Claude exactly as they are for every other agent.
+
 ## Project nature
 
 - CytoBridge is a synthetic, analyst-first, educational LIS/interface portfolio

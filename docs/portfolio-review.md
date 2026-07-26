@@ -160,8 +160,9 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   replay protection.
 - **"How would you hand this to QA?"** Point at the traceability matrix - every
   requirement maps to the function or schema constraint, the test, and a manual
-  UAT. I keep automated (passing) and manual (defined, not executed) status
-  separate and honest, and I wrote the limitations down myself.
+  UAT. I keep automated and manual status separate and honest - the v1.1
+  recovery UATs are executed and passed with recorded evidence, the v1 UATs are
+  defined but not executed - and I wrote the limitations down myself.
 - **"How is this related to Epic Beaker?"** It models the same category of
   system and the same analyst skills; it is explicitly not Epic software or build
   content. I'm careful not to overstate it.
