@@ -46,6 +46,41 @@ confirms it. The reviewer is accountable for logging confirmed findings and for
 telling Austin when a diagnosis, correction, or prevention measure is being
 recorded.
 
+## Progress and meta-analysis checkpoint (mandatory)
+
+Before starting any new phase or opening any pull request, the agent must
+answer these questions explicitly and honestly, and must stop if any answer
+fails:
+
+1. What user or product outcome changed, or will change, because of this work?
+2. Is the next action substantive progress, or maintenance of prior
+   governance?
+3. Will this action require another pull request merely to correct its own
+   status?
+4. Has the complete execution-to-publication path (authentication, branch,
+   push, PR creation, CI) been preflighted end to end?
+5. Is the evidence proportional to the claim it supports?
+6. Is reviewer independence being described truthfully - is the "independent"
+   reviewer actually a different party from the author?
+
+## Stop-and-escalate triggers (mandatory)
+
+The agent must pause work and escalate to Austin - not continue, not
+self-correct silently - when any of the following occurs:
+
+- two consecutive governance-only or status-only pull requests;
+- two pull requests in a row without a substantive product or
+  final-deliverable change;
+- a status record that would require a post-merge correction to stay
+  accurate;
+- the same evidence claim requiring a second amendment;
+- review or administrative work exceeding the underlying deliverable in size
+  or effort;
+- a human having to interrupt and identify a loop the agent failed to detect.
+
+A human interruption of that final kind automatically produces an audit
+candidate and a process correction; it is never absorbed silently.
+
 ## Finding lifecycle
 
 - `CONFIRMED`: diagnosis is supported by evidence.
@@ -105,9 +140,9 @@ Accordingly:
 - An `ACCEPTED_RISK` finding records **Accepted-risk evidence**: Austin's
   explicit acceptance and rationale.
 
-A pending evidence line is a satisfied requirement, not an omission. Nine
-findings are recorded below. All nine are `CONTROLLED`; each records Correction
-evidence and Control evidence and marks Closure evidence as pending.
+A pending evidence line is a satisfied requirement, not an omission. Twelve
+findings are recorded below. Each records the lifecycle evidence appropriate
+to its current state and marks later evidence as pending.
 
 ## Summary
 
@@ -122,13 +157,21 @@ evidence and Control evidence and marks Closure evidence as pending.
 | AF-2026-007 | Post-merge closeout left branch-time status claims on main | State accuracy/governance | Medium | CONTROLLED |
 | AF-2026-008 | Authorization merge omitted a required post-merge state transition | State accuracy/governance | Medium | CONTROLLED |
 | AF-2026-009 | Status contract required a commit to record its own final head | Evidence design/governance | Medium | CONTROLLED |
+| AF-2026-010 | Publication prerequisites were not preflighted before UAT execution | Planning/dependency control | Medium | CONTROLLED (proposed) |
+| AF-2026-011 | P3-005 evidence handoff omitted contract-required reproducibility evidence | Evidence completeness | High | CONTROLLED (proposed) |
+| AF-2026-012 | The control plane became recursively self-maintaining and displaced project progress | Process design/governance | High | CONTROLLED (proposed) |
 
-**Current lifecycle position.** All nine findings are `CONTROLLED`: every
-immediate defect or inaccurate claim has been fixed, and each preventive
-control has been independently accepted. AF-2026-001 through AF-2026-006 were
-controlled through PR #23; AF-2026-007 was controlled through PR #25; and
-AF-2026-008 plus AF-2026-009 were corrected and controlled through amended
-PR #27. No finding is `CLOSED`.
+**Current lifecycle position.** AF-2026-001 through AF-2026-009 are
+`CONTROLLED`: every immediate defect or inaccurate claim has been fixed, and
+each preventive control has been independently accepted. AF-2026-001 through
+AF-2026-006 were controlled through PR #23; AF-2026-007 was controlled through
+PR #25; and AF-2026-008 plus AF-2026-009 were corrected and controlled through
+amended PR #27. AF-2026-010 through AF-2026-012 carry corrections and controls
+implemented by the v1.1 finalization consolidation; because that consolidation
+is the same change that implements the controls, their `CONTROLLED` status is
+proposed and takes effect only through genuinely independent acceptance of the
+consolidation before merge. If that acceptance does not occur, all three
+remain `CONFIRMED`. No finding is `CLOSED`.
 
 **Control acceptance evidence.** PR #23 passed independent final review at head
 `4ad36e0e73781c32d7a399875b94888ee835541e`; Austin explicitly authorized its
@@ -532,3 +575,177 @@ supply closure evidence.
 - **Closure evidence:** Pending - requires a later approved task to record branch
   and PR number in-tree and the exact final head in PR metadata after the last
   push.
+
+### AF-2026-010 - Publication prerequisites were not preflighted before UAT execution
+
+- **Date:** 2026-07-25
+- **Scope:** P3-005 execution and publication; local evidence commit
+  `9fd9fb8d5d1ff85c2a6113bb30ad5080f1781354`; draft PR #29
+- **Classification:** Planning/dependency control
+- **Severity:** Medium
+- **Diagnosis:** The P3-005 execution gate verified the repository baseline,
+  branch collision, test environment, and UAT prerequisites, but did not verify
+  an authenticated GitHub publication path before the recorded UAT began. The
+  validated local evidence commit therefore existed before the builder
+  discovered that the workspace had neither GitHub CLI authentication nor Git
+  push credentials.
+- **Evidence and impact:** After all nine UAT entries passed and the local
+  commit was created, direct publication stopped because `gh` was unavailable
+  and the HTTPS remote had no usable credentials. Publication required a second
+  explicit authorization and a connected-app fallback that reconstructed an
+  equivalent Git tree (local and GitHub commits share tree
+  `740c6bf572a8322558d48ff7f3c03d3a55eaf279`). The evidence was preserved, but
+  the unplanned handoff increased delay, commit-chain complexity, and the risk
+  of stranded or incorrectly substituted evidence.
+- **What should have happened:** Before recorded execution, the task should
+  have verified one authorized, authenticated publication route capable of
+  creating the required branch and draft PR, or defined an explicitly
+  authorized equivalent-tree fallback before execution.
+- **Immediate correction:** The failed preflight is disclosed in the durable
+  [execution report](validation/v1.1-recovery-uat-execution-report.md), and the
+  v1.1 finalization itself performed a full authenticated publication preflight
+  before any editing began.
+- **Root cause:** Execution-environment readiness and remote-publication
+  readiness were treated as separate phases; the plan assumed a validated local
+  commit could be pushed without making publication authentication part of the
+  pre-execution gate.
+- **Future prevention/control:** Every repository task that must publish
+  evidence must preflight, before irreversible or expensive execution: the
+  accepted remote baseline, branch/PR collision state, an authenticated write
+  route, and any approved fallback. A missing route is a pre-execution stop
+  condition. This gate is mandatory in the progress checkpoint above, in
+  [`AGENTS.md`](AGENTS.md), and in the pull-request template.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONTROLLED (proposed - effective only on genuinely independent
+  acceptance of the v1.1 finalization consolidation; otherwise CONFIRMED)
+- **Confirmation evidence:** Independent review of the P3-005 evidence PR
+  compared the task contract, publication history, and local/equivalent tree
+  chain and confirmed that publication credentials were discovered missing only
+  after UAT execution and local commit creation.
+- **Correction evidence:** The consolidated execution report discloses the
+  failure, and the finalization change demonstrated the preflight-first order.
+- **Control evidence:** The publication-preflight gate is embedded in this
+  protocol, `AGENTS.md`, and the pull-request template by the same
+  consolidation; acceptance requires genuinely independent review.
+- **Closure evidence:** Pending - requires a later approved task to demonstrate
+  the accepted publication preflight before execution begins.
+
+### AF-2026-011 - P3-005 evidence handoff was incomplete
+
+- **Date:** 2026-07-25
+- **Scope:** P3-005 execution report and draft PR #29 as first reviewed
+- **Classification:** Evidence completeness
+- **Severity:** High
+- **Diagnosis:** The first published execution report recorded PASS outcomes
+  and detailed observations, but omitted contract-required exact commands or
+  snippets for several UATs, the actual read-only pre-fault capture code for
+  UAT-015B, and a full UAT-017 `outcome_detail` example; the PR description
+  omitted the required UAT result table. The report simultaneously said
+  `No audit candidate identified` even though the publication-preflight gap was
+  already known.
+- **Evidence and impact:** The submitted evidence could not independently prove
+  every required handoff element and was not merge-ready; independent review
+  blocked acceptance. The subsequent amendment then grew the report to 1,019
+  lines, trading one evidence failure for a proportionality failure (see
+  AF-2026-012).
+- **What should have happened:** Before discarding scratch evidence and opening
+  the PR, the builder should have mapped every completion criterion to an exact
+  report section, captured the actual executed snippets directly, and reported
+  the known preflight failure as an audit candidate.
+- **Immediate correction:** A clearly labeled independent replay in fresh
+  synthetic state supplied the missing evidence without reconstructing the
+  deleted runner. The durable consolidated
+  [execution report](validation/v1.1-recovery-uat-execution-report.md)
+  preserves the material evidence - including the UAT-015B in-transaction
+  milestone and complete UAT-017 details - at proportional length and
+  discloses both process failures.
+- **Root cause:** The completion review emphasized PASS accuracy and repository
+  scope but did not perform a line-by-line handoff-completeness check against
+  every completion requirement before publication.
+- **Future prevention/control:** Evidence must be complete against the contract
+  *and* proportional to the claim: map each requirement to its exact evidence
+  location before publication, and treat both a missing element and an
+  evidence artifact that dwarfs its deliverable as publication stop conditions.
+  This rule is embedded in the progress checkpoint above, `AGENTS.md`, and the
+  pull-request template.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONTROLLED (proposed - effective only on genuinely independent
+  acceptance of the v1.1 finalization consolidation; otherwise CONFIRMED)
+- **Confirmation evidence:** Independent review of the first P3-005 evidence
+  handoff identified the omissions line by line against the completion contract
+  and blocked merge.
+- **Correction evidence:** The independent replay supplied the missing exact
+  evidence, and the consolidated report preserves it durably at proportional
+  length.
+- **Control evidence:** The evidence-completeness-and-proportionality rule is
+  embedded in this protocol, `AGENTS.md`, and the pull-request template by the
+  same consolidation; acceptance requires genuinely independent review.
+- **Closure evidence:** Pending - requires a later approved evidence task to
+  demonstrate the accepted handoff control before publication.
+
+### AF-2026-012 - The control plane became recursively self-maintaining and displaced project progress
+
+- **Date:** 2026-07-26
+- **Scope:** The v1.1 governance and status workflow from PR #20 through the
+  drafted PR #29/#30 sequence
+- **Classification:** Process design/governance
+- **Severity:** High
+- **Diagnosis:** The version-controlled control plane - status document, audit
+  ledger, closeout contracts, and their correction PRs - became recursively
+  self-maintaining. Each governance change recorded transient state that a
+  later change had to correct, so governance work generated more governance
+  work while the product stood still.
+- **Evidence and impact:**
+  - Austin - not the agent - stopped the workflow and requested this
+    meta-evaluation. Without Austin's interruption, the agent would have
+    continued the PR #29/#30 merge-and-closeout sequence.
+  - PR #29 and PR #30 recorded their own draft/review state in version-
+    controlled files, so merging them would necessarily have created
+    additional stale-state correction work.
+  - No product behavior changed after PR #19 (the recovery service core)
+    despite eleven subsequent pull requests.
+  - `AUTONOMOUS_STATUS.md` grew from roughly 55 lines to more than 800
+    proposed lines.
+  - The UAT execution report grew to 1,019 lines for nine required
+    executions.
+  - The same agent sometimes acted as builder and reviewer while calling the
+    second pass independent.
+  - The process optimized for procedural certainty rather than the project's
+    outcome.
+- **What should have happened:** Each phase should have asked what user or
+  product outcome it changed, whether the next action was progress or
+  self-maintenance, and whether its own status record would need a post-merge
+  correction - and stopped when the answers failed.
+- **Immediate correction:** The v1.1 finalization consolidation replaces the
+  recursive PR #29/#30 sequence with one durable change: the status document
+  is reduced to durable facts with no transient state, the execution evidence
+  is consolidated at proportional length, v1.1 is declared complete, and no
+  post-merge closeout or status-correction PR is required or permitted.
+- **Root cause:** The process rewarded exhaustive procedural self-description.
+  Status records tracked live publication state inside version control, which
+  guaranteed staleness at merge; evidence and review effort had no
+  proportionality bound; and no checkpoint asked whether the work advanced the
+  project.
+- **Future prevention/control:** The mandatory progress and meta-analysis
+  checkpoint and stop-and-escalate triggers above; the repository-level agent
+  rules in [`AGENTS.md`](AGENTS.md) (publication preflight, one task/one
+  PR/one independent review, no transient state in version-controlled files,
+  no status-only closeout PRs, honest review independence, proportional
+  evidence); the pull-request template's "Progress and loop check" section;
+  and the rule that a human having to interrupt an undetected loop is itself
+  an audit finding with accountability recorded.
+- **Owner:** Independent reviewer / audit record keeper
+- **Status:** CONTROLLED (proposed - effective only on genuinely independent
+  acceptance of the v1.1 finalization consolidation; otherwise CONFIRMED)
+- **Confirmation evidence:** Austin's interruption and meta-evaluation request,
+  the PR history after PR #19, and the growth of the status document and
+  evidence report cited above.
+- **Correction evidence:** The consolidation described under immediate
+  correction, verified by the standard validation commands and a repository
+  sweep showing no remaining transient current-state claims.
+- **Control evidence:** The checkpoint, triggers, `AGENTS.md`, and template
+  changes are implemented by the same consolidation; acceptance requires
+  genuinely independent review.
+- **Closure evidence:** Pending - requires later independent evidence that an
+  approved task ran the checkpoint, respected the triggers, and completed
+  without status-correction follow-up work.

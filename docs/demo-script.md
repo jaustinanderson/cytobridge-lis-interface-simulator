@@ -109,17 +109,19 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 - **Show:** `validation/traceability-matrix.md`.
 - **Say:** "Every requirement - R-001 through R-041 - maps to the exact file,
   function, or schema constraint that implements it, the `pytest` test that
-  proves it, and a manual UAT script. I keep two things separate and honest: the
-  automated status is a test that actually passes; the manual UAT status is
-  *defined*, not executed."
+  proves it, and a manual UAT script. I keep the statuses separate and honest:
+  the automated status is a test that actually passes; the recovery UATs
+  (UAT-011 through UAT-018) were manually executed and passed with recorded
+  evidence; the v1 UATs are *defined*, not executed."
 
 ## 5:30-6:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
 - **Say:** "The bottom line: 164 automated tests pass across eight suites, all 41
   requirements are traced to code and passing automated coverage within the
-  synthetic scope, the demo runs clean through five scenarios, and 18 UAT scripts
-  are defined. And I wrote down the limitations honestly in `known-issues.md` and
+  synthetic scope, the demo runs clean through five scenarios, and of the 18
+  UAT scripts the eight recovery ones were manually executed and passed. And I
+  wrote down the limitations honestly in `known-issues.md` and
   `risk-assessment.md` - including that this is Beaker-adjacent learning, not
   Epic build experience."
 

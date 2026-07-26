@@ -24,10 +24,13 @@ validation evidence, and troubleshooting documentation.
 
 **Verified state (this codebase):** 164 passing pytest tests across eight suites,
 five end-to-end demonstration scenarios, and 41/41 requirements with result-level
-automated coverage that passes today, plus 18 manual UAT definitions (defined,
-not executed). GitHub Actions verifies Python 3.11 and 3.12. The v1.1
-controlled-recovery documentation closeout passed independent review and merged
-through PR #21 at `406509ad`.
+automated coverage that passes today, plus 18 manual UAT definitions. The v1.1
+recovery UATs (UAT-011 - UAT-018, including both UAT-015 subcases) were manually
+executed and passed on 2026-07-25 - see the
+[recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md).
+UAT-001 - UAT-010 remain defined but not manually executed. GitHub Actions
+verifies Python 3.11 and 3.12. CytoBridge v1.1 (controlled error-queue
+recovery) is complete.
 
 ## Scope (v1)
 
@@ -235,6 +238,7 @@ validation/                    validation package
   v1.1-test-intent.md          frozen v1.1 test intent (pre-impl)
   traceability-matrix.md       requirement -> code -> test -> UAT (R-001...R-041)
   uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-018)
+  v1.1-recovery-uat-execution-report.md  recovery UAT execution evidence (UAT-011...UAT-018)
   validation-summary.md        approach + results summary
   known-issues.md              limitations and tracked issues
   change-control-log.md        per-session + v1.1 task change history
@@ -337,9 +341,12 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
 
 Every requirement (`R-001`-`R-041`) traces to the code (file/function or schema
 constraint), result-level automated `pytest` coverage, and a manual UAT script
-(`UAT-001`-`UAT-018`). Automated coverage passes today; the manual UAT layer is
-defined but not executed. This is **Beaker-adjacent learning, not Epic build
-experience** - see [portfolio review](docs/portfolio-review.md).
+(`UAT-001`-`UAT-018`). Automated coverage passes today. The v1.1 recovery UATs
+(UAT-011-UAT-018) were manually executed and passed - evidence in the
+[recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md) -
+while UAT-001-UAT-010 remain defined but not manually executed. This is
+**Beaker-adjacent learning, not Epic build experience** - see
+[portfolio review](docs/portfolio-review.md).
 
 ## Roadmap
 
@@ -358,7 +365,9 @@ Done:
 - [x] Controlled error-queue recovery (v1.1): headless retry / corrected
   re-drive / attempt history with original-message immutability, idempotency,
   transaction-safe rollback, and terminal rejection - designed and approved by
-  Austin, implemented and validated under bounded tasks (P2-001, P3-001 - P3-004).
+  Austin, implemented and validated under bounded tasks (P2-001,
+  P3-001 - P3-005), with the recovery UATs (UAT-011 - UAT-018) manually
+  executed and passed.
 
 Next bounded enhancements:
 

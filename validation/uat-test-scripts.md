@@ -13,12 +13,15 @@ UAT-011 through UAT-018 cover the v1.1 controlled error-queue recovery service
 > results are synthetic. This is **Beaker-adjacent learning, not Epic build
 > experience.**
 
-> **These procedures are DEFINED, not executed.** Writing an executable step and
-> an expected result is not the same as running it. The Pass/Fail blanks below
-> are intentionally empty; do not read the existence of a script as evidence that
-> a tester ran it. Only a filled-in blank with recorded evidence is a manual pass.
-> The automated `pytest` suite is what currently proves this behavior runs and
-> passes.
+> **Execution status.** UAT-001 through UAT-010 are DEFINED, not executed:
+> their Pass/Fail blanks are intentionally empty, and only the automated
+> `pytest` suite currently proves that v1 behavior runs and passes. UAT-011
+> through UAT-018 (including both UAT-015 subcases) were manually executed and
+> PASSED on 2026-07-25; the recorded evidence lives in the
+> [v1.1 recovery UAT execution report](v1.1-recovery-uat-execution-report.md),
+> not in the blanks below. The scripts here remain reusable templates for any
+> future re-execution - writing an executable step is still not the same as
+> running it.
 
 ## How to run these
 
@@ -720,15 +723,18 @@ attempt, and `FILED` message after reopen.
 | UAT-008 | Invalid numeric -> queue | R-014, R-017, R-018 | [ ] P [ ] F |
 | UAT-009 | Audit trail review | R-007, R-016 | [ ] P [ ] F |
 | UAT-010 | Analyst query review | R-019 | [ ] P [ ] F |
-| UAT-011 | Classification + initial queue state | R-020, R-021 | [ ] P [ ] F |
-| UAT-012 | Corrected re-drive, lineage, immutability | R-022, R-023, R-024, R-027, R-028 | [ ] P [ ] F |
-| UAT-013 | Unchanged ORDER_NOT_FOUND retry | R-025, R-026 | [ ] P [ ] F |
-| UAT-014 | Prohibited/closed/dynamic-terminal rejection | R-029, R-030 | [ ] P [ ] F |
-| UAT-015 | Handled FAILED, rollback, later success | R-032, R-037, R-038 | [ ] P [ ] F |
-| UAT-016 | Replay, post-resolution reject, conflict | R-034, R-035, R-036, R-041 | [ ] P [ ] F |
-| UAT-017 | Ordered history, fingerprint/detail, audit | R-033, R-040 | [ ] P [ ] F |
-| UAT-018 | Durability, no dangling txn, FK integrity | R-030, R-031, R-039 | [ ] P [ ] F |
+| UAT-011 | Classification + initial queue state | R-020, R-021 | PASS (2026-07-25) |
+| UAT-012 | Corrected re-drive, lineage, immutability | R-022, R-023, R-024, R-027, R-028 | PASS (2026-07-25) |
+| UAT-013 | Unchanged ORDER_NOT_FOUND retry | R-025, R-026 | PASS (2026-07-25) |
+| UAT-014 | Prohibited/closed/dynamic-terminal rejection | R-029, R-030 | PASS (2026-07-25) |
+| UAT-015 | Handled FAILED, rollback, later success | R-032, R-037, R-038 | PASS (15A + 15B, 2026-07-25) |
+| UAT-016 | Replay, post-resolution reject, conflict | R-034, R-035, R-036, R-041 | PASS (2026-07-25) |
+| UAT-017 | Ordered history, fingerprint/detail, audit | R-033, R-040 | PASS (2026-07-25) |
+| UAT-018 | Durability, no dangling txn, FK integrity | R-030, R-031, R-039 | PASS (2026-07-25) |
 
-> The blanks above are unfilled by design: these v1 and v1.1 UAT scripts are
-> **defined but not executed**. Record a manual pass only after actually running
-> the steps and capturing the evidence.
+> UAT-001 - UAT-010 blanks are unfilled by design: those v1 scripts are defined
+> but not manually executed, and a manual pass may be recorded only after
+> actually running the steps and capturing the evidence. UAT-011 - UAT-018 were
+> manually executed and passed on 2026-07-25, including both UAT-015 subcases;
+> the recorded evidence for every PASS above is in the
+> [v1.1 recovery UAT execution report](v1.1-recovery-uat-execution-report.md).
