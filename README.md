@@ -22,6 +22,13 @@ validation evidence, and troubleshooting documentation.
 > **Data notice:** All data in this project is **synthetic**. No PHI. No real
 > patient data.
 
+> **Authorship and AI assistance:** Austin owns the project scope, laboratory
+> domain decisions, architecture, requirements, safety boundaries, acceptance
+> criteria, and release decisions. AI coding tools assisted with portions of
+> implementation, tests, and documentation under those constraints. Automated
+> checks and Austin's sign-off provide the project evidence; an AI self-review
+> is not represented as independent review.
+
 **Verified state (this codebase):** 164 passing pytest tests across eight suites,
 five end-to-end demonstration scenarios, and 41/41 requirements with result-level
 automated coverage that passes today, plus 18 manual UAT definitions. The v1.1
