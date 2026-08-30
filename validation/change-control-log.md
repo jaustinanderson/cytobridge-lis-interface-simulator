@@ -20,6 +20,7 @@ development session. Each session was developed on its own branch and merged to
 | S6 | Repository maintenance | CI on Python 3.11/3.12, licensing, security/contribution guidance, Dependabot, PR checklist | `f15cef1` |
 | S7 | Analyst-query verification | Result-level tests for every analyst SQL view; R-019 moved from PARTIAL to PASS | 2026-07-11 validation maintenance |
 | S8 | v1.1 Phase 1 controls and acceptance | Frozen design, approved/frozen requirements and test intent, builder rules, status control, CODEOWNERS, frozen-file guard | `cc3d395` plus 2026-07-22 Phase 1 closeout |
+| S9 | FHIR DiagnosticReport boundary | Separate atomic results, concise conclusion, and complete presented form without changing clinical scope | 2026-08-29 bounded mapping correction |
 | P2-001 | v1.1 synthetic recovery corpus | 14 original + 12 corrected AML/MDS FISH failure fixtures, manifest, guide (review artifact only) | PR #13 merged |
 | P3-001 | v1.1 recovery schema | `interface_error_queue` classification columns + expanded states; `interface_recovery_attempt` table and constraints | PR #15 merged |
 | P3-002 | v1.1 structured failure classification | Fourteen-code classification populated for every inbound failure; OPEN/TERMINAL queue initialization | PR #17 merged |
@@ -342,6 +343,26 @@ schema, test, query, sample-message, or corpus change):**
   template's "Progress and loop check" section, and declared CytoBridge v1.1
   complete. The Autonomous Routine remains disabled; future enhancements
   require a new bounded authorization from Austin.
+
+---
+
+## Session 9 - FHIR DiagnosticReport representation boundary
+
+**Requirements introduced:** none. R-009 remains the controlling outbound FHIR
+export requirement.
+
+**What changed:**
+- Kept structured probe findings in the existing `Observation` resources and
+  `DiagnosticReport.result` references.
+- Limited `DiagnosticReport.conclusion` to the final overall-impression line.
+- Carried the unchanged complete plain-text report in a base64-encoded
+  `DiagnosticReport.presentedForm` attachment.
+- Added positive and negative regression assertions, regenerated the synthetic
+  FHIR sample, and updated the mapping, traceability, and UAT evidence in the
+  same bounded change.
+
+**Scope:** no schema, HL7, inbound, recovery, frozen-file, runtime-dependency,
+deployment, or standards-conformance change. All data remains synthetic.
 
 ---
 
