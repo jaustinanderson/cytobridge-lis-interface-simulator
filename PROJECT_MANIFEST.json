@@ -1,0 +1,142 @@
+{
+  "manifest_version": "1.0.0",
+  "project_id": "CYTOBRIDGE-LIS-INTERFACE-SIMULATOR",
+  "repository": {
+    "name": "jaustinanderson/cytobridge-lis-interface-simulator",
+    "default_branch": "main",
+    "license": "MIT"
+  },
+  "purpose": "A synthetic, analyst-first educational simulator for cytogenetics LIS workflows, HL7- and FHIR-style interfaces, validation, auditability, and controlled error-queue recovery.",
+  "durable_status": {
+    "version": "v1.1",
+    "state": "COMPLETE",
+    "autonomous_routine": "DISABLED",
+    "accepted_product_source_revision": "916f1f9503b4c87be92fc955e596006ff154e140"
+  },
+  "ownership": {
+    "decision_owner": "AUSTIN",
+    "execution_owner": "CODEX",
+    "technical_acceptance_owner": "SEPARATE_NON_PRODUCER_REVIEWER",
+    "merge_authority": "AUSTIN",
+    "release_authority": "AUSTIN",
+    "maintenance_owner": "CODEX_UNDER_BOUNDED_AUTHORIZATION"
+  },
+  "authority": {
+    "new_work_requires": "AUSTIN_EXPLICIT_BOUNDED_AUTHORIZATION",
+    "direct_push_to_main": "PROHIBITED",
+    "merge_without_exact_head_authorization": "PROHIBITED",
+    "source_contract": "https://github.com/jaustinanderson/roundtable/blob/ab490c2b7d0ae9908750ba7789d71635bf07a17d/TASK_CONTRACTS/RT-004-T04.yaml"
+  },
+  "boundaries": {
+    "data_classification": "SYNTHETIC_ONLY",
+    "allowed_data": [
+      "Clearly fictional training identifiers",
+      "Public repository metadata",
+      "Synthetic cytogenetics workflow examples"
+    ],
+    "prohibited_data": [
+      "PHI",
+      "Real patient or specimen identifiers",
+      "Real laboratory or instrument identifiers",
+      "Employer-confidential material",
+      "Credentials, tokens, private keys, cookies, or recovery material",
+      "Proprietary Epic or Beaker content",
+      "Production connection details"
+    ],
+    "prohibited_claims": [
+      "CERTIFIED_HL7_CONFORMANCE",
+      "CERTIFIED_FHIR_CONFORMANCE",
+      "CLINICAL_VALIDITY",
+      "EPIC_BEAKER_BUILD_EXPERIENCE",
+      "PRODUCTION_READINESS"
+    ],
+    "out_of_scope": [
+      "Patient care or diagnostic use",
+      "Production interface connectivity",
+      "Authentication or production identity management",
+      "Deployment infrastructure",
+      "Real clinical data processing"
+    ]
+  },
+  "validation": {
+    "commands": [
+      "python scripts/check_shop_contract.py",
+      "python -m pytest -q",
+      "python -m src.demo_run",
+      "python scripts/check_public_safety.py --commit-range BASE_SHA..HEAD_SHA",
+      "git diff --check BASE_SHA..HEAD_SHA"
+    ],
+    "evidence_sources": [
+      "README.md",
+      "validation/validation-summary.md",
+      "validation/traceability-matrix.md",
+      "validation/v1.1-recovery-uat-execution-report.md",
+      "validation/known-issues.md"
+    ],
+    "required_per_change": [
+      "Exact-scope diff review",
+      "Successful deterministic checks",
+      "Synthetic-data and public-safety scan",
+      "Exact-head non-producer review before merge"
+    ]
+  },
+  "rollback": {
+    "changed_resources": [
+      ".github/workflows/ci.yml",
+      "PROJECT_MANIFEST.json",
+      "SHOP_CARD.md",
+      "scripts/check_shop_contract.py"
+    ],
+    "before_integration": "Leave the focused pull request unmerged; main remains unchanged.",
+    "after_integration": "Use a separately authorized non-destructive revert of the exact integration commit.",
+    "destructive_actions": "SEPARATE_AUTHORIZATION_REQUIRED",
+    "data_repair": "NONE_METADATA_AND_VALIDATION_ONLY"
+  },
+  "monitoring": {
+    "continuous_in_production": "NOT_APPLICABLE",
+    "repository_checks": [
+      "CI",
+      "Public safety",
+      "Frozen-file guard"
+    ],
+    "health_signal": "GitHub Actions results for the exact proposed revision"
+  },
+  "maintenance": {
+    "routine_mode": "DISABLED",
+    "triggers": [
+      "Repository purpose or ownership changes",
+      "Validation commands or CI routes change",
+      "Synthetic-data or prohibited-claim boundaries change",
+      "A dependency or license changes",
+      "A new release or substantial capability is accepted"
+    ],
+    "rule": "Each change requires one bounded task, one focused branch and pull request, proportional evidence, and separate exact-head review."
+  },
+  "capability_bridge": {
+    "demonstrates": [
+      "Synthetic LIS workflow modeling",
+      "Educational HL7- and FHIR-style mapping",
+      "SQLite and explicit SQL",
+      "Automated validation and audit-trail design",
+      "Controlled interface error recovery"
+    ],
+    "does_not_establish": [
+      "Epic or Beaker configuration experience",
+      "Production clinical-system operation",
+      "Certified standards conformance",
+      "Austin's independent mastery of the implementation"
+    ],
+    "next_learning_bridge": "Austin explains one synthetic result from order creation through validation, interface output, error handling, and rollback, then diagnoses one controlled failing case."
+  },
+  "lifecycle_policy": {
+    "proposed": "RECORDED_PER_TASK",
+    "intent_approved": "AUSTIN_DECIDES",
+    "built": "PRODUCER_EVIDENCE_REQUIRED",
+    "technically_verified": "DETERMINISTIC_EVIDENCE_REQUIRED",
+    "independently_accepted": "SEPARATE_EXACT_HEAD_REVIEW_REQUIRED",
+    "integrated": "AUSTIN_EXACT_HEAD_AUTHORIZATION_REQUIRED",
+    "released": "SEPARATE_AUTHORIZATION_REQUIRED",
+    "verified_used": "SEPARATE_OBSERVATION_REQUIRED",
+    "austin_mastered": "DEMONSTRATION_REQUIRED_NOT_INFERRED_FROM_AI_OUTPUT"
+  }
+}
