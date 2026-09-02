@@ -84,16 +84,27 @@ reserved separator characters `| ^ ~ \ &` are escaped in field values.
 A `Bundle` (`type = collection`) whose entries are, in order: `Patient`,
 `Specimen`, one `Observation` per probe, then the `DiagnosticReport`.
 
+The representation boundary follows the FHIR R4 `DiagnosticReport` element
+definitions: atomic findings are referenced through `result`, the concise
+overall interpretation is carried in `conclusion`, and the complete issued
+report is carried in `presentedForm`.
+
 | Resource | Element | Source |
 |---|---|---|
 | `Patient` | `identifier` (MR), `name`, `gender`, `birthDate` | `patient.*` (sex → `male`/`female`/`unknown`) |
 | `Specimen` | `accessionIdentifier`, `type`, `receivedTime`, `collection` | `lab_order.accession_number`, `specimen.*` |
 | `Observation` | `code` (probe), `valueQuantity` (% abnormal), `interpretation`, `referenceRange.high` (cutoff), `note` (counts + signal) | `probe.*`, `fish_result.*` |
-| `DiagnosticReport` | `status` `final`, `category` GE, `code` (panel), `identifier` (accession), `subject`, `specimen`, `result[]` → Observations, `performer` (synthetic lab), `conclusion` = summary, `issued` = finalized | `lab_order.*`, `panel.*`, `report.*` |
+| `DiagnosticReport` | `status` `final`, `category` GE, `code` (panel), `identifier` (accession), `subject`, `specimen`, `result[]` -> Observations, `performer` (synthetic lab), `issued` = finalized | `lab_order.*`, `panel.*`, `report.status`, `fish_result.*` |
+| `DiagnosticReport` | `conclusion` (final nonblank overall-impression line) | `report.summary_text` |
+| `DiagnosticReport` | `presentedForm` (`text/plain; charset=utf-8` attachment containing the complete report) | Base64-encoded `report.summary_text` |
 
 Local code systems are namespaced `urn:cytobridge:*` to make clear they are
 synthetic, not real value sets. FHIR `dateTime` values carry a `Z` (UTC) offset
 when a time component is present; `birthDate` is a bare date.
+
+Base64 is the FHIR `Attachment.data` transport encoding; it does not turn the
+plain-text report into structured clinical data. This remains an educational,
+FHIR-style mapping rather than a conformance-validated implementation.
 
 ### Ordering provider (HL7 vs FHIR)
 

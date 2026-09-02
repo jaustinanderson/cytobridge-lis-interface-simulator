@@ -157,17 +157,25 @@ order.
 2. Confirm `resourceType = Bundle` and entries include `Patient`, `Specimen`,
    one `Observation` per probe, and a `DiagnosticReport`.
 3. Confirm `DiagnosticReport.status = final` and the accession appears in the
-   report identifier.
-4. Serialize with `generate_diagnostic_report_json(...)` and confirm it is valid
+   report identifier. Confirm each probe `Observation` is referenced through
+   `DiagnosticReport.result`.
+4. Confirm `DiagnosticReport.conclusion` contains only the final overall
+   impression and does not contain the patient header or probe-result listing.
+5. Base64-decode `DiagnosticReport.presentedForm[0].data`. Confirm its
+   `contentType` is `text/plain; charset=utf-8` and the decoded text exactly
+   matches the complete stored `report.summary_text`.
+6. Serialize with `generate_diagnostic_report_json(...)` and confirm it is valid
    JSON; store with `store_diagnostic_report(...)`.
-5. **Negative:** on a non-finalized order, confirm `build_diagnostic_report`
+7. **Negative:** on a non-finalized order, confirm `build_diagnostic_report`
    raises `OutboundError`.
 
 **Expected result:** A FHIR R4-style Bundle whose DiagnosticReport references
-every probe Observation; export refused for a non-finalized order.
+every probe Observation, separates the concise conclusion from the complete
+plain-text presented form, and refuses export for a non-finalized order.
 
-**Evidence to capture:** The list of resource types; `status = final`; the stored
-FHIR `interface_message` row; the `OutboundError` from the negative step.
+**Evidence to capture:** The list of resource types; `status = final`; the
+concise conclusion; the decoded presented form; the stored FHIR
+`interface_message` row; the `OutboundError` from the negative step.
 
 **Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
 

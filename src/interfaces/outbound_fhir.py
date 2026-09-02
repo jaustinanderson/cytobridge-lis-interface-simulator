@@ -10,7 +10,8 @@ Turns a finalized AML/MDS FISH order into a FHIR R4-*style* ``Bundle`` (type
                        signal pattern
     DiagnosticReport   status, panel code, accession identifier, subject +
                        specimen references, ``result`` links to the per-probe
-                       Observations, and the report summary as ``conclusion``
+                       Observations, the overall impression as ``conclusion``,
+                       and the complete plain-text report as ``presentedForm``
 
 Educational disclaimer
 ----------------------
@@ -24,6 +25,7 @@ All data is synthetic. No PHI.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import sqlite3
@@ -72,6 +74,15 @@ def _dt(value: object) -> str | None:
     if "T" in s and not (s.endswith("Z") or "+" in s):
         s += "Z"
     return s
+
+
+def _conclusion_text(summary_text: str) -> str:
+    """Return the final nonblank report line as the concise conclusion."""
+    for line in reversed(summary_text.splitlines()):
+        conclusion = line.strip()
+        if conclusion:
+            return conclusion
+    return ""
 
 
 def _patient_resource(data: OutboundReportData, patient_id: str) -> dict:
@@ -215,7 +226,14 @@ def _diagnostic_report_resource(
         # to a future ServiceRequest/order-resource layer; see interface-mapping.md.
         "performer": [{"display": PERFORMER_DISPLAY}],
         "result": [{"reference": ref} for ref in result_refs],
-        "conclusion": data.summary_text,
+        "conclusion": _conclusion_text(data.summary_text),
+        "presentedForm": [{
+            "contentType": "text/plain; charset=utf-8",
+            "data": base64.b64encode(
+                data.summary_text.encode("utf-8")
+            ).decode("ascii"),
+            "title": f"CytoBridge synthetic {data.panel_name} report",
+        }],
     }
     effective = _dt(data.collected_at)
     if effective:

@@ -10,6 +10,7 @@ All data is synthetic. No PHI.
 
 from __future__ import annotations
 
+import base64
 import json
 
 import pytest
@@ -128,7 +129,26 @@ def test_fhir_diagnostic_report_fields(conn, finalized_order):
     assert report["status"] == "final"
     assert report["identifier"][0]["value"] == "ACC-TEST-0001"
     assert report["code"]["coding"][0]["code"] == "AML_MDS_FISH"
-    assert "AML/MDS FISH Panel" in report["conclusion"]
+    assert report["conclusion"] == "Overall: ABNORMAL — t(8;21)"
+
+    # DiagnosticReport.conclusion is the concise overall impression, not the
+    # patient header or the complete probe-by-probe report.
+    assert "\n" not in report["conclusion"]
+    assert "Patient:" not in report["conclusion"]
+    assert "Probe results:" not in report["conclusion"]
+
+    attachment = report["presentedForm"][0]
+    assert attachment["contentType"] == "text/plain; charset=utf-8"
+    assert attachment["title"] == (
+        "CytoBridge synthetic AML/MDS FISH Panel report"
+    )
+    decoded_report = base64.b64decode(
+        attachment["data"], validate=True
+    ).decode("utf-8")
+    assert decoded_report == collect_report_data(
+        conn, finalized_order
+    ).summary_text
+    assert decoded_report.endswith(report["conclusion"])
 
 
 def test_fhir_performer_is_synthetic_lab_not_ordering_provider(conn, finalized_order):

@@ -748,7 +748,14 @@
             "reference": "Observation/obs-ACC-2026-0001-TP53-17p"
           }
         ],
-        "conclusion": "AML/MDS FISH Panel \u2014 Accession ACC-2026-0001\nPatient: Doe, Alex (MRN SYN-1001)   Priority: ROUTINE\n\nProbe results:\n  - RUNX1T1/RUNX1 (t(8;21)): 38/200 cells (19.0%) \u2014 ABNORMAL\n  - CBFB break-apart (inv(16)/t(16;16)): 1/200 cells (0.5%) \u2014 NORMAL\n  - PML/RARA (t(15;17)): 2/200 cells (1.0%) \u2014 NORMAL\n  - KMT2A (MLL) break-apart (11q23 rearrangement): 1/200 cells (0.5%) \u2014 NORMAL\n  - EGR1 (5q31) (-5/del(5q)): 3/200 cells (1.5%) \u2014 NORMAL\n  - D7S486 (7q31) (-7/del(7q)): 2/200 cells (1.0%) \u2014 NORMAL\n  - CEP8 (centromere 8) (+8 (trisomy 8)): 4/200 cells (2.0%) \u2014 NORMAL\n  - D20S108 (20q12) (del(20q)): 1/200 cells (0.5%) \u2014 NORMAL\n  - TP53 (17p13) (del(17p)/TP53 loss): 2/200 cells (1.0%) \u2014 NORMAL\n\nOverall: ABNORMAL \u2014 t(8;21)",
+        "conclusion": "Overall: ABNORMAL \u2014 t(8;21)",
+        "presentedForm": [
+          {
+            "contentType": "text/plain; charset=utf-8",
+            "data": "QU1ML01EUyBGSVNIIFBhbmVsIOKAlCBBY2Nlc3Npb24gQUNDLTIwMjYtMDAwMQpQYXRpZW50OiBEb2UsIEFsZXggKE1STiBTWU4tMTAwMSkgICBQcmlvcml0eTogUk9VVElORQoKUHJvYmUgcmVzdWx0czoKICAtIFJVTlgxVDEvUlVOWDEgKHQoODsyMSkpOiAzOC8yMDAgY2VsbHMgKDE5LjAlKSDigJQgQUJOT1JNQUwKICAtIENCRkIgYnJlYWstYXBhcnQgKGludigxNikvdCgxNjsxNikpOiAxLzIwMCBjZWxscyAoMC41JSkg4oCUIE5PUk1BTAogIC0gUE1ML1JBUkEgKHQoMTU7MTcpKTogMi8yMDAgY2VsbHMgKDEuMCUpIOKAlCBOT1JNQUwKICAtIEtNVDJBIChNTEwpIGJyZWFrLWFwYXJ0ICgxMXEyMyByZWFycmFuZ2VtZW50KTogMS8yMDAgY2VsbHMgKDAuNSUpIOKAlCBOT1JNQUwKICAtIEVHUjEgKDVxMzEpICgtNS9kZWwoNXEpKTogMy8yMDAgY2VsbHMgKDEuNSUpIOKAlCBOT1JNQUwKICAtIEQ3UzQ4NiAoN3EzMSkgKC03L2RlbCg3cSkpOiAyLzIwMCBjZWxscyAoMS4wJSkg4oCUIE5PUk1BTAogIC0gQ0VQOCAoY2VudHJvbWVyZSA4KSAoKzggKHRyaXNvbXkgOCkpOiA0LzIwMCBjZWxscyAoMi4wJSkg4oCUIE5PUk1BTAogIC0gRDIwUzEwOCAoMjBxMTIpIChkZWwoMjBxKSk6IDEvMjAwIGNlbGxzICgwLjUlKSDigJQgTk9STUFMCiAgLSBUUDUzICgxN3AxMykgKGRlbCgxN3ApL1RQNTMgbG9zcyk6IDIvMjAwIGNlbGxzICgxLjAlKSDigJQgTk9STUFMCgpPdmVyYWxsOiBBQk5PUk1BTCDigJQgdCg4OzIxKQ==",
+            "title": "CytoBridge synthetic AML/MDS FISH Panel report"
+          }
+        ],
         "effectiveDateTime": "2026-07-07T09:15:00Z",
         "issued": "2026-07-08T13:20:00Z"
       }
