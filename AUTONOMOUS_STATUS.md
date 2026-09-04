@@ -34,6 +34,11 @@ substantive changes require Austin's explicit approval.
 - UAT-001 through UAT-010 remain defined but have not been manually executed.
   The automated suite covers the same behavior; no manual pass is claimed for
   them.
+- UAT-004 passed an AI-executed functional replay on 2026-09-04, including
+  finalized export, complete presented-form preservation, and non-finalized
+  rejection. The [synthetic evidence](validation/uat004-ai-functional-replay.json)
+  and [replay helper](scripts/replay_uat004.py) preserve this narrower result;
+  human acceptance and Austin's independent mastery remain unestablished.
 
 ## Accepted task history
 
