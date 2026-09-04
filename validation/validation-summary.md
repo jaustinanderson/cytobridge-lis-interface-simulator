@@ -36,7 +36,9 @@ Validation is layered:
    both UAT-015 subcases) were **manually executed and passed** on 2026-07-25,
    with recorded evidence in the
    [recovery UAT execution report](v1.1-recovery-uat-execution-report.md);
-   UAT-001-UAT-010 are **defined, not executed**.
+   UAT-001-UAT-010 are **defined, not manually executed**. UAT-004 has separate
+   [AI functional replay evidence](uat004-ai-functional-replay.json), which
+   does not count as a human acceptance pass.
 4. **Traceability** - every requirement mapped to code (file/function or schema
    constraint), automated test, and UAT in the
    [traceability matrix](traceability-matrix.md).
@@ -51,7 +53,8 @@ Validation is layered:
 | Automated tests | **164 passed** (`pytest`, eight suites) |
 | Requirements traced | 41 / 41 mapped to code + test + UAT |
 | Requirements with automated coverage passing | 41 / 41 |
-| Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not executed |
+| Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
+| AI functional replay | UAT-004 PASS (2026-09-04, [synthetic evidence](uat004-ai-functional-replay.json)); human acceptance and Austin mastery remain pending |
 | Demo scenarios | 5 / 5 run clean (`python -m src.demo_run`, exit 0) |
 | Reproducibility | Deterministic - in-memory DB seeded from `schema.sql`; fixed sample messages and recovery corpus |
 
@@ -74,7 +77,7 @@ Validation is layered:
 | Recovery service/audit | R-039, R-040 | PASS | PASS |
 
 The **automated** column is a test that runs and passes. In the **manual UAT**
-column, `DEFINED` means a written procedure exists but no tester has executed
+column, `DEFINED` means a written procedure exists but no human tester has executed
 it (the v1 rows, UAT-001-UAT-010), while `PASS` means the procedure was
 manually executed and passed on 2026-07-25 with recorded evidence in the
 [recovery UAT execution report](v1.1-recovery-uat-execution-report.md)

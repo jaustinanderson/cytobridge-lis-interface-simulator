@@ -13,9 +13,11 @@ UAT-011 through UAT-018 cover the v1.1 controlled error-queue recovery service
 > results are synthetic. This is **Beaker-adjacent learning, not Epic build
 > experience.**
 
-> **Execution status.** UAT-001 through UAT-010 are DEFINED, not executed:
-> their Pass/Fail blanks are intentionally empty, and only the automated
-> `pytest` suite currently proves that v1 behavior runs and passes. UAT-011
+> **Execution status.** UAT-001 through UAT-010 are defined, not manually executed:
+> their human Pass/Fail blanks remain empty. UAT-004 additionally passed an
+> AI-executed functional replay on 2026-09-04; its separate
+> [synthetic evidence](uat004-ai-functional-replay.json) does not establish
+> human acceptance or Austin's mastery. UAT-011
 > through UAT-018 (including both UAT-015 subcases) were manually executed and
 > PASSED on 2026-07-25; the recorded evidence lives in the
 > [v1.1 recovery UAT execution report](v1.1-recovery-uat-execution-report.md),
@@ -149,6 +151,14 @@ order.
 ## UAT-004 - Outbound FHIR DiagnosticReport export from a finalized order
 
 **Requirements:** R-009
+
+**Functional replay:** `python scripts/replay_uat004.py` runs only this
+procedure and its synthetic setup in memory, prints the evidence, and exits
+nonzero on a failed check. It pins application inputs to the source revision
+recorded in the [2026-09-04 AI replay](uat004-ai-functional-replay.json).
+Use a checkout containing that revision's history. Documentation and the
+helper may differ; changed application inputs require a separately reviewed
+replay update. This check leaves human acceptance and the blanks below pending.
 
 **Precondition:** A **finalized** order (complete UAT-001).
 

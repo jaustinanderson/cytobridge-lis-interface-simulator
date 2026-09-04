@@ -1,0 +1,54 @@
+{
+  "observed_at_utc": "2026-09-04T22:55:12.814596+00:00",
+  "application_source_commit": "2c5a69cbb364a85bcaa6ca4da1e39211de7cbf38",
+  "procedure": "UAT-004 (R-009), with UAT-001 setup",
+  "execution_type": "automated functional replay; not human acceptance",
+  "result": "PASS",
+  "resource_counts": {
+    "Patient": 1,
+    "Specimen": 1,
+    "Observation": 9,
+    "DiagnosticReport": 1
+  },
+  "observation_reference_count": 9,
+  "diagnostic_report_status": "final",
+  "conclusion": "Overall: ABNORMAL \u2014 t(8;21)",
+  "presented_form_content_type": "text/plain; charset=utf-8",
+  "presented_form_matches_stored_report": true,
+  "presented_form_sha256": "55af82e4f48fe23053fd05348d14de2544d61b616b14fa8a4f1deaa643013d8e",
+  "decoded_presented_form": "AML/MDS FISH Panel \u2014 Accession ACC-UAT004-20260904\nPatient: Synthetic, Replay (MRN SYN-UAT004-20260904)   Priority: ROUTINE\n\nProbe results:\n  - RUNX1T1/RUNX1 (t(8;21)): 38/200 cells (19.0%) \u2014 ABNORMAL\n  - CBFB break-apart (inv(16)/t(16;16)): 1/200 cells (0.5%) \u2014 NORMAL\n  - PML/RARA (t(15;17)): 2/200 cells (1.0%) \u2014 NORMAL\n  - KMT2A (MLL) break-apart (11q23 rearrangement): 1/200 cells (0.5%) \u2014 NORMAL\n  - EGR1 (5q31) (-5/del(5q)): 3/200 cells (1.5%) \u2014 NORMAL\n  - D7S486 (7q31) (-7/del(7q)): 2/200 cells (1.0%) \u2014 NORMAL\n  - CEP8 (centromere 8) (+8 (trisomy 8)): 4/200 cells (2.0%) \u2014 NORMAL\n  - D20S108 (20q12) (del(20q)): 1/200 cells (0.5%) \u2014 NORMAL\n  - TP53 (17p13) (del(17p)/TP53 loss): 2/200 cells (1.0%) \u2014 NORMAL\n\nOverall: ABNORMAL \u2014 t(8;21)",
+  "stored_interface_message": {
+    "message_id": 1,
+    "direction": "OUTBOUND",
+    "message_type": "DiagnosticReport",
+    "format": "FHIR",
+    "order_id": 1,
+    "control_id": "cytobridge-ACC-UAT004-20260904",
+    "status": "GENERATED",
+    "created_at": "2026-09-04 22:55:12"
+  },
+  "negative_result": {
+    "exception": "OutboundError",
+    "detail": "Cannot export order 1: status is 'IN_PROCESS'. Outbound messages are only generated for FINALIZED orders.",
+    "message_count_after_rejection": 0
+  },
+  "json_roundtrip_and_stored_payload_match": true,
+  "foreign_key_check": [],
+  "executor": "Codex mac_skill_strategy subagent",
+  "replay_script_sha256": "205609dae9c96535cd57f03608e9fb87e43d764f7a73c54c50b1965eb78fc6e2",
+  "prior_execution": {
+    "executor": "Codex project_corrections subagent",
+    "observed_at_utc": "2026-09-04T22:42:54.823444+00:00",
+    "independent_replay_observed_at_utc": "2026-09-04T22:52:33.101834+00:00",
+    "independent_replay_comparison": "All evidence fields matched apart from execution timestamps; original script independently reviewed and replayed before adaptation."
+  },
+  "negative_control": "A deliberately corrupted conclusion was rejected even with Python optimization enabled; application files were not modified.",
+  "limits": [
+    "Synthetic in-memory data only; fixture literals are in the replay helper",
+    "AI-executed functional check; human acceptance pending",
+    "No Austin mastery assessment",
+    "No FHIR profile or conformance validation",
+    "No deployment, external writes, or employer/patient data",
+    "Other UAT cases were not rerun or promoted"
+  ]
+}
