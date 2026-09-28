@@ -67,6 +67,92 @@ def test_re_entering_probe_updates_existing_result(conn, accessioned_order):
     assert rows[0]["entered_by"] == "tech02"
 
 
+def test_enter_result_returns_persisted_id_and_links_both_audits(
+    conn, accessioned_order
+):
+    inserted_id = workflow.enter_fish_result(
+        conn, accessioned_order, "CBFB", 200, 1, "2F", "NORMAL", "tech01"
+    )
+    inserted_row = conn.execute(
+        "SELECT result_id FROM fish_result WHERE order_id = ? "
+        "AND probe_id = (SELECT probe_id FROM probe WHERE probe_code = 'CBFB')",
+        (accessioned_order,),
+    ).fetchone()
+    assert inserted_id == inserted_row["result_id"]
+    inserted_audit = conn.execute(
+        "SELECT entity_id FROM audit_event WHERE order_id = ? "
+        "AND action = 'RESULT_ENTERED' ORDER BY event_id DESC LIMIT 1",
+        (accessioned_order,),
+    ).fetchone()
+    assert inserted_audit["entity_id"] == inserted_id
+
+    workflow.enter_fish_result(
+        conn, accessioned_order, "PML_RARA", 200, 2, "2R2G", "NORMAL", "tech01"
+    )
+    before_update_count = conn.execute(
+        "SELECT COUNT(*) AS n FROM fish_result WHERE order_id = ?",
+        (accessioned_order,),
+    ).fetchone()["n"]
+    updated_id = workflow.enter_fish_result(
+        conn, accessioned_order, "CBFB", 300, 2, "2F", "NORMAL", "tech02"
+    )
+    after_update = conn.execute(
+        "SELECT result_id, cells_scored, entered_by FROM fish_result "
+        "WHERE order_id = ? AND probe_id = (SELECT probe_id FROM probe "
+        "WHERE probe_code = 'CBFB')",
+        (accessioned_order,),
+    ).fetchone()
+    assert updated_id == after_update["result_id"] == inserted_id
+    assert after_update["cells_scored"] == 300
+    assert after_update["entered_by"] == "tech02"
+    assert conn.execute(
+        "SELECT COUNT(*) FROM fish_result WHERE order_id = ?", (accessioned_order,)
+    ).fetchone()[0] == before_update_count
+
+    latest_audit = conn.execute(
+        "SELECT entity_id FROM audit_event WHERE order_id = ? "
+        "AND action = 'RESULT_ENTERED' ORDER BY event_id DESC LIMIT 1",
+        (accessioned_order,),
+    ).fetchone()
+    assert latest_audit["entity_id"] == updated_id
+
+
+def test_enter_result_commit_false_rolls_back_without_hidden_commit(
+    conn, accessioned_order
+):
+    before = {
+        "results": conn.execute(
+            "SELECT COUNT(*) FROM fish_result WHERE order_id = ?",
+            (accessioned_order,),
+        ).fetchone()[0],
+        "audits": conn.execute(
+            "SELECT COUNT(*) FROM audit_event WHERE order_id = ?",
+            (accessioned_order,),
+        ).fetchone()[0],
+        "status": _order_status(conn, accessioned_order),
+    }
+    workflow.enter_fish_result(
+        conn,
+        accessioned_order,
+        "CBFB",
+        200,
+        1,
+        "2F",
+        "NORMAL",
+        "tech01",
+        commit=False,
+    )
+    conn.rollback()
+
+    assert conn.execute(
+        "SELECT COUNT(*) FROM fish_result WHERE order_id = ?", (accessioned_order,)
+    ).fetchone()[0] == before["results"]
+    assert conn.execute(
+        "SELECT COUNT(*) FROM audit_event WHERE order_id = ?", (accessioned_order,)
+    ).fetchone()[0] == before["audits"]
+    assert _order_status(conn, accessioned_order) == before["status"]
+
+
 def test_happy_path_finalizes_and_creates_report(conn, accessioned_order):
     enter_all_results(conn, accessioned_order)
     result = workflow.finalize_order(conn, accessioned_order, "analyst01")

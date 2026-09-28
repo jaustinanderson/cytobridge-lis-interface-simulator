@@ -286,6 +286,10 @@ def enter_fish_result(
         ),
         commit=commit,
     )
+    result_id = conn.execute(
+        "SELECT result_id FROM fish_result WHERE order_id = ? AND probe_id = ?",
+        (order_id, probe_id),
+    ).fetchone()["result_id"]
     # Move ORDERED/IN_PROCESS orders forward to PENDING_REVIEW once results flow.
     execute(
         conn,
