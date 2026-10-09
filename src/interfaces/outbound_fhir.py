@@ -64,14 +64,15 @@ def _slug(value: str) -> str:
 def _dt(value: object) -> str | None:
     """Coerce a stored ``YYYY-MM-DD HH:MM:SS`` value to a FHIR dateTime.
 
-    Adds the ``T`` separator and a ``Z`` (UTC) offset when a time is present, as
-    FHIR requires a timezone whenever a time component is given. A bare date is
-    returned unchanged. Returns ``None`` for empty input.
+    Adds the ``T`` separator, preserving an explicit ``Z`` or signed offset.
+    A naive stored time follows the simulator's existing UTC convention and
+    receives ``Z``. A bare date is returned unchanged; empty input returns
+    ``None``. This formatter is not a dateTime conformance validator.
     """
     if not value:
         return None
     s = str(value).strip().replace(" ", "T")
-    if "T" in s and not (s.endswith("Z") or "+" in s):
+    if "T" in s and not re.search(r"(?:Z|[+-]\d{2}:\d{2})$", s):
         s += "Z"
     return s
 

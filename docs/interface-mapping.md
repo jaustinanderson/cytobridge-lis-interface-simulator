@@ -99,8 +99,11 @@ report is carried in `presentedForm`.
 | `DiagnosticReport` | `presentedForm` (`text/plain; charset=utf-8` attachment containing the complete report) | Base64-encoded `report.summary_text` |
 
 Local code systems are namespaced `urn:cytobridge:*` to make clear they are
-synthetic, not real value sets. FHIR `dateTime` values carry a `Z` (UTC) offset
-when a time component is present; `birthDate` is a bare date.
+synthetic, not real value sets. FHIR timestamp formatting preserves an explicit
+`Z` or signed `+HH:MM` / `-HH:MM` offset, including fractional seconds. Stored
+times without an offset follow this simulator's existing UTC convention and
+receive `Z`; this is an assumption about synthetic data, not a timezone
+conversion or a conformance validator. `birthDate` is a bare date.
 
 Base64 is the FHIR `Attachment.data` transport encoding; it does not turn the
 plain-text report into structured clinical data. This remains an educational,

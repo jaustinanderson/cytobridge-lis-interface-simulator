@@ -194,6 +194,41 @@ def test_fhir_json_is_valid_and_serializable(conn, finalized_order):
     assert parsed["resourceType"] == "Bundle"
 
 
+@pytest.mark.parametrize("stored, expected", [
+    ("2026-07-08 14:30:00", "2026-07-08T14:30:00Z"),
+    ("2026-07-08T14:30:00Z", "2026-07-08T14:30:00Z"),
+    ("2026-07-08T14:30:00+05:30", "2026-07-08T14:30:00+05:30"),
+    ("2026-07-08T14:30:00-04:00", "2026-07-08T14:30:00-04:00"),
+    ("2026-07-08 14:30:00.125-03:30", "2026-07-08T14:30:00.125-03:30"),
+])
+def test_fhir_export_preserves_explicit_timezone(conn, finalized_order, stored, expected):
+    """Exported times retain one offset and the recorded local time/precision."""
+    conn.execute(
+        "UPDATE specimen SET received_at = ? WHERE order_id = ?",
+        (stored, finalized_order),
+    )
+    conn.execute(
+        "UPDATE lab_order SET collected_at = ?, finalized_at = ? WHERE order_id = ?",
+        (stored, stored, finalized_order),
+    )
+    conn.commit()
+
+    message_id = store_diagnostic_report(conn, finalized_order)
+    payload = conn.execute(
+        "SELECT payload FROM interface_message WHERE message_id = ?", (message_id,)
+    ).fetchone()["payload"]
+    resources = {
+        entry["resource"]["resourceType"]: entry["resource"]
+        for entry in json.loads(payload)["entry"]
+    }
+    specimen = resources["Specimen"]
+    report = resources["DiagnosticReport"]
+    assert specimen["collection"]["collectedDateTime"] == expected
+    assert specimen["receivedTime"] == expected
+    assert report["effectiveDateTime"] == expected
+    assert report["issued"] == expected
+
+
 # ---------------------------------------------------------------------------
 # Validation behavior: export blocked for non-finalized / missing data
 # ---------------------------------------------------------------------------
