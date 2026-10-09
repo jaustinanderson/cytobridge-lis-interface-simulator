@@ -42,7 +42,7 @@ running it:
   and recovery filings are traceable back to the source message.
 - **Analyst SQL.** Six worklist queries (pending review, STAT aging, turnaround,
   validation error rate, audit lookup, open interface errors).
-- **Testing and traceability discipline.** 173 passing `pytest` tests across
+- **Testing and traceability discipline.** 174 passing `pytest` tests across
   eight suites plus a full requirements -> code -> test -> UAT
   [traceability matrix](../validation/traceability-matrix.md) covering all 41
   requirements, a [validation summary](../validation/validation-summary.md), a
@@ -136,7 +136,7 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   the project owner; implemented with an AI assistant under bounded instructions).
 - Authored a **validation package**: 41 traceable requirements, a
   requirements-to-test **traceability matrix**, 18 **UAT scripts**, risk
-  assessment, and known-issues log; **173 passing automated tests** across eight
+  assessment, and known-issues log; **174 passing automated tests** across eight
   suites.
 
 ## Interview talking points

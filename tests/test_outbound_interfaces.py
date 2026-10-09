@@ -234,9 +234,30 @@ def test_fhir_bundle_identities_and_references_resolve(conn, finalized_order, so
 
 
 def test_fhir_bundle_identity_is_stable_across_exports(conn, finalized_order):
-    first = build_diagnostic_report(conn, finalized_order, generated_at=MSG_TIME)
-    second = build_diagnostic_report(conn, finalized_order, generated_at="2026-07-09 00:00:00")
+    first = build_diagnostic_report(conn, finalized_order)
+    second = build_diagnostic_report(conn, finalized_order)
     assert first == second
+
+
+def test_fhir_bundle_uses_documented_synthetic_uuid_namespace(conn, finalized_order):
+    """Golden UUIDv5 vectors from the documented namespace/name contract.
+
+    Derived separately with stdlib uuid5(NAMESPACE_URL, name), not captured
+    from generator output. Stability alone would allow a wrong namespace.
+    """
+    expected = {
+        ("Patient", "patient-SYN-9001"): "urn:uuid:a28ef5ee-8b93-5257-9f04-6ccd6200d612",
+        ("Specimen", "specimen-ACC-TEST-0001"): "urn:uuid:f59ee032-22e1-58fa-a71b-6d5e554d7c19",
+        ("Observation", "obs-ACC-TEST-0001-CBFB"): "urn:uuid:d2c39611-4bb6-5ed3-8bd7-003644ea46d0",
+        ("DiagnosticReport", "report-ACC-TEST-0001"): "urn:uuid:ce8b3388-637d-589e-8449-1d2bb3d4f699",
+    }
+    bundle = build_diagnostic_report(conn, finalized_order)
+    actual = {
+        (entry["resource"]["resourceType"], entry["resource"]["id"]): entry["fullUrl"]
+        for entry in bundle["entry"]
+    }
+    for resource, identity in expected.items():
+        assert actual[resource] == identity
 
 
 @pytest.mark.parametrize("stored, expected", [
