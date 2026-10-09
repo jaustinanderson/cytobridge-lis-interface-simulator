@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -192,6 +194,49 @@ def test_fhir_json_is_valid_and_serializable(conn, finalized_order):
     text = outbound_fhir.generate_diagnostic_report_json(conn, finalized_order)
     parsed = json.loads(text)
     assert parsed["resourceType"] == "Bundle"
+
+
+@pytest.mark.parametrize("source", ["generated", "stored", "sample"])
+def test_fhir_bundle_identities_and_references_resolve(conn, finalized_order, source):
+    if source == "generated":
+        bundle = build_diagnostic_report(conn, finalized_order)
+    elif source == "stored":
+        message_id = store_diagnostic_report(conn, finalized_order)
+        payload = conn.execute(
+            "SELECT payload FROM interface_message WHERE message_id = ?", (message_id,)
+        ).fetchone()["payload"]
+        bundle = json.loads(payload)
+    else:
+        sample = Path(__file__).resolve().parents[1] / (
+            "sample_messages/outbound/aml_mds_diagnostic_report.json"
+        )
+        bundle = json.loads(sample.read_text())
+
+    by_url = {entry["fullUrl"]: entry["resource"] for entry in bundle["entry"]}
+    assert len(by_url) == len(bundle["entry"])
+    for url in by_url:
+        assert url.startswith("urn:uuid:")
+        assert str(UUID(url.removeprefix("urn:uuid:"))) == url.removeprefix("urn:uuid:")
+
+    patient_url = next(url for url, r in by_url.items() if r["resourceType"] == "Patient")
+    specimen_url = next(url for url, r in by_url.items() if r["resourceType"] == "Specimen")
+    report = next(r for r in by_url.values() if r["resourceType"] == "DiagnosticReport")
+    assert by_url[specimen_url]["subject"]["reference"] == patient_url
+    assert report["subject"]["reference"] == patient_url
+    assert report["specimen"] == [{"reference": specimen_url}]
+    observation_urls = {url for url, r in by_url.items() if r["resourceType"] == "Observation"}
+    result_urls = [ref["reference"] for ref in report["result"]]
+    assert len(result_urls) == len(observation_urls)
+    assert set(result_urls) == observation_urls
+    for url in observation_urls:
+        assert by_url[url]["subject"]["reference"] == patient_url
+        assert by_url[url]["specimen"]["reference"] == specimen_url
+
+
+def test_fhir_bundle_identity_is_stable_across_exports(conn, finalized_order):
+    first = build_diagnostic_report(conn, finalized_order, generated_at=MSG_TIME)
+    second = build_diagnostic_report(conn, finalized_order, generated_at="2026-07-09 00:00:00")
+    assert first == second
 
 
 @pytest.mark.parametrize("stored, expected", [

@@ -29,6 +29,7 @@ import base64
 import json
 import re
 import sqlite3
+from uuid import NAMESPACE_URL, uuid5
 
 from . import OutboundReportData, collect_report_data, store_message
 
@@ -59,6 +60,12 @@ _INTERP_DISPLAY = {"N": "Normal", "A": "Abnormal", "I": "Indeterminate"}
 def _slug(value: str) -> str:
     """Make a FHIR-id-safe token (letters, digits, hyphen) from a value."""
     return re.sub(r"[^A-Za-z0-9-]", "-", str(value)).strip("-")
+
+
+def _resource_url(resource_type: str, resource_id: str) -> str:
+    """Stable synthetic Bundle identity, not a server endpoint or credential."""
+    identity = uuid5(NAMESPACE_URL, f"urn:cytobridge:{resource_type}:{resource_id}")
+    return f"urn:uuid:{identity}"
 
 
 def _dt(value: object) -> str | None:
@@ -262,8 +269,8 @@ def build_diagnostic_report(
     patient_id = f"patient-{_slug(data.mrn)}"
     specimen_id = f"specimen-{acc}"
     report_id = f"report-{acc}"
-    patient_ref = f"Patient/{patient_id}"
-    specimen_ref = f"Specimen/{specimen_id}"
+    patient_ref = _resource_url("Patient", patient_id)
+    specimen_ref = _resource_url("Specimen", specimen_id)
 
     observations: list[dict] = []
     result_refs: list[str] = []
@@ -274,7 +281,7 @@ def build_diagnostic_report(
                 data, probe, obs_id, patient_ref, specimen_ref
             )
         )
-        result_refs.append(f"Observation/{obs_id}")
+        result_refs.append(_resource_url("Observation", obs_id))
 
     entries = [
         _patient_resource(data, patient_id),
@@ -290,7 +297,7 @@ def build_diagnostic_report(
         "id": f"cytobridge-{acc}",
         "type": "collection",
         "entry": [
-            {"fullUrl": f"{r['resourceType']}/{r['id']}", "resource": r}
+            {"fullUrl": _resource_url(r["resourceType"], r["id"]), "resource": r}
             for r in entries
         ],
     }

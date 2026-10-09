@@ -84,6 +84,15 @@ reserved separator characters `| ^ ~ \ &` are escaped in field values.
 A `Bundle` (`type = collection`) whose entries are, in order: `Patient`,
 `Specimen`, one `Observation` per probe, then the `DiagnosticReport`.
 
+Each entry has an absolute `urn:uuid:` identity in `fullUrl`. Internal subject,
+specimen and result references use those same URNs, so the collection resolves
+without a FHIR server base URL. UUIDv5 uses the standard URL namespace and the
+synthetic name `urn:cytobridge:<resourceType>:<resourceId>`; repeated exports
+retain their identities. Resource IDs, accession/MRN identifiers, clinical
+values and entry order are unchanged. This is an educational identity scheme,
+not a claim of global patient identity or production interoperability. It follows
+the [FHIR R4 Bundle identity rules](https://hl7.org/fhir/R4/bundle.html#resource).
+
 The representation boundary follows the FHIR R4 `DiagnosticReport` element
 definitions: atomic findings are referenced through `result`, the concise
 overall interpretation is carried in `conclusion`, and the complete issued
