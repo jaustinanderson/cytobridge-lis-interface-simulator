@@ -4,7 +4,7 @@
   "type": "collection",
   "entry": [
     {
-      "fullUrl": "Patient/patient-SYN-1001",
+      "fullUrl": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034",
       "resource": {
         "resourceType": "Patient",
         "id": "patient-SYN-1001",
@@ -37,7 +37,7 @@
       }
     },
     {
-      "fullUrl": "Specimen/specimen-ACC-2026-0001",
+      "fullUrl": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff",
       "resource": {
         "resourceType": "Specimen",
         "id": "specimen-ACC-2026-0001",
@@ -56,7 +56,7 @@
           "text": "Bone Marrow"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "receivedTime": "2026-07-07T10:05:00Z",
         "collection": {
@@ -71,7 +71,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-RUNX1T1-RUNX1",
+      "fullUrl": "urn:uuid:614cea02-3666-5f79-ae0a-9db29f9d0fc1",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-RUNX1T1-RUNX1",
@@ -98,10 +98,10 @@
           "text": "RUNX1T1/RUNX1 (t(8;21)) [8q22/21q22]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 19.0,
@@ -138,7 +138,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-CBFB",
+      "fullUrl": "urn:uuid:4eaec7e9-49d2-5801-b0bb-460d35da7f7e",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-CBFB",
@@ -165,10 +165,10 @@
           "text": "CBFB break-apart (inv(16)/t(16;16)) [16q22]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 0.5,
@@ -205,7 +205,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-PML-RARA",
+      "fullUrl": "urn:uuid:aee65eea-065c-57c3-a033-cfa43679d577",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-PML-RARA",
@@ -232,10 +232,10 @@
           "text": "PML/RARA (t(15;17)) [15q24/17q21]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 1.0,
@@ -272,7 +272,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-KMT2A",
+      "fullUrl": "urn:uuid:d8c564fa-2d9b-51aa-9c95-afe6ab2a5e8a",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-KMT2A",
@@ -299,10 +299,10 @@
           "text": "KMT2A (MLL) break-apart (11q23 rearrangement) [11q23]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 0.5,
@@ -339,7 +339,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-EGR1-5q",
+      "fullUrl": "urn:uuid:9080ac07-4cac-5884-a51a-12ee4ff5e7c8",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-EGR1-5q",
@@ -366,10 +366,10 @@
           "text": "EGR1 (5q31) (-5/del(5q)) [5q31]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 1.5,
@@ -406,7 +406,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-D7S486-7q",
+      "fullUrl": "urn:uuid:e82fd1bd-1a88-59e7-a23e-1eae115723e2",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-D7S486-7q",
@@ -433,10 +433,10 @@
           "text": "D7S486 (7q31) (-7/del(7q)) [7q31]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 1.0,
@@ -473,7 +473,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-CEP8",
+      "fullUrl": "urn:uuid:f1cae836-f1ce-5ed2-8efa-e03f8b02f5f8",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-CEP8",
@@ -500,10 +500,10 @@
           "text": "CEP8 (centromere 8) (+8 (trisomy 8)) [8cen]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 2.0,
@@ -540,7 +540,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-D20S108-20q",
+      "fullUrl": "urn:uuid:045c00ed-9e26-529b-aa94-cfd45cb7494b",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-D20S108-20q",
@@ -567,10 +567,10 @@
           "text": "D20S108 (20q12) (del(20q)) [20q12]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 0.5,
@@ -607,7 +607,7 @@
       }
     },
     {
-      "fullUrl": "Observation/obs-ACC-2026-0001-TP53-17p",
+      "fullUrl": "urn:uuid:a4456faf-9826-5d2c-b66a-b13c76a4e324",
       "resource": {
         "resourceType": "Observation",
         "id": "obs-ACC-2026-0001-TP53-17p",
@@ -634,10 +634,10 @@
           "text": "TP53 (17p13) (del(17p)/TP53 loss) [17p13]"
         },
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": {
-          "reference": "Specimen/specimen-ACC-2026-0001"
+          "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
         },
         "valueQuantity": {
           "value": 1.0,
@@ -674,7 +674,7 @@
       }
     },
     {
-      "fullUrl": "DiagnosticReport/report-ACC-2026-0001",
+      "fullUrl": "urn:uuid:a0b1fcf5-e9fd-58b6-ab33-2d3f762029b6",
       "resource": {
         "resourceType": "DiagnosticReport",
         "id": "report-ACC-2026-0001",
@@ -707,11 +707,11 @@
           }
         ],
         "subject": {
-          "reference": "Patient/patient-SYN-1001"
+          "reference": "urn:uuid:153d53ed-be7b-590f-b518-407e15f2b034"
         },
         "specimen": [
           {
-            "reference": "Specimen/specimen-ACC-2026-0001"
+            "reference": "urn:uuid:6586c551-3414-5c34-91d8-b708fee2c7ff"
           }
         ],
         "performer": [
@@ -721,31 +721,31 @@
         ],
         "result": [
           {
-            "reference": "Observation/obs-ACC-2026-0001-RUNX1T1-RUNX1"
+            "reference": "urn:uuid:614cea02-3666-5f79-ae0a-9db29f9d0fc1"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-CBFB"
+            "reference": "urn:uuid:4eaec7e9-49d2-5801-b0bb-460d35da7f7e"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-PML-RARA"
+            "reference": "urn:uuid:aee65eea-065c-57c3-a033-cfa43679d577"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-KMT2A"
+            "reference": "urn:uuid:d8c564fa-2d9b-51aa-9c95-afe6ab2a5e8a"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-EGR1-5q"
+            "reference": "urn:uuid:9080ac07-4cac-5884-a51a-12ee4ff5e7c8"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-D7S486-7q"
+            "reference": "urn:uuid:e82fd1bd-1a88-59e7-a23e-1eae115723e2"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-CEP8"
+            "reference": "urn:uuid:f1cae836-f1ce-5ed2-8efa-e03f8b02f5f8"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-D20S108-20q"
+            "reference": "urn:uuid:045c00ed-9e26-529b-aa94-cfd45cb7494b"
           },
           {
-            "reference": "Observation/obs-ACC-2026-0001-TP53-17p"
+            "reference": "urn:uuid:a4456faf-9826-5d2c-b66a-b13c76a4e324"
           }
         ],
         "conclusion": "Overall: ABNORMAL \u2014 t(8;21)",

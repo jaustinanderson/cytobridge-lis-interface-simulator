@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -192,6 +194,105 @@ def test_fhir_json_is_valid_and_serializable(conn, finalized_order):
     text = outbound_fhir.generate_diagnostic_report_json(conn, finalized_order)
     parsed = json.loads(text)
     assert parsed["resourceType"] == "Bundle"
+
+
+@pytest.mark.parametrize("source", ["generated", "stored", "sample"])
+def test_fhir_bundle_identities_and_references_resolve(conn, finalized_order, source):
+    if source == "generated":
+        bundle = build_diagnostic_report(conn, finalized_order)
+    elif source == "stored":
+        message_id = store_diagnostic_report(conn, finalized_order)
+        payload = conn.execute(
+            "SELECT payload FROM interface_message WHERE message_id = ?", (message_id,)
+        ).fetchone()["payload"]
+        bundle = json.loads(payload)
+    else:
+        sample = Path(__file__).resolve().parents[1] / (
+            "sample_messages/outbound/aml_mds_diagnostic_report.json"
+        )
+        bundle = json.loads(sample.read_text())
+
+    by_url = {entry["fullUrl"]: entry["resource"] for entry in bundle["entry"]}
+    assert len(by_url) == len(bundle["entry"])
+    for url in by_url:
+        assert url.startswith("urn:uuid:")
+        assert str(UUID(url.removeprefix("urn:uuid:"))) == url.removeprefix("urn:uuid:")
+
+    patient_url = next(url for url, r in by_url.items() if r["resourceType"] == "Patient")
+    specimen_url = next(url for url, r in by_url.items() if r["resourceType"] == "Specimen")
+    report = next(r for r in by_url.values() if r["resourceType"] == "DiagnosticReport")
+    assert by_url[specimen_url]["subject"]["reference"] == patient_url
+    assert report["subject"]["reference"] == patient_url
+    assert report["specimen"] == [{"reference": specimen_url}]
+    observation_urls = {url for url, r in by_url.items() if r["resourceType"] == "Observation"}
+    result_urls = [ref["reference"] for ref in report["result"]]
+    assert len(result_urls) == len(observation_urls)
+    assert set(result_urls) == observation_urls
+    for url in observation_urls:
+        assert by_url[url]["subject"]["reference"] == patient_url
+        assert by_url[url]["specimen"]["reference"] == specimen_url
+
+
+def test_fhir_bundle_identity_is_stable_across_exports(conn, finalized_order):
+    first = build_diagnostic_report(conn, finalized_order)
+    second = build_diagnostic_report(conn, finalized_order)
+    assert first == second
+
+
+def test_fhir_bundle_uses_documented_synthetic_uuid_namespace(conn, finalized_order):
+    """Golden UUIDv5 vectors from the documented namespace/name contract.
+
+    Derived separately with stdlib uuid5(NAMESPACE_URL, name), not captured
+    from generator output. Stability alone would allow a wrong namespace.
+    """
+    expected = {
+        ("Patient", "patient-SYN-9001"): "urn:uuid:a28ef5ee-8b93-5257-9f04-6ccd6200d612",
+        ("Specimen", "specimen-ACC-TEST-0001"): "urn:uuid:f59ee032-22e1-58fa-a71b-6d5e554d7c19",
+        ("Observation", "obs-ACC-TEST-0001-CBFB"): "urn:uuid:d2c39611-4bb6-5ed3-8bd7-003644ea46d0",
+        ("DiagnosticReport", "report-ACC-TEST-0001"): "urn:uuid:ce8b3388-637d-589e-8449-1d2bb3d4f699",
+    }
+    bundle = build_diagnostic_report(conn, finalized_order)
+    actual = {
+        (entry["resource"]["resourceType"], entry["resource"]["id"]): entry["fullUrl"]
+        for entry in bundle["entry"]
+    }
+    for resource, identity in expected.items():
+        assert actual[resource] == identity
+
+
+@pytest.mark.parametrize("stored, expected", [
+    ("2026-07-08 14:30:00", "2026-07-08T14:30:00Z"),
+    ("2026-07-08T14:30:00Z", "2026-07-08T14:30:00Z"),
+    ("2026-07-08T14:30:00+05:30", "2026-07-08T14:30:00+05:30"),
+    ("2026-07-08T14:30:00-04:00", "2026-07-08T14:30:00-04:00"),
+    ("2026-07-08 14:30:00.125-03:30", "2026-07-08T14:30:00.125-03:30"),
+])
+def test_fhir_export_preserves_explicit_timezone(conn, finalized_order, stored, expected):
+    """Exported times retain one offset and the recorded local time/precision."""
+    conn.execute(
+        "UPDATE specimen SET received_at = ? WHERE order_id = ?",
+        (stored, finalized_order),
+    )
+    conn.execute(
+        "UPDATE lab_order SET collected_at = ?, finalized_at = ? WHERE order_id = ?",
+        (stored, stored, finalized_order),
+    )
+    conn.commit()
+
+    message_id = store_diagnostic_report(conn, finalized_order)
+    payload = conn.execute(
+        "SELECT payload FROM interface_message WHERE message_id = ?", (message_id,)
+    ).fetchone()["payload"]
+    resources = {
+        entry["resource"]["resourceType"]: entry["resource"]
+        for entry in json.loads(payload)["entry"]
+    }
+    specimen = resources["Specimen"]
+    report = resources["DiagnosticReport"]
+    assert specimen["collection"]["collectedDateTime"] == expected
+    assert specimen["receivedTime"] == expected
+    assert report["effectiveDateTime"] == expected
+    assert report["issued"] == expected
 
 
 # ---------------------------------------------------------------------------
