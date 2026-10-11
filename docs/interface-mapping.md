@@ -84,6 +84,15 @@ reserved separator characters `| ^ ~ \ &` are escaped in field values.
 A `Bundle` (`type = collection`) whose entries are, in order: `Patient`,
 `Specimen`, one `Observation` per probe, then the `DiagnosticReport`.
 
+Each entry has an absolute `urn:uuid:` identity in `fullUrl`. Internal subject,
+specimen and result references use those same URNs, so the collection resolves
+without a FHIR server base URL. UUIDv5 uses the standard URL namespace and the
+synthetic name `urn:cytobridge:<resourceType>:<resourceId>`; repeated exports
+retain their identities. Resource IDs, accession/MRN identifiers, clinical
+values and entry order are unchanged. This is an educational identity scheme,
+not a claim of global patient identity or production interoperability. It follows
+the [FHIR R4 Bundle identity rules](https://hl7.org/fhir/R4/bundle.html#resource).
+
 The representation boundary follows the FHIR R4 `DiagnosticReport` element
 definitions: atomic findings are referenced through `result`, the concise
 overall interpretation is carried in `conclusion`, and the complete issued
@@ -99,8 +108,11 @@ report is carried in `presentedForm`.
 | `DiagnosticReport` | `presentedForm` (`text/plain; charset=utf-8` attachment containing the complete report) | Base64-encoded `report.summary_text` |
 
 Local code systems are namespaced `urn:cytobridge:*` to make clear they are
-synthetic, not real value sets. FHIR `dateTime` values carry a `Z` (UTC) offset
-when a time component is present; `birthDate` is a bare date.
+synthetic, not real value sets. FHIR timestamp formatting preserves an explicit
+`Z` or signed `+HH:MM` / `-HH:MM` offset, including fractional seconds. Stored
+times without an offset follow this simulator's existing UTC convention and
+receive `Z`; this is an assumption about synthetic data, not a timezone
+conversion or a conformance validator. `birthDate` is a bare date.
 
 Base64 is the FHIR `Attachment.data` transport encoding; it does not turn the
 plain-text report into structured clinical data. This remains an educational,
