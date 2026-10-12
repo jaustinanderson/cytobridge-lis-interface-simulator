@@ -317,6 +317,7 @@ def test_error_queue_query_lists_open_items(conn, open_inbound_order):
     enter_all_results(conn, open_inbound_order)
     assert workflow.finalize_order(conn, open_inbound_order, "synthetic").finalized
     terminal = ingest_message(conn, _sample("aml_mds_valid_oru.hl7"))
+    assert not terminal.filed and terminal.queue_id is not None
     conn.commit()
 
     old_columns = ["queue_id", "created_at", "direction", "reason", "message_id",

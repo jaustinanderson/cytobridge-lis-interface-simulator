@@ -55,7 +55,7 @@ Both action functions return a `RecoveryAttempt` (its `outcome` is `SUCCEEDED`,
 
 The analyst worklist of open failures is
 [`queries/interface_error_queue.sql`](../queries/interface_error_queue.sql). To
-read the stored `failure_code`, `failure_category`, and `recovery_policy` in
+read the stored `failure_code`, `failure_category`, and `recovery_policy`, use
 that worklist. These are direct stored values, not recomputed eligibility;
 legacy unclassified items retain NULLs and require investigation. The worklist
 keeps its OPEN-only, oldest-first rows. To inspect one item, including closed
