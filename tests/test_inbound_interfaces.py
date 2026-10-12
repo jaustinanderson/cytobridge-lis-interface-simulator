@@ -295,11 +295,48 @@ def test_error_queue_entry_has_expected_fields(conn):
     assert entry["created_at"]                  # timestamped on creation
 
 
-def test_error_queue_query_lists_open_items(conn):
+def test_error_queue_query_lists_open_items(conn, open_inbound_order):
     from src.db import run_query
 
-    inbound_hl7.ingest_message(conn, _sample("aml_mds_unmatched_accession.hl7"))
+    unmatched = ingest_message(conn, _sample("aml_mds_unmatched_accession.hl7"))
+    invalid = ingest_message(
+        conn, _sample("aml_mds_valid_oru.hl7").replace("CBFB^", "NOTAPROBE^")
+    )
+    assert not invalid.filed
+    legacy = conn.execute(
+        "INSERT INTO interface_error_queue (direction, reason) "
+        "VALUES ('INBOUND', 'Synthetic legacy unclassified item')"
+    ).lastrowid
+    # Give rows distinct timestamps so ordering assertions do not impose a
+    # new tie-breaking contract on the existing oldest-first worklist.
+    for queue_id, stamp in [(unmatched.queue_id, '2000-01-03'),
+                            (invalid.queue_id, '2000-01-01'),
+                            (legacy, '2000-01-02')]:
+        conn.execute("UPDATE interface_error_queue SET created_at = ? "
+                     "WHERE queue_id = ?", (stamp, queue_id))
+    enter_all_results(conn, open_inbound_order)
+    assert workflow.finalize_order(conn, open_inbound_order, "synthetic").finalized
+    terminal = ingest_message(conn, _sample("aml_mds_valid_oru.hl7"))
+    assert not terminal.filed and terminal.queue_id is not None
+    conn.commit()
+
+    old_columns = ["queue_id", "created_at", "direction", "reason", "message_id",
+                   "message_type", "format", "control_id", "status"]
+    old_rows = conn.execute(
+        "SELECT eq.queue_id, eq.created_at, eq.direction, eq.reason, eq.message_id, "
+        "im.message_type, im.format, im.control_id, eq.status "
+        "FROM interface_error_queue eq LEFT JOIN interface_message im "
+        "ON im.message_id = eq.message_id WHERE eq.status = 'OPEN' "
+        "ORDER BY eq.created_at ASC"
+    ).fetchall()
     rows = run_query(conn, "interface_error_queue")
-    assert len(rows) == 1
-    assert rows[0]["status"] == "OPEN"
-    assert rows[0]["direction"] == "INBOUND"
+    assert [[r[k] for k in old_columns] for r in rows] == [list(r) for r in old_rows]
+    assert [r["queue_id"] for r in rows] == [invalid.queue_id, legacy, unmatched.queue_id]
+    assert terminal.queue_id not in [r["queue_id"] for r in rows]
+    assert [r["message_id"] for r in rows] == [invalid.message_id, None, unmatched.message_id]
+    assert [(r["failure_code"], r["failure_category"], r["recovery_policy"])
+            for r in rows] == [
+        ("UNKNOWN_PROBE_CODE", "FISH_RESULT_CONTENT", "REDRIVE_ONLY"),
+        (None, None, None),
+        ("ORDER_NOT_FOUND", "ORDER_MATCHING", "RETRY_OR_REDRIVE"),
+    ]
