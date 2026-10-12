@@ -12,7 +12,10 @@ SELECT
     im.message_type,
     im.format,
     im.control_id,
-    eq.status
+    eq.status,
+    eq.failure_code,
+    eq.failure_category,
+    eq.recovery_policy
 FROM interface_error_queue AS eq
 LEFT JOIN interface_message AS im ON im.message_id = eq.message_id
 WHERE eq.status = 'OPEN'
