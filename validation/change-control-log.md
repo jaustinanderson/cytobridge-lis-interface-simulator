@@ -386,13 +386,17 @@ deployment, or standards-conformance change. All data remains synthetic.
   counts and last outcome.
 - `exercises/` - seven synthetic incident exercises, with analyst instructions
   kept separate from `exercises/answer-keys/`.
+- Exercise verification checks EX02 registration demographics, ordering provider,
+  and accessioned bone-marrow specimen against the supplied fixture/task, plus
+  EX01's prescribed HL7 timestamp and control id against persisted output.
+  AUD-002 rejects an outbound message cited as inbound filing evidence.
 - `tests/test_analyst_*.py` - persistence across separate processes, error
   paths, read-only guarantees, trace relationships checked against independent
   SQL, every reconciliation rule, preview versus apply from the same baseline,
   preview staleness, injected rollback, exercise runs and tampering detection,
   evidence determinism, and a bounded 1,000-message scale check.
 - Validation package - R-043 - R-052, traceability rows, known-issues and risk
-  rows, and current test counts (600 tests across sixteen suites).
+  rows, and current test counts (616 tests across sixteen suites).
 
 **Authorization:** Austin authorized this bounded implementation in issue #43.
 
@@ -408,7 +412,7 @@ not manual UAT and do not demonstrate Austin's mastery. All data is synthetic.
 
 - **One session/task = one branch = one PR**, never committed straight to `main`.
 - **Tests accompany behavior** - every code session and v1.1 task added matching
-  coverage; the current suite has 600 passing tests across sixteen suites,
+  coverage; the current suite has 616 passing tests across sixteen suites,
   including result assertions for all analyst SQL views, the full controlled
   recovery service, and the analyst lab.
 - **Scope guardrails** honored every session and task (no UI/Docker/ORM/new

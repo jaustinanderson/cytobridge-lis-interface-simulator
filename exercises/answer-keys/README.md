@@ -34,7 +34,12 @@ One JSON file per exercise, named `<EXID>.json`:
   the message that filed the result, or the `result-enter --pattern` value.
   `entered_by` is the actor of the filing: `ingest --actor` (default
   `interface`), the recovery request's `--actor` for a retry or re-drive, or
-  `result-enter --entered-by`.
+  `result-enter --entered-by`. Registration expectations may also state
+  `ordering_provider`, `patient` (the linked patient's `mrn`, `last_name`,
+  `first_name`, `date_of_birth`, and `sex`), and `specimens` (a list in
+  `specimen_id` order, each stating `specimen_type` and/or `status`). The
+  patient must exist and the specimen count must match the list. These checks
+  verify the exercise task; they do not change how ingestion matches orders.
 - `queue_items`: per original message control id (MSH-10), the stored
   classification and status, the original message status,
   `original_payload_fixture` (the fixture whose file bytes the original
@@ -50,10 +55,15 @@ One JSON file per exercise, named `<EXID>.json`:
   (recomputed as `round(100 * abnormal / scored, 1)`, as
   `interfaces.collect_report_data` does; HL7 OBX-5 text and FHIR
   `valueQuantity.value`), and the N/A/I flag (HL7 OBX-8 and the FHIR
-  interpretation coding code).
+  interpretation coding code). HL7 entries may also state `hl7_timestamp`
+  (the literal MSH-7 value) and `control_id` (both MSH-10 and the stored
+  `interface_message.control_id` must match). Header checks require at least
+  one message and exactly one MSH segment in each; these two keys are not
+  supported for FHIR entries.
 
-Any other key inside `expected`, an order, a result, a queue item, an attempt,
-or an outbound entry is reported as a failing check, never silently ignored.
+Any other key inside `expected`, an order, a patient, a specimen, a result,
+a queue item, an attempt, or an outbound entry is reported as a failing check,
+never silently ignored.
 The supported keys are defined by the constants at the top of
 [`src/analyst/exercises.py`](../../src/analyst/exercises.py).
 - `totals`: exact row counts per table.
@@ -79,6 +89,14 @@ fixtures and the documented actor rules above (the filing fixture's OBX-5
 component 3 or `result-enter --pattern`; `ingest --actor`, the recovery
 `--actor`, or `result-enter --entered-by`; `finalize --by`) and then
 confirmed by running the exercises.
+
+EX02's patient and provider expectations come from `inputs/early_result.hl7`
+(PID-3/5/7/8 and OBR-16); its specimen type and status come from the exercise's
+instruction to register an accessioned bone-marrow specimen. EX01's MSH-7
+expectation comes from the generated-at time specified in its task; its
+control id combines the documented exporter prefix, accession with separators
+removed, and that timestamp. These values are explicit task expectations,
+not values captured from an exercise run.
 
 Several exercises exercise behavior covered by the human-approved invariants
 in design record sec 11: original-message immutability (I-01; EX03, also

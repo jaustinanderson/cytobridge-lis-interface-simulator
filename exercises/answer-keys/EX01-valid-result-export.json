@@ -148,7 +148,9 @@
         "accession": "ACC-EX01-0001",
         "format": "HL7",
         "count": 1,
-        "matches_results": true
+        "matches_results": true,
+        "hl7_timestamp": "20261025090000",
+        "control_id": "CBORUACCEX01000120261025090000"
       },
       {
         "accession": "ACC-EX01-0001",

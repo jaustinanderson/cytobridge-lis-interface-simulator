@@ -57,7 +57,7 @@ Validation is layered:
 
 | Metric | Result |
 |---|---|
-| Automated tests | **600 passed** (`pytest`, sixteen suites) |
+| Automated tests | **616 passed** (`pytest`, sixteen suites) |
 | Requirements traced | 51 / 51 mapped to code + test; the 41 v1/v1.1 requirements also map to a UAT |
 | Requirements with automated coverage passing | 51 / 51 |
 | Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
@@ -153,7 +153,8 @@ recovery semantics and is proven by the eight `test_analyst_*.py` suites:
   after every read command, and a missing database is never created.
 - **Trace and reconciliation:** case links are checked against independent SQL,
   including payload-derived and missing provenance. Every one of the 29
-  reconciliation rules fires on a constructed violating state. The suite's
+  reconciliation rules fires on a constructed violating state, including an
+  inbound-filing audit event naming an outbound message. The suite's
   clean database, built only through the services across filing, failure,
   recovery, conflict, terminal, and export cases, yields no ERROR or WARNING
   finding. Only the expected INFO findings for outstanding prerequisites and
@@ -165,7 +166,9 @@ recovery semantics and is proven by the eight `test_analyst_*.py` suites:
   current rules, and an injected mid-filing failure rolls back in both the
   preview and the apply.
 - **Exercises and evidence:** all seven exercises verify from persisted rows,
-  and tampering with any checked value makes verification fail. Reruns
+  and tampering with any checked value makes verification fail. EX02 checks
+  the registered patient, provider, and specimen against its task; EX01 checks
+  the prescribed HL7 timestamp and control id in the stored message. Reruns
   reproduce the same normalized database and the same evidence content
   fingerprint. Stored payload fingerprints match SHA-256 values computed
   independently from the fixture files.
@@ -193,7 +196,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # -> 600 passed
+python -m pytest -q                   # -> 616 passed
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 mkdir lab-work && python -m src.analyst exercise run-all --workdir lab-work/all   # -> 7 verified
 ```

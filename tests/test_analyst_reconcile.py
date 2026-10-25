@@ -650,6 +650,34 @@ def _aud_003(conn, b):
     return [sorted([f"fish_result:{rid}", o(b.order_a)])]
 
 
+def test_aud_002_rejects_outbound_filed_message_on_same_order(conn):
+    """An outbound row cannot substantiate an inbound filing audit event."""
+    order_id = make_order(conn, "AUD-DIRECTION")
+    filed = ingest(conn, hl7("ACC-RC-AUD-DIRECTION", "RC-AUD-DIRECTION", FULL_OBX))
+    assert filed.filed
+    assert workflow.finalize_order(conn, order_id, "pathologist01").finalized
+    assert reconcile.reconcile_database(conn) == []
+    event_id = one(
+        conn, "SELECT event_id FROM audit_event WHERE action = 'INBOUND_RESULT_FILED'"
+    )
+
+    # No constraint bypass: direction, status, and the order link are each
+    # schema-valid, but their combination contradicts the inbound audit event.
+    conn.execute(
+        "UPDATE interface_message SET direction = 'OUTBOUND' WHERE message_id = ?",
+        (filed.message_id,),
+    )
+    conn.commit()
+
+    (finding,) = reconcile.reconcile_database(conn)
+    assert finding["rule_id"] == "AUD-002"
+    assert finding["severity"] == "ERROR"
+    assert finding["subjects"] == sorted([ae(event_id), m(filed.message_id)])
+    assert "OUTBOUND" in finding["observations"][0]
+    assert "not INBOUND" in finding["observations"][0]
+    assert finding["ambiguity"] and "not on a foreign key" in finding["ambiguity"]
+
+
 def _aud_004(conn, b):
     second = make_order(conn, "FIN2")
     finalize(conn, second)

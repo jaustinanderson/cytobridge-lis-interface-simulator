@@ -144,7 +144,21 @@
           "VALIDATION_RUN": 0,
           "FINALIZED": 0
         },
-        "validation_blocking": false
+        "validation_blocking": false,
+        "patient": {
+          "mrn": "SYN-EX02-01",
+          "last_name": "Synthetic",
+          "first_name": "ExerciseTwo",
+          "date_of_birth": "1970-01-02",
+          "sex": "M"
+        },
+        "ordering_provider": "Dr. Synthetic",
+        "specimens": [
+          {
+            "specimen_type": "BONE_MARROW",
+            "status": "ACCESSIONED"
+          }
+        ]
       }
     ],
     "queue_items": [

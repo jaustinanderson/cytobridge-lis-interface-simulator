@@ -558,7 +558,8 @@ def test_outbound_expected_values_are_recomputed_from_fish_result(built, tmp_pat
     for fmt in ("HL7", "FHIR"):
         assert f"EX01 outbound[ACC-EX01-0001 {fmt}] matches_results" in failed
     hl7 = [c for c in result["checks"]
-           if c["name"].startswith("EX01 outbound[ACC-EX01-0001 HL7] message[")]
+           if c["name"].startswith("EX01 outbound[ACC-EX01-0001 HL7] message[")
+           and c["name"].endswith(" per-probe values")]
     assert hl7[0]["expected"]["CEP8"] == {
         "cells_scored": 200, "cells_abnormal": 3, "percent_abnormal": "1.5",
         "interpretation": "NORMAL", "flag": "N", "signal_pattern": "9 zzz",
@@ -604,6 +605,117 @@ def test_tamper_recovery_filing_actor(built, tmp_path):
                for n in failed)
     check = _check(result, "EX02 order[ACC-EX02-0001] result[CEP8] entered_by")
     assert (check["expected"], check["observed"]) == ("analyst01", "interface")
+
+
+@pytest.mark.parametrize("option,value,field", [
+    ("--mrn", "SYN-WRONG-PATIENT", "patient mrn"),
+    ("--last-name", "Wrong", "patient last_name"),
+    ("--first-name", "Person", "patient first_name"),
+    ("--dob", "1980-12-31", "patient date_of_birth"),
+    ("--sex", "F", "patient sex"),
+    ("--provider", "Dr. Different", "ordering_provider"),
+    ("--specimen-type", "PERIPHERAL_BLOOD", "specimen[1] specimen_type"),
+])
+def test_ex02_registration_details_are_verified(
+    exercise_copy, tmp_path, option, value, field
+):
+    # The existing service matches accession only. The exercise verifier must
+    # independently check the registration details EX02 asks the analyst to use.
+    ex = "EX02-unknown-accession-retry"
+
+    def edit(d):
+        argv = d["solution_steps"][0]["argv"]
+        argv[argv.index(option) + 1] = value
+
+    _edit_json(exercise_copy / "answer-keys" / f"{ex}.json", edit)
+    run = exercises.run_exercise(ex, tmp_path / "wrong-registration.db")
+    assert all(s["matched"] for s in run["steps"])
+    result = run["verification"]
+    assert result["passed"] is False
+    name = f"EX02 order[ACC-EX02-0001] {field}"
+    assert _failed(result) == {name}
+    assert _check(result, name)["observed"] == value
+
+
+def test_ex02_specimen_accession_status_is_verified(built, tmp_path):
+    result = _verify_tampered(
+        built, tmp_path, "EX02-unknown-accession-retry",
+        ("UPDATE specimen SET status = 'RECEIVED'", ()),
+    )
+    name = "EX02 order[ACC-EX02-0001] specimen[1] status"
+    assert _check(result, name)["observed"] == "RECEIVED"
+    assert name in _failed(result)
+
+
+@pytest.mark.parametrize("table,field", [
+    ("patient", "patient exists"),
+    ("specimen", "specimen count"),
+])
+def test_ex02_missing_registration_rows_fail_safely(built, tmp_path, table, field):
+    result = _verify_tampered(
+        built, tmp_path, "EX02-unknown-accession-retry",
+        (f"DELETE FROM {table}", ()),
+    )
+    assert f"EX02 order[ACC-EX02-0001] {field}" in _failed(result)
+    json.dumps(result)
+
+
+def test_ex01_task_export_timestamp_is_verified(exercise_copy, tmp_path):
+    ex = "EX01-valid-result-export"
+
+    def edit(d):
+        argv = d["solution_steps"][2]["argv"]
+        argv[argv.index("--generated-at") + 1] = "2030-01-01 00:00:00"
+
+    _edit_json(exercise_copy / "answer-keys" / f"{ex}.json", edit)
+    run = exercises.run_exercise(ex, tmp_path / "wrong-export-time.db")
+    assert all(s["matched"] for s in run["steps"])
+    result = run["verification"]
+    assert result["passed"] is False
+    label = "EX01 outbound[ACC-EX01-0001 HL7] message[2]"
+    assert _failed(result) == {
+        f"{label} MSH-7 timestamp", f"{label} MSH-10 control_id",
+        f"{label} stored control_id",
+    }
+    assert _check(result, f"{label} MSH-7 timestamp")["observed"] == "20300101000000"
+
+
+@pytest.mark.parametrize("target", ["payload", "stored"])
+def test_ex01_control_id_is_verified_in_payload_and_row(built, tmp_path, target):
+    ex = "EX01-valid-result-export"
+    mid, payload = _outbound_message(built[ex], "HL7")
+    control_id = "CBORUACCEX01000120261025090000"
+    if target == "payload":
+        assert control_id in payload
+        statement = ("UPDATE interface_message SET payload = ? WHERE message_id = ?",
+                     (payload.replace(control_id, "SYN-WRONG-CONTROL"), mid))
+        field = "MSH-10 control_id"
+    else:
+        statement = ("UPDATE interface_message SET control_id = ? WHERE message_id = ?",
+                     ("SYN-WRONG-CONTROL", mid))
+        field = "stored control_id"
+    result = _verify_tampered(built, tmp_path, ex, statement)
+    name = f"EX01 outbound[ACC-EX01-0001 HL7] message[{mid}] {field}"
+    assert _failed(result) == {name}
+    assert _check(result, name)["observed"] == "SYN-WRONG-CONTROL"
+
+
+@pytest.mark.parametrize("header_count", [0, 2])
+def test_ex01_header_must_exist_unambiguously(built, tmp_path, header_count):
+    ex = "EX01-valid-result-export"
+    mid, payload = _outbound_message(built[ex], "HL7")
+    header, rest = payload.split("\r", 1)
+    assert header.startswith("MSH|")
+    changed = "\r".join([header] * header_count + [rest])
+    result = _verify_tampered(
+        built, tmp_path, ex,
+        ("UPDATE interface_message SET payload = ? WHERE message_id = ?", (changed, mid)),
+    )
+    label = f"EX01 outbound[ACC-EX01-0001 HL7] message[{mid}]"
+    assert _check(result, f"{label} MSH header count")["observed"] == header_count
+    assert _failed(result) == {
+        f"{label} MSH header count", f"{label} MSH-7 timestamp", f"{label} MSH-10 control_id",
+    }
 
 
 def test_verify_reads_one_snapshot(built, tmp_path, monkeypatch):

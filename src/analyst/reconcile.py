@@ -245,7 +245,7 @@ RULES: dict[str, dict[str, str]] = {
         "documented_rule": (
             "R-016 and R-038: the INBOUND_RESULT_FILED event names its source "
             "message and commits with the filing, so the message it names exists, "
-            "is FILED, and is filed to the event's order."
+            "is INBOUND and FILED, and is filed to the event's order."
         ),
     },
     "AUD-003": {
@@ -847,6 +847,13 @@ def _check_audit(conn: sqlite3.Connection, out: list[dict[str, Any]]) -> None:
                     f"exist."
                 )
                 subjects = [subject]
+            elif t["direction"] != "INBOUND":
+                obs = (
+                    f"audit_event {e['event_id']} ({INBOUND_RESULT_FILED}, order "
+                    f"{_null(e['order_id'])}) names {t['direction']} interface_message "
+                    f"{mid}, not INBOUND."
+                )
+                subjects = [subject, _msg(mid)]
             elif t["status"] != "FILED":
                 obs = (
                     f"audit_event {e['event_id']} ({INBOUND_RESULT_FILED}, order "

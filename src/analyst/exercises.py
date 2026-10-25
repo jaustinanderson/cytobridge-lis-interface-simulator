@@ -99,7 +99,10 @@ _EXPECTED_SECTIONS = (
 _ORDER_KEYS = (
     "accession", "status", "result_count", "results", "report_status",
     "report_finalized_by", "audit_action_counts", "validation_blocking",
+    "patient", "ordering_provider", "specimens",
 )
+_PATIENT_FIELDS = ("mrn", "last_name", "first_name", "date_of_birth", "sex")
+_SPECIMEN_FIELDS = ("specimen_type", "status")
 # Per-probe fish_result columns an answer key may state.
 _RESULT_FIELDS = (
     "cells_scored", "cells_abnormal", "signal_pattern", "interpretation", "entered_by",
@@ -115,7 +118,9 @@ _ATTEMPT_KEYS = (
     "resulting_message_status",
 )
 _ATTEMPT_COLUMNS = ("request_id", "action", "outcome", "actor")
-_OUTBOUND_KEYS = ("accession", "format", "count", "matches_results")
+_OUTBOUND_KEYS = (
+    "accession", "format", "count", "matches_results", "hl7_timestamp", "control_id",
+)
 _OUTBOUND_FORMATS = ("HL7", "FHIR")
 
 _CONFLICT_ACTION = "REQUEST_ID_CONFLICT"
@@ -546,7 +551,8 @@ def _scalar(conn: sqlite3.Connection, sql: str, params: tuple = ()) -> Any:
 
 def _order_row(conn: sqlite3.Connection, accession: str) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT order_id, status, panel_id FROM lab_order WHERE accession_number = ?",
+        "SELECT order_id, status, panel_id, patient_id, ordering_provider "
+        "FROM lab_order WHERE accession_number = ?",
         (accession,),
     ).fetchone()
 
@@ -616,6 +622,47 @@ def _verify_orders(
         if not checks.add(f"{label} exists", True, order is not None):
             continue
         oid = order["order_id"]
+        if "ordering_provider" in exp:
+            checks.add(
+                f"{label} ordering_provider",
+                exp["ordering_provider"], order["ordering_provider"],
+            )
+        if "patient" in exp:
+            want = exp["patient"]
+            if not isinstance(want, dict):
+                checks.unsupported(f"{label} patient", ["(not an object)"])
+            else:
+                checks.unsupported(
+                    f"{label} patient", [k for k in want if k not in _PATIENT_FIELDS]
+                )
+                patient = conn.execute(
+                    "SELECT mrn, last_name, first_name, date_of_birth, sex "
+                    "FROM patient WHERE patient_id = ?", (order["patient_id"],),
+                ).fetchone()
+                if checks.add(f"{label} patient exists", True, patient is not None):
+                    for field in _PATIENT_FIELDS:
+                        if field in want:
+                            checks.add(f"{label} patient {field}", want[field], patient[field])
+        if "specimens" in exp:
+            expected_specimens = exp["specimens"]
+            if not isinstance(expected_specimens, list):
+                checks.unsupported(f"{label} specimens", ["(not a list)"])
+            else:
+                specimens = conn.execute(
+                    "SELECT specimen_type, status FROM specimen "
+                    "WHERE order_id = ? ORDER BY specimen_id", (oid,),
+                ).fetchall()
+                checks.add(f"{label} specimen count", len(expected_specimens), len(specimens))
+                for n, want in enumerate(expected_specimens, start=1):
+                    slabel = f"{label} specimen[{n}]"
+                    if not isinstance(want, dict):
+                        checks.unsupported(slabel, ["(not an object)"])
+                        continue
+                    checks.unsupported(slabel, [k for k in want if k not in _SPECIMEN_FIELDS])
+                    if n <= len(specimens):
+                        for field in _SPECIMEN_FIELDS:
+                            if field in want:
+                                checks.add(f"{slabel} {field}", want[field], specimens[n-1][field])
         if "status" in exp:
             checks.add(f"{label} status", exp["status"], order["status"])
         if "result_count" in exp:
@@ -933,13 +980,37 @@ def _verify_outbound(
             continue
         oid = order["order_id"]
         messages = conn.execute(
-            "SELECT message_id, payload FROM interface_message "
+            "SELECT message_id, payload, control_id FROM interface_message "
             "WHERE direction = 'OUTBOUND' AND format = ? AND order_id = ? "
             "ORDER BY message_id",
             (fmt, oid),
         ).fetchall()
         if "count" in exp:
             checks.add(f"{label} count", exp["count"], len(messages))
+        header_keys = [k for k in ("hl7_timestamp", "control_id") if k in exp]
+        if header_keys and fmt != "HL7":
+            checks.unsupported(label, [f"{k} (HL7 only)" for k in header_keys])
+        elif header_keys:
+            # These are literal task expectations, not values regenerated from
+            # the exporter. MSH is special: split indexes 6 and 9 are MSH-7/10.
+            checks.add(f"{label} header messages present", True, bool(messages))
+            for m in messages:
+                mlabel = f"{label} message[{m['message_id']}]"
+                headers = [s for s in inbound_hl7._split_segments(m["payload"])
+                           if s and s[0] == "MSH"] if isinstance(m["payload"], str) else []
+                checks.add(f"{mlabel} MSH header count", 1, len(headers))
+                header = headers[0] if len(headers) == 1 else []
+                if "hl7_timestamp" in exp:
+                    checks.add(
+                        f"{mlabel} MSH-7 timestamp", exp["hl7_timestamp"],
+                        header[6] if len(header) > 6 else None,
+                    )
+                if "control_id" in exp:
+                    checks.add(
+                        f"{mlabel} MSH-10 control_id", exp["control_id"],
+                        _hl7_unescape(header[9]) if len(header) > 9 else None,
+                    )
+                    checks.add(f"{mlabel} stored control_id", exp["control_id"], m["control_id"])
         if "matches_results" in exp:
             want = _jsonable(_expected_export_values(_current_results(conn, oid), fmt))
             panel_codes = {
