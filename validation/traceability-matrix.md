@@ -118,6 +118,14 @@ now exists, recorded here rather than in the frozen file. The demonstration in
 `test_recovery_service.py` suite is what proves all twelve corrected corpus
 re-drives and both human-approved invariants (I-01, I-02).
 
+Issue #43 later authorized an additive, headless analyst CLI
+(`python -m src.analyst`, R-043 - R-052) whose `recover` commands call these
+same three service functions and add no recovery semantics. The frozen R-039
+wording ("no web UI, REST API, full CLI, or unrelated framework") is preserved
+here as the v1.1 record, and R-039's evidence still exercises the service
+functions directly. Whether the frozen wording should be amended to mention
+the later CLI is Austin's decision; no frozen file is changed.
+
 ## Coverage summary
 
 | Category | Requirements | Automated PASS | Manual UAT |
