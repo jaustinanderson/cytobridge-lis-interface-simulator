@@ -310,6 +310,17 @@ def parse_iscn(iscn_text: str) -> ISCNParseResult:
         return _reject(raw, [_malformed("", "Empty ISCN string.")])
     if len(text) > MAX_ISCN_LENGTH:
         return _reject(raw, [_malformed(text[:24], f"Longer than {MAX_ISCN_LENGTH} characters.")])
+    # FISH and microarray nomenclature (which legitimately contain spaces, e.g.
+    # "nuc ish(...)") is recognized and classified before the karyotype
+    # whitespace rule, so the caller is told it is unsupported, not malformed.
+    lowered = text.lower()
+    if lowered.startswith(("nuc ish", "ish ", "ish(", "rev ish", "arr[", "arr(", "arr ")) or any(
+        marker in lowered for marker in (".nuc ish", ".ish ", ".ish(", ".arr[", ".arr(")
+    ):
+        return _reject(
+            raw,
+            [_unsupported(text[:24], "FISH (nuc ish, ish) and microarray (arr) nomenclature are outside this subset.")],
+        )
     if any(ch.isspace() for ch in text):
         return _reject(raw, [_malformed(text, "ISCN karyotypes contain no spaces.")])
     if "//" in text:

@@ -160,6 +160,22 @@ def test_unsupported_constructs_are_rejected_as_unsupported(text):
     assert result.abnormalities == []
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "nuc ish(D8Z2x2)[200]",
+        "ish 22q11.2(TUPLE1x1)",
+        "46,XX[20].nuc ish(D8Z2x2)[200]",
+        "arr[GRCh38] 5q31.2(137000000_138000000)x1",
+    ],
+)
+def test_fish_and_microarray_nomenclature_is_unsupported_not_malformed(text):
+    result = parse_iscn(text)
+    assert not result.is_valid
+    assert _kinds(result) == ["unsupported"]
+    assert result.clones == []
+
+
 def test_mixed_supported_and_unsupported_input_is_never_partially_valid():
     result = parse_iscn("47,XX,+8,del(5)(q13q33)[20]")
     assert not result.is_valid

@@ -380,7 +380,7 @@ deployment, or standards-conformance change. All data remains synthetic.
 - `tests/test_iscn_parser.py` - accepted, malformed, unsupported, mixed-input,
   multi-clone, every-issue and bounds tests.
 - Validation package - R-042, its traceability row, UAT-019 (defined, not
-  executed) and the known-issues ISCN row; current test counts updated (238
+  executed) and the known-issues ISCN row; current test counts updated (242
   tests across nine suites).
 
 **Authorization:** Austin delegated the night's bounded task choices on
@@ -397,7 +397,7 @@ interpretation. All examples are synthetic notation.
 
 - **One session/task = one branch = one PR**, never committed straight to `main`.
 - **Tests accompany behavior** - every code session and v1.1 task added matching
-  coverage; the current suite has 238 passing tests across nine suites,
+  coverage; the current suite has 242 passing tests across nine suites,
   including result assertions for all analyst SQL views and the full controlled
   recovery service.
 - **Scope guardrails** honored every session and task (no UI/Docker/ORM/new
