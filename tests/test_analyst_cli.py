@@ -1091,6 +1091,46 @@ def test_preview_outcomes_match_service_semantics(rich: Lab) -> None:
     assert replayed["result"]["request"]["action"] == "REDRIVE_CORRECTED"
 
 
+def test_evidence_revision_origin_git_or_supplied(rich: Lab, monkeypatch: Any) -> None:
+    from src.analyst import evidence
+
+    monkeypatch.setattr(evidence, "resolve_source_revision", lambda *a, **k: "c" * 40)
+    resolved = rich.run("evidence", *rich.dbargs, "--queue-id", 1, expect=0)
+    source = resolved["result"]["evidence"]["source"]
+    assert source == {**source, "revision": "c" * 40, "revision_origin": "git"}
+    supplied = rich.run("evidence", *rich.dbargs, "--queue-id", 1,
+                        "--source-revision", "manual-rev", expect=0)
+    source = supplied["result"]["evidence"]["source"]
+    assert source["revision"] == "manual-rev" and source["revision_origin"] == "supplied"
+
+
+def test_case_create_collected_at_must_be_a_stored_timestamp(open_lab: Lab) -> None:
+    before = table_counts(open_lab.db)
+    for bad in ("yesterday", "2026-13-01 00:00:00", "2026-07-08T09:00:00", "2026-07-08"):
+        env = open_lab.case("ACC-CLI-0009", "SYN-CLI-09", "--collected-at", bad, expect=2)
+        assert env["error"]["type"] == "USAGE" and "--collected-at" in env["error"]["message"]
+    assert table_counts(open_lab.db) == before
+    ok = open_lab.case("ACC-CLI-0009", "SYN-CLI-09", "--collected-at",
+                       "2026-07-08 09:00:00", expect=0)
+    assert scalar(open_lab.db, "SELECT collected_at FROM specimen WHERE specimen_id = ?",
+                  (ok["result"]["specimen_id"],)) == "2026-07-08 09:00:00"
+
+
+def test_text_trace_survives_a_missing_patient_row(open_lab: Lab) -> None:
+    conn = sqlite3.connect(open_lab.db)
+    try:
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute("DELETE FROM patient")
+        conn.commit()
+    finally:
+        conn.close()
+    code, text, err = open_lab.text("trace", *open_lab.dbargs, "--order-id", 1)
+    assert code == 0, err
+    assert "patient NULL" in text
+    code, _, _ = open_lab.text("reconcile", *open_lab.dbargs)
+    assert code == 1  # REL-001 reports the broken lab_order.patient_id
+
+
 def test_evidence_read_only_and_output_files(rich: Lab) -> None:
     before_sha = sha256_path(rich.db)
     out, report = rich.root / "ev.json", rich.root / "ev.md"

@@ -128,8 +128,9 @@ exit codes:
   0  OK             command completed (a recovery request SUCCEEDED, fresh or replayed)
   1  CHECK_FAILED   reconcile found ERROR findings; exercise verification failed
   2  USAGE          invalid arguments, unknown command, missing required option
-  3  NOT_FOUND      database, input file, order, queue item, message, specimen,
-                    or exercise does not exist (a missing database is never created)
+  3  NOT_FOUND      database, input file, output directory, order, queue item,
+                    message, specimen, or exercise does not exist (a missing
+                    database is never created)
   4  REFUSED        request refused or not applied: duplicate MRN/accession,
                     closed order, finalize blocked, message routed to the error
                     queue, recovery outcome not SUCCEEDED, REQUEST_ID_CONFLICT,
@@ -482,6 +483,9 @@ def _cmd_init(ns: argparse.Namespace) -> dict[str, Any]:
 
 def _cmd_case_create(ns: argparse.Namespace) -> dict[str, Any]:
     _check_date(ns.dob, "--dob")
+    if ns.collected_at is not None:
+        # The outbound HL7/FHIR formatters expect the stored timestamp shape.
+        _check_datetime(ns.collected_at, "--collected-at")
     with _read_write(ns.db) as conn:
         # Read-only preflight: patient.mrn and lab_order.accession_number are
         # UNIQUE in schema.sql; refuse before the first service write.
@@ -984,11 +988,9 @@ def _cmd_evidence(ns: argparse.Namespace) -> dict[str, Any]:
     ]
     for path, option in outputs:
         _check_new_output(path, option)
-    revision = (
-        ns.source_revision
-        if ns.source_revision is not None
-        else evidence.resolve_source_revision()
-    )
+    # None lets build_evidence resolve the revision from git and record its
+    # origin as "git"; an explicit --source-revision is recorded as "supplied".
+    revision = ns.source_revision
     with _read_only(ns.db) as conn:
         ev = evidence.build_evidence(
             conn,
@@ -1255,10 +1257,14 @@ def _render_trace(case: dict[str, Any], ns: argparse.Namespace) -> list[str]:
             f"order {o['order_id']}  accession {o['accession_number']}  status "
             f"{o['status']}  priority {o['priority']}  panel {o['panel_code']}"
         )
-        lines.append(
-            f"  patient {p['patient_id']}  mrn {p['mrn']}  {p['last_name']}, "
-            f"{p['first_name']}  dob {p['date_of_birth']}  sex {p['sex']}"
-        )
+        if p is None:
+            # A broken lab_order.patient_id (reconcile reports it as REL-001).
+            lines.append("  patient NULL (no patient row for this order's patient_id)")
+        else:
+            lines.append(
+                f"  patient {p['patient_id']}  mrn {p['mrn']}  {p['last_name']}, "
+                f"{p['first_name']}  dob {p['date_of_birth']}  sex {p['sex']}"
+            )
         lines.append(
             f"  provider {o['ordering_provider']}  ordered {o['ordered_at']}  "
             f"collected {o['collected_at'] or '-'}  finalized {o['finalized_at'] or '-'}"

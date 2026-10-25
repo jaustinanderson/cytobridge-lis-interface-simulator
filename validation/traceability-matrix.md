@@ -22,7 +22,7 @@ Three requirement sources are traced here:
 > procedure was manually executed and passed on 2026-07-25 with recorded
 > evidence - UAT-011 - UAT-018, see the
 > [execution report](v1.1-recovery-uat-execution-report.md)). Test names match
-> the current codebase (`pytest` -> **597 passed** across sixteen suites).
+> the current codebase (`pytest` -> **600 passed** across sixteen suites).
 
 **Status legend:**
 
@@ -175,7 +175,7 @@ Austin's mastery.
 Every v1 and v1.1 requirement traces to at least one automated `pytest` test
 **and** a manual UAT script; the analyst lab requirements (R-043 - R-052) have
 automated coverage only. The automated layer runs and passes today (`pytest` ->
-597 passed across sixteen suites). The v1.1 manual layer (UAT-011 - UAT-018, mapped
+600 passed across sixteen suites). The v1.1 manual layer (UAT-011 - UAT-018, mapped
 to R-020 - R-041) was manually executed and passed on 2026-07-25, with the
 recorded evidence in the
 [execution report](v1.1-recovery-uat-execution-report.md); the v1 manual layer

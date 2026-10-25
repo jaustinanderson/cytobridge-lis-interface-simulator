@@ -57,7 +57,7 @@ Validation is layered:
 
 | Metric | Result |
 |---|---|
-| Automated tests | **597 passed** (`pytest`, sixteen suites) |
+| Automated tests | **600 passed** (`pytest`, sixteen suites) |
 | Requirements traced | 51 / 51 mapped to code + test; the 41 v1/v1.1 requirements also map to a UAT |
 | Requirements with automated coverage passing | 51 / 51 |
 | Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
@@ -143,8 +143,10 @@ recovery semantics and is proven by the eight `test_analyst_*.py` suites:
 - **Persistence and errors:** each CLI command runs in a separate process
   against a file database, and a new interpreter reads the results back.
   Invalid arguments, unknown ids, missing or non-UTF-8 files, existing `init`
-  targets, and blocked transitions return the documented exit codes with the
-  database contents unchanged.
+  targets, and blocked transitions return the documented exit codes and leave
+  state correct. Refused preflight requests write nothing, a blocked finalize
+  records only its findings and `FINALIZE_BLOCKED` audit event, and a
+  `REJECTED` recovery records only its attempt row.
 - **Read-only guarantees:** the database file hash is identical before and
   after every read command, and a missing database is never created.
 - **Trace and reconciliation:** case links are checked against independent SQL,
@@ -189,7 +191,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # -> 597 passed
+python -m pytest -q                   # -> 600 passed
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 mkdir lab-work && python -m src.analyst exercise run-all --workdir lab-work/all   # -> 7 verified
 ```
