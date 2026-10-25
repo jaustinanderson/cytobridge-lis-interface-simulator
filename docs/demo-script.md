@@ -117,9 +117,9 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 ## 5:30-6:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
-- **Say:** "The bottom line: 176 automated tests pass across eight suites, all 41
+- **Say:** "The bottom line: 238 automated tests pass across nine suites, all 42
   requirements are traced to code and passing automated coverage within the
-  synthetic scope, the demo runs clean through five scenarios, and of the 18
+  synthetic scope, the demo runs clean through five scenarios, and of the 19
   UAT scripts the eight recovery ones were manually executed and passed. And I
   wrote down the limitations honestly in `known-issues.md` and
   `risk-assessment.md` - including that this is Beaker-adjacent learning, not
@@ -144,8 +144,8 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
   approved before implementation.
 - **"What would you build next?"** Nothing beyond the approved scope without
   Austin's sign-off - the error-queue resolve/re-drive workflow (former KI-03) is
-  now built and reviewed; the ISCN parser seam is a candidate only if it serves a
-  specific learning goal.
+  now built and reviewed, and an educational ISCN karyotype subset parser exists;
+  broader ISCN coverage is a candidate only if it serves a specific learning goal.
 - **"How is this different from Epic?"** Point to
   [`portfolio-review.md`](portfolio-review.md) - "I model the *category* of
   system Beaker is; I don't use Epic software or build content."

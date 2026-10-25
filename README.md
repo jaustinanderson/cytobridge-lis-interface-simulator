@@ -29,9 +29,9 @@ validation evidence, and troubleshooting documentation.
 > checks and Austin's sign-off provide the project evidence; an AI self-review
 > is not represented as independent review.
 
-**Verified state (this codebase):** 176 passing pytest tests across eight suites,
-five end-to-end demonstration scenarios, and 41/41 requirements with result-level
-automated coverage that passes today, plus 18 manual UAT definitions. The v1.1
+**Verified state (this codebase):** 238 passing pytest tests across nine suites,
+five end-to-end demonstration scenarios, and 42/42 requirements with result-level
+automated coverage that passes today, plus 19 manual UAT definitions. The v1.1
 recovery UATs (UAT-011 - UAT-018, including both UAT-015 subcases) were manually
 executed and passed on 2026-07-25 - see the
 [recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md).
@@ -219,7 +219,7 @@ src/
   db.py                 sqlite3 helpers; parameterized queries; query loader
   workflow.py           patient/order/specimen/result/finalize + audit
   validation.py         validation rules (returns typed findings)
-  reports.py            report summary + seam for a future ISCN parser
+  reports.py            report summary + educational ISCN karyotype subset parser
   interfaces/           interface generation + ingestion
     __init__.py             collect_report_data + store_message + shared types
     outbound_hl7.py         HL7 ORU^R01-style message generation (Session 2)
@@ -239,12 +239,12 @@ docs/
   portfolio-review.md          what it proves / Epic boundary / resume
   hiring-manager-review.md     scorecard + resume/interview framing
 validation/                    validation package
-  requirements.md              v1 numbered requirements (R-001...R-019)
+  requirements.md              v1 numbered requirements (R-001...R-019) + R-042
   v1.1-design-record.md        frozen v1.1 design decision record (pre-impl)
   v1.1-requirements.md         frozen v1.1 requirements (R-020...R-041) (pre-impl)
   v1.1-test-intent.md          frozen v1.1 test intent (pre-impl)
-  traceability-matrix.md       requirement -> code -> test -> UAT (R-001...R-041)
-  uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-018)
+  traceability-matrix.md       requirement -> code -> test -> UAT (R-001...R-042)
+  uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-019)
   v1.1-recovery-uat-execution-report.md  recovery UAT execution evidence (UAT-011...UAT-018)
   validation-summary.md        approach + results summary
   known-issues.md              limitations and tracked issues
@@ -259,6 +259,7 @@ tests/
   test_recovery_schema.py      v1.1 recovery schema + constraints
   test_failure_classification.py  v1.1 structured failure classification
   test_recovery_service.py     v1.1 controlled recovery service behavior
+  test_iscn_parser.py          educational ISCN karyotype subset parser
 ```
 
 ## Data model highlights
@@ -312,7 +313,7 @@ recovery service.
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # 176 tests
+python -m pytest -q                   # 238 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python
@@ -346,9 +347,9 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
   boundary, resume bullets, and interview talking points) /
   [hiring-manager review](docs/hiring-manager-review.md) (scorecard + resume/LinkedIn framing)
 
-Every requirement (`R-001`-`R-041`) traces to the code (file/function or schema
+Every requirement (`R-001`-`R-042`) traces to the code (file/function or schema
 constraint), result-level automated `pytest` coverage, and a manual UAT script
-(`UAT-001`-`UAT-018`). Automated coverage passes today. The v1.1 recovery UATs
+(`UAT-001`-`UAT-019`). Automated coverage passes today. The v1.1 recovery UATs
 (UAT-011-UAT-018) were manually executed and passed - evidence in the
 [recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md) -
 while UAT-001-UAT-010 remain defined but not manually executed. This is
@@ -376,9 +377,16 @@ Done:
   P3-001 - P3-005), with the recovery UATs (UAT-011 - UAT-018) manually
   executed and passed.
 
+- [x] ISCN karyotype parser, educational subset (P4-001): chromosome total,
+  `XX`/`XY`, autosomal gains/losses, simple two-autosome translocations,
+  written-out clones and cell counts. Everything else is rejected as
+  unsupported or malformed, never partially accepted.
+
 Next bounded enhancements:
 
-- [ ] ISCN nomenclature parser (seam already present in `reports.py`).
+- [ ] Broader ISCN coverage (for example deletions, inversions,
+  sex-chromosome changes, FISH `nuc ish` nomenclature), each as its own
+  bounded task.
 
 The headless interface is deliberate. A UI, production transport, additional
 panels, authentication, and clinical deployment remain outside this project's

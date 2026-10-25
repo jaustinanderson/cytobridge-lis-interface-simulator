@@ -24,14 +24,16 @@ what the current results are, and what "validated" does and does not mean here.
 
 Validation is layered:
 
-1. **Requirements** - 41 numbered, testable requirements: `R-001`-`R-019` (v1)
-   in [`requirements.md`](requirements.md) and `R-020`-`R-041` (v1.1 controlled
-   recovery) in the frozen [`v1.1-requirements.md`](v1.1-requirements.md).
-2. **Automated tests** - `pytest` across **eight** suites (`test_workflow.py`,
+1. **Requirements** - 42 numbered, testable requirements: `R-001`-`R-019` (v1)
+   in [`requirements.md`](requirements.md), `R-020`-`R-041` (v1.1 controlled
+   recovery) in the frozen [`v1.1-requirements.md`](v1.1-requirements.md), and
+   `R-042` (P4-001 educational ISCN subset) in [`requirements.md`](requirements.md).
+2. **Automated tests** - `pytest` across **nine** suites (`test_workflow.py`,
    `test_validation.py`, `test_outbound_interfaces.py`,
    `test_inbound_interfaces.py`, `test_queries.py`, `test_recovery_schema.py`,
-   `test_failure_classification.py`, `test_recovery_service.py`).
-3. **Manual UAT** - 18 analyst-style acceptance scripts (`UAT-001`-`UAT-018`)
+   `test_failure_classification.py`, `test_recovery_service.py`,
+   `test_iscn_parser.py`).
+3. **Manual UAT** - 19 analyst-style acceptance scripts (`UAT-001`-`UAT-019`)
    in [`uat-test-scripts.md`](uat-test-scripts.md). UAT-011-UAT-018 (including
    both UAT-015 subcases) were **manually executed and passed** on 2026-07-25,
    with recorded evidence in the
@@ -50,10 +52,10 @@ Validation is layered:
 
 | Metric | Result |
 |---|---|
-| Automated tests | **176 passed** (`pytest`, eight suites) |
-| Requirements traced | 41 / 41 mapped to code + test + UAT |
-| Requirements with automated coverage passing | 41 / 41 |
-| Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
+| Automated tests | **238 passed** (`pytest`, nine suites) |
+| Requirements traced | 42 / 42 mapped to code + test + UAT |
+| Requirements with automated coverage passing | 42 / 42 |
+| Manual UAT | 19 / 19 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 and UAT-019 not manually executed |
 | AI functional replay | UAT-004 PASS (2026-09-04, [synthetic evidence](uat004-ai-functional-replay.json)); human acceptance and Austin mastery remain pending |
 | Demo scenarios | 5 / 5 run clean (`python -m src.demo_run`, exit 0) |
 | Reproducibility | Deterministic - in-memory DB seeded from `schema.sql`; fixed sample messages and recovery corpus |
@@ -143,7 +145,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # -> 176 passed
+python -m pytest -q                   # -> 238 passed
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 ```
 
@@ -156,7 +158,7 @@ claiming a manual pass.
 
 ## Conclusion
 
-Within its stated synthetic scope, the simulator meets all 41 requirements,
+Within its stated synthetic scope, the simulator meets all 42 requirements,
 each backed by result-level automated coverage that runs and passes today and
 a manual UAT that is executed-and-passed for v1.1 recovery (UAT-011-UAT-018)
 and defined (not executed) for v1. The workflow, validation, outbound generation,

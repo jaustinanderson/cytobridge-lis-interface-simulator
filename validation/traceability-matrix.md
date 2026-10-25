@@ -10,6 +10,8 @@ Two requirement sources are traced here:
   [`v1.1-requirements.md`](v1.1-requirements.md). The frozen numbering and
   wording are preserved verbatim; this matrix records the implementation
   evidence that closes them, it does not restate or weaken them.
+- **R-042** (P4-001 educational ISCN karyotype subset) from
+  [`requirements.md`](requirements.md).
 
 > **Synthetic learning project - no PHI, not a validated device.** The two status
 > columns below mean different things and are reported separately, never merged:
@@ -19,7 +21,7 @@ Two requirement sources are traced here:
 > procedure was manually executed and passed on 2026-07-25 with recorded
 > evidence - UAT-011 - UAT-018, see the
 > [execution report](v1.1-recovery-uat-execution-report.md)). Test names match
-> the current codebase (`pytest` -> **164 passed** across eight suites).
+> the current codebase (`pytest` -> **238 passed** across nine suites).
 
 **Status legend:**
 
@@ -118,6 +120,12 @@ now exists, recorded here rather than in the frozen file. The demonstration in
 `test_recovery_service.py` suite is what proves all twelve corrected corpus
 re-drives and both human-approved invariants (I-01, I-02).
 
+## P4-001 report-nomenclature matrix (R-042)
+
+| Req ID | Requirement (short) | Implemented by (file / function) | pytest coverage | UAT | Status |
+|---|---|---|---|---|---|
+| **R-042** | `parse_iscn` accepts only the documented educational ISCN karyotype subset; everything else is rejected as unsupported or malformed, never partially valid | `src/reports.py` / `parse_iscn`, `_parse_clone`, `_classify_unknown_abnormality` | `tests/test_iscn_parser.py` (accepted subset, malformed supported notation, unsupported constructs, mixed input, every-issue reporting, bounds and types) | UAT-019 (DEFINED) | PASS |
+
 ## Coverage summary
 
 | Category | Requirements | Automated PASS | Manual UAT |
@@ -135,14 +143,15 @@ re-drives and both human-approved invariants (I-01, I-02).
 | Recovery outcomes/history (v1.1) | R-032, R-033 | 2 | 2 PASS |
 | Recovery idempotency/atomicity (v1.1) | R-034 - R-038, R-041 | 6 | 6 PASS |
 | Recovery service/audit (v1.1) | R-039, R-040 | 2 | 2 PASS |
-| **Total** | **41** | **41** | **19 DEFINED (v1) + 22 PASS (v1.1)** |
+| ISCN subset (P4-001) | R-042 | 1 | 1 DEFINED |
+| **Total** | **42** | **42** | **20 DEFINED (v1 + P4-001) + 22 PASS (v1.1)** |
 
 Every requirement traces to at least one automated `pytest` test **and** a
-manual UAT script. The automated layer runs and passes today (`pytest` -> 164
-passed across eight suites). The v1.1 manual layer (UAT-011 - UAT-018, mapped
+manual UAT script. The automated layer runs and passes today (`pytest` -> 238
+passed across nine suites). The v1.1 manual layer (UAT-011 - UAT-018, mapped
 to R-020 - R-041) was manually executed and passed on 2026-07-25, with the
 recorded evidence in the
 [execution report](v1.1-recovery-uat-execution-report.md); the v1 manual layer
-(UAT-001 - UAT-010) is defined but not executed - run it from
+(UAT-001 - UAT-010) and UAT-019 (P4-001) are defined but not executed - run it from
 [`uat-test-scripts.md`](uat-test-scripts.md) and record the results before
 claiming a manual pass.
