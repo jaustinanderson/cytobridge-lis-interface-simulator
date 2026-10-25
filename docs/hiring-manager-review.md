@@ -23,8 +23,8 @@ A review of the CytoBridge LIS Interface Simulator from the perspective of an
 > **held at 8.9**: the addition strengthens dimensions 6 (error queue /
 > troubleshooting) and 7 (validation / UAT maturity), but breadth (one panel,
 > educational interfaces, in-memory) is unchanged, so re-scoring is not warranted
-> on that basis alone. Current evidence is **513 passing tests across fifteen
-> suites**, **51/51 requirements** with passing automated coverage (the v1.1
+> on that basis alone. Current evidence is **164 passing tests across eight
+> suites**, **41/41 requirements** with passing automated coverage (the v1.1
 > recovery UATs, UAT-011 - UAT-018, manually executed and passed; the v1 manual
 > UATs defined, not executed), and **five** clean demo scenarios. A notable maturity
 > signal: the recovery behavior was specified in a **frozen, pre-implementation
@@ -84,7 +84,7 @@ disclosed rather than hidden.
 - **A genuine validation package.** Requirements -> code -> test -> UAT
   traceability, a risk register, and a self-authored known-issues list signal
   someone who can work with QA and auditors.
-- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 513 passing
+- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 176 passing
   tests, a 5-scenario demo, and a timed demo script.
 
 ## Weaknesses
@@ -167,9 +167,8 @@ Beaker-adjacent learning, not Epic experience."
    filing side effects and commits a FAILED attempt with the queue left OPEN,
    while an unexpected error rolls back the whole request. Nothing is silently
    dropped or half-updated."
-5. **(1:45-2:00) Prove it.** "41 core requirements each trace to a function or schema
-   constraint, a test, and a UAT script, and 10 analyst-lab requirements to
-   automated tests; 513 tests pass across fifteen suites; the
+5. **(1:45-2:00) Prove it.** "41 requirements each trace to a function or schema
+   constraint, a test, and a UAT script; 176 tests pass across eight suites; the
    demo runs five scenarios end-to-end; and the recovery behavior was frozen in a
    design record before I wrote a line of it. I wrote the limitations down myself,
    and I'm clear that the recovery build was done with an AI assistant under my
@@ -182,8 +181,8 @@ Beaker-adjacent learning, not Epic experience."
 > per-probe results, cutoff-aware validation, finalization, and audit - with
 > outbound HL7/FHIR generation, inbound ORU ingestion routed through an interface
 > error queue, and a controlled, idempotent error-queue recovery service
-> (immutable original, transaction-safe rollback); 51 traceable requirements and
-> 513 passing tests. (Synthetic data; educational, Beaker-adjacent - not Epic
+> (immutable original, transaction-safe rollback); 41 traceable requirements and
+> 176 passing tests. (Synthetic data; educational, Beaker-adjacent - not Epic
 > build experience.)
 
 ## Suggested LinkedIn project description
@@ -203,7 +202,7 @@ Beaker-adjacent learning, not Epic experience."
 >
 > Built with Python and SQLite (raw SQL, no ORM) and backed by a real
 > validation package - numbered requirements, a requirements-to-test
-> traceability matrix, UAT scripts, a risk assessment, and 513 passing tests.
+> traceability matrix, UAT scripts, a risk assessment, and 176 passing tests.
 > The recovery behavior was specified in a frozen, pre-implementation design
 > record and implemented with an AI assistant under bounded, owner-approved
 > instructions.

@@ -4,8 +4,9 @@ Numbered, testable requirements for the CytoBridge LIS Interface Simulator
 (Sessions 1-3, plus R-043 - R-052 for the analyst investigation and recovery
 lab). Each requirement has a stable ID (`R-0xx`) used throughout the
 validation package - the [traceability matrix](traceability-matrix.md) maps every
-ID to the code that implements it, its automated (`pytest`) coverage, and a
-manual [UAT script](uat-test-scripts.md).
+ID to the code that implements it and its automated (`pytest`) coverage, and
+maps R-001 - R-041 to a manual [UAT script](uat-test-scripts.md). R-043 - R-052
+have automated coverage only.
 
 > **Scope of these requirements.** This is a **synthetic, analyst-first learning
 > project**, not a validated medical device or production LIS. "Requirement"
@@ -81,7 +82,7 @@ unchanged. The source is GitHub issue #43, written by Austin.
 
 | ID | Statement | Source | Type |
 |---|---|---|---|
-| **R-043** | `python -m src.analyst` provides help, documented exit codes (0 ok, 1 check failed, 2 usage, 3 not found, 4 refused or negative recorded outcome, 5 invalid input, 6 internal error), readable text output, and a `--json` mode that prints exactly one parseable envelope object. Mutations go only through the existing public workflow, inbound, outbound, and recovery service functions; recovery commands require `--request-id` and `--actor`. | #43 | Analyst lab |
+| **R-043** | `python -m src.analyst` provides help, documented exit codes (0 ok, 1 check failed, 2 usage, 3 not found, 4 refused or negative recorded outcome, 5 invalid input, 6 internal error), readable text output, and a `--json` mode that prints exactly one parseable envelope object (`--help` prints plain help text). Mutations go only through the existing public workflow, inbound, outbound, and recovery service functions; recovery commands require `--request-id` and `--actor`. | #43 | Analyst lab |
 | **R-044** | `init` refuses any existing path and leaves it unchanged. Read commands open the database read-only, never create a missing database, and leave an existing database byte-for-byte unchanged. Write commands never create a missing database. | #43 | Analyst lab |
 | **R-045** | State written by one CLI invocation persists in the database file and is visible to later, separate invocations after the writing process has exited. | #43 | Analyst lab |
 | **R-046** | File-based ingestion and corrected re-drive read message files as exact strict UTF-8 with no newline translation, so the stored payload's SHA-256 equals the SHA-256 of the file bytes. A file that is missing or not valid UTF-8 is refused before anything is written. | #43 | Analyst lab |

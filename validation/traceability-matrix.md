@@ -62,9 +62,11 @@ means the automated test passes and a UAT is defined (never executed).
 
 ### Note on R-019
 
-Six analyst queries ship under `queries/` (`pending_review.sql`,
+Six R-019 analyst queries ship under `queries/` (`pending_review.sql`,
 `stat_pending.sql`, `turnaround_time.sql`, `validation_error_rate.sql`,
-`audit_lookup.sql`, `interface_error_queue.sql`).
+`audit_lookup.sql`, `interface_error_queue.sql`). A seventh,
+`analyst_queue_worklist.sql`, belongs to the analyst lab (R-047, R-052) and is
+asserted in `test_analyst_trace.py` and `test_analyst_scale.py`.
 `interface_error_queue.sql` is asserted in `test_inbound_interfaces.py`; the
 other five views have deterministic result assertions in `test_queries.py`.
 Together they verify row selection, priority/order behavior, counts, calculated

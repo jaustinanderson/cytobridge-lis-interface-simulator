@@ -47,8 +47,8 @@ Validation is layered:
 5. **Executable demonstration** - `python -m src.demo_run` exercises the happy
    path, a blocked finalize, outbound export, inbound ingestion/error queue, and
    controlled recovery against a fresh in-memory database.
-6. **Executable incident exercises** - `python -m src.analyst exercise run-all`
-   runs seven synthetic incidents on new file databases through the analyst
+6. **Executable incident exercises** - `python -m src.analyst exercise run-all
+   --workdir DIR` runs seven synthetic incidents on new file databases through the analyst
    CLI. A verifier checks the persisted rows and fixture hashes against
    separate answer keys. This is automated evidence, not manual UAT, and it is
    not evidence of Austin's mastery.
@@ -63,7 +63,7 @@ Validation is layered:
 | Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
 | AI functional replay | UAT-004 PASS (2026-09-04, [synthetic evidence](uat004-ai-functional-replay.json)); human acceptance and Austin mastery remain pending |
 | Demo scenarios | 5 / 5 run clean (`python -m src.demo_run`, exit 0) |
-| Analyst lab exercises | 7 / 7 verified from persisted records (`python -m src.analyst exercise run-all`, automated) |
+| Analyst lab exercises | 7 / 7 verified from persisted records (`python -m src.analyst exercise run-all --workdir DIR`, automated) |
 | Reproducibility | Deterministic - in-memory DB seeded from `schema.sql`; fixed sample messages and recovery corpus |
 
 ### Requirement-category coverage
@@ -149,10 +149,11 @@ recovery semantics and is proven by the seven `test_analyst_*.py` suites:
   after every read command, and a missing database is never created.
 - **Trace and reconciliation:** case links are checked against independent SQL,
   including payload-derived and missing provenance. Every one of the 29
-  reconciliation rules fires on a constructed violating state, and a clean
-  database built only through the services yields no ERROR or WARNING finding
-  (only the expected INFO findings for outstanding prerequisites and recorded
-  conflicts).
+  reconciliation rules fires on a constructed violating state. The suite's
+  clean database, built only through the services across filing, failure,
+  recovery, conflict, terminal, and export cases, yields no ERROR or WARNING
+  finding. Only the expected INFO findings for outstanding prerequisites and
+  recorded conflicts appear.
 - **Preview:** the source is unchanged and no request id or audit row is
   consumed. Normalized preview changes equal a real apply from the same
   baseline. When order state changes after a preview, the apply follows the
@@ -169,7 +170,10 @@ recovery semantics and is proven by the seven `test_analyst_*.py` suites:
 
 ## Analyst-query coverage
 
-All six `queries/*.sql` views have deterministic result-level assertions.
+All seven `queries/*.sql` views have deterministic result-level assertions. The
+analyst lab's `analyst_queue_worklist.sql` is asserted in
+`tests/test_analyst_trace.py` and `tests/test_analyst_scale.py`; the six R-019
+views are covered as follows.
 `tests/test_queries.py` covers pending review, STAT aging, turnaround time,
 validation error rate, and parameterized audit lookup;
 `tests/test_inbound_interfaces.py` covers the open interface-error worklist.
