@@ -3,13 +3,16 @@
 Maps every requirement to the code that implements it (file/function or schema
 constraint), its automated `pytest` coverage, the manual
 [UAT script](uat-test-scripts.md) that exercises it, and its current status.
-Two requirement sources are traced here:
+Three requirement sources are traced here:
 
 - **R-001 - R-019** (v1) from [`requirements.md`](requirements.md).
 - **R-020 - R-041** (v1.1 controlled recovery) from the frozen, approved
   [`v1.1-requirements.md`](v1.1-requirements.md). The frozen numbering and
   wording are preserved verbatim; this matrix records the implementation
   evidence that closes them, it does not restate or weaken them.
+- **R-043 - R-052** (analyst investigation and recovery lab, issue #43) from
+  [`requirements.md`](requirements.md). These have automated coverage only;
+  no manual UAT is defined for them.
 
 > **Synthetic learning project - no PHI, not a validated device.** The two status
 > columns below mean different things and are reported separately, never merged:
@@ -19,7 +22,7 @@ Two requirement sources are traced here:
 > procedure was manually executed and passed on 2026-07-25 with recorded
 > evidence - UAT-011 - UAT-018, see the
 > [execution report](v1.1-recovery-uat-execution-report.md)). Test names match
-> the current codebase (`pytest` -> **164 passed** across eight suites).
+> the current codebase (`pytest` -> **513 passed** across fifteen suites).
 
 **Status legend:**
 
@@ -126,6 +129,27 @@ here as the v1.1 record, and R-039's evidence still exercises the service
 functions directly. Whether the frozen wording should be amended to mention
 the later CLI is Austin's decision; no frozen file is changed.
 
+## Analyst lab matrix (R-043 - R-052)
+
+Maps each analyst investigation and recovery lab requirement (issue #43) to its
+implementation and automated coverage. No manual UAT is defined for these
+requirements. The seven executable exercises are **automated** evidence: an
+automated exercise run is not a manual UAT pass and does not demonstrate
+Austin's mastery.
+
+| Req ID | Requirement (short) | Implemented by (file / function) | pytest coverage | UAT | Automated |
+|---|---|---|---|---|---|
+| **R-043** | Analyst CLI: help, exit codes, readable text, one JSON envelope; mutations only through existing services | `src/analyst/cli.py` / `main`, `build_parser`; `src/analyst/common.py` (exit codes) | `test_analyst_cli.py::test_envelope_command_words_and_results`, `::test_usage_errors_exit_2`, `::test_help_exits_0`, `::test_text_mode_output_for_every_command`, `::test_unexpected_exception_exit_6` | none | PASS |
+| **R-044** | `init` refuses existing paths; read commands never create or modify; writes never create | `src/analyst/store.py` / `init_database`, `open_read_only`, `open_read_write` | `test_analyst_cli.py::test_init_refuses_existing_path`, `::test_missing_database_is_not_created`, `::test_read_only_commands_leave_database_identical`, `::test_non_cytobridge_database_exit_5` | none | PASS |
+| **R-045** | State persists across separate invocations and process restart | `src/analyst/cli.py` (each command opens and closes its own connection) | `test_analyst_cli.py::test_each_command_in_separate_process_persists`, `::test_process_restart_data_visible_from_new_interpreter` | none | PASS |
+| **R-046** | Exact strict-UTF-8 message files; stored payload SHA-256 equals file-byte SHA-256; bad input refused before writing | `src/analyst/common.py` / `read_payload_file`; `cli.py` ingest/redrive handlers | `test_analyst_cli.py::test_ingest_preserves_exact_payload_bytes`, `::test_non_utf8_input_exit_5_database_unchanged`, `::test_missing_input_file_exit_3` | none | PASS |
+| **R-047** | Case trace over real keys; payload-derived and audit-text links labeled; upsert and attribution limits stated | `src/analyst/trace.py` / `build_case`, `resolve_anchor`, `payload_accession` | `test_analyst_trace.py::test_foreign_key_links_exist_and_are_complete`, `::test_case_records_match_stored_rows`, `::test_order_not_found_message_later_matched_by_payload`, `::test_finalized_order_rejection_is_linked_only_by_payload`, `::test_same_probe_filed_twice_lists_both_candidates`, `::test_forged_audit_reference_is_unresolved` | none | PASS |
+| **R-048** | Deterministic reconciliation findings tied to documented rules; exit 1 on ERROR | `src/analyst/reconcile.py` / `RULES`, `reconcile_database`, `reconcile_case` | `test_analyst_reconcile.py::test_clean_database_has_no_error_or_warning_findings`, `::test_rule_fires_on_violating_state`, `::test_every_rule_has_a_negative_case`, `::test_statement_count_is_constant_as_rows_grow`; `test_analyst_cli.py::test_reconcile_error_exit_1` | none | PASS |
+| **R-049** | Non-mutating preview with the unchanged service; matches a real apply; stale previews do not bind apply | `src/analyst/preview.py` / `preview_recovery`, `snapshot_tables`, `diff_snapshots`, `normalize_changes` | `test_analyst_preview.py::test_preview_never_mutates_source`, `::test_preview_does_not_consume_request_id`, `::test_preview_matches_real_apply_from_same_baseline`, `::test_stale_success_preview_then_order_finalized_apply_is_rejected`, `::test_stale_failed_retry_preview_then_order_created_apply_succeeds`, `::test_handled_failure_rolls_back_filing_in_preview` | none | PASS |
+| **R-050** | Seven exercises; instructions separate from answer keys; database-querying verifier; isolated reruns | `src/analyst/exercises.py` / `run_exercise`, `verify_exercise`, `run_all`; `exercises/` | `test_analyst_exercises.py::test_run_exercise_end_to_end_is_deterministic`, `::test_verify_never_consults_the_cli`, `::test_tamper_attempt_outcome` (and the other tamper tests), `::test_analyst_instructions_contain_no_answer_key_text`, `::test_exercises_do_not_cross_contaminate`, `::test_run_all_passes_and_refuses_a_reused_workdir` | none | PASS |
+| **R-051** | Deterministic synthetic case evidence with source revision, fingerprints, outcomes, history, limitations | `src/analyst/evidence.py` / `build_evidence`, `render_report`, `content_fingerprint`, `resolve_source_revision` | `test_analyst_evidence.py::test_json_is_ascii_parses_and_is_byte_identical_across_builds`, `::test_fingerprints_match_fixture_file_bytes_and_checks_pass`, `::test_content_fingerprint_is_stable_across_wall_clock_seconds`, `::test_report_is_short_ascii_markdown_with_required_content`, `::test_every_evidence_document_is_marked_synthetic` | none | PASS |
+| **R-052** | Bounded 1,000-message scale check; statement counts do not grow with volume; timing recorded only | `tests/test_analyst_scale.py` over `trace`, `reconcile`, `evidence`, and `queries/analyst_queue_worklist.sql` | `test_analyst_scale.py::test_scale_message_and_queue_counts`, `::test_scale_worklist_lists_every_queue_item_once_in_order`, `::test_scale_reconcile_clean_and_deterministic`, `::test_scale_statement_counts_do_not_grow_with_message_count` | none | PASS |
+
 ## Coverage summary
 
 | Category | Requirements | Automated PASS | Manual UAT |
@@ -143,11 +167,13 @@ the later CLI is Austin's decision; no frozen file is changed.
 | Recovery outcomes/history (v1.1) | R-032, R-033 | 2 | 2 PASS |
 | Recovery idempotency/atomicity (v1.1) | R-034 - R-038, R-041 | 6 | 6 PASS |
 | Recovery service/audit (v1.1) | R-039, R-040 | 2 | 2 PASS |
-| **Total** | **41** | **41** | **19 DEFINED (v1) + 22 PASS (v1.1)** |
+| Analyst lab (#43) | R-043 - R-052 | 10 | none defined |
+| **Total** | **51** | **51** | **19 DEFINED (v1) + 22 PASS (v1.1); 10 automated only (#43)** |
 
-Every requirement traces to at least one automated `pytest` test **and** a
-manual UAT script. The automated layer runs and passes today (`pytest` -> 164
-passed across eight suites). The v1.1 manual layer (UAT-011 - UAT-018, mapped
+Every v1 and v1.1 requirement traces to at least one automated `pytest` test
+**and** a manual UAT script; the analyst lab requirements (R-043 - R-052) have
+automated coverage only. The automated layer runs and passes today (`pytest` ->
+513 passed across fifteen suites). The v1.1 manual layer (UAT-011 - UAT-018, mapped
 to R-020 - R-041) was manually executed and passed on 2026-07-25, with the
 recorded evidence in the
 [execution report](v1.1-recovery-uat-execution-report.md); the v1 manual layer

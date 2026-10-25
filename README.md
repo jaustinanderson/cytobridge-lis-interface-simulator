@@ -29,9 +29,10 @@ validation evidence, and troubleshooting documentation.
 > checks and Austin's sign-off provide the project evidence; an AI self-review
 > is not represented as independent review.
 
-**Verified state (this codebase):** 176 passing pytest tests across eight suites,
-five end-to-end demonstration scenarios, and 41/41 requirements with result-level
-automated coverage that passes today, plus 18 manual UAT definitions. The v1.1
+**Verified state (this codebase):** 513 passing pytest tests across fifteen suites,
+five end-to-end demonstration scenarios, seven executable analyst-lab incident
+exercises, and 51/51 requirements with result-level automated coverage that
+passes today, plus 18 manual UAT definitions. The v1.1
 recovery UATs (UAT-011 - UAT-018, including both UAT-015 subcases) were manually
 executed and passed on 2026-07-25 - see the
 [recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md).
@@ -140,7 +141,9 @@ runnable samples under [`sample_messages/inbound/`](sample_messages/inbound/).
 CytoBridge v1.1 adds a **controlled recovery** service so an analyst can safely
 recover a failed inbound message that landed in `interface_error_queue`. It is a
 small, headless Python service ([`src/recovery.py`](src/recovery.py)) with three
-public functions - no UI, API, CLI, scheduler, or transport:
+public functions - no UI, API, scheduler, or transport. (The later
+[analyst lab](#analyst-investigation-and-recovery-lab) CLI calls these same
+functions; it does not replace or change them.)
 
 ```python
 from src import recovery
@@ -195,14 +198,67 @@ corpus is under [`sample_messages/recovery/`](sample_messages/recovery/).
 > implementation - not a production interface-engine recovery subsystem. All data
 > is synthetic; no PHI.
 
+## Analyst investigation and recovery lab
+
+`python -m src.analyst` is a headless, standard-library command-line lab
+([`src/analyst/`](src/analyst/)) that works on a persistent SQLite file. An
+analyst can open a synthetic incident, inspect its raw message and the related
+order, specimen, result, queue, recovery, and audit records, explain the
+failure, preview a correction without changing the database, apply an allowed
+recovery, and export reproducible evidence, across separate command
+invocations.
+
+| Need | Command |
+|---|---|
+| Create a database (refuses existing paths) | `init --db PATH` |
+| Register a case, enter results, finalize | `case-create`, `specimen-accession`, `result-enter`, `finalize` |
+| Ingest an instrument message file exactly as its bytes | `ingest --file PATH` |
+| Find failures | `worklist [--status OPEN\|RESOLVED\|TERMINAL\|ALL]` |
+| Inspect a case and its raw payload | `trace`, `show-message [--raw]`, `audit` |
+| Check documented rules | `reconcile` (exit 1 on ERROR findings) |
+| Preview, apply, and review recovery | `recover preview`, `recover retry`, `recover redrive`, `recover history` |
+| Export interfaces and evidence | `export --format hl7\|fhir`, `evidence --out FILE.json --report FILE.md` |
+| Practise | `exercise list\|show\|setup\|run\|verify\|run-all` |
+
+- **No new semantics.** Every write goes through the existing workflow,
+  interface, and v1.1 recovery service functions; recovery commands require
+  `--request-id` and `--actor`.
+- **Read-only means read-only.** Read commands open the database with SQLite
+  `mode=ro` and `query_only`, never create a missing file, and leave the file
+  byte-for-byte unchanged. `init` never replaces an existing file.
+- **Exact payloads.** Message files are read as strict UTF-8 with no newline
+  translation, so the stored payload fingerprint equals the SHA-256 of the file.
+- **Evidence over assertion.** `trace` links records by real primary and
+  foreign keys and labels payload-derived and audit-text links as such. It
+  states that results are upserted (no historical versions) and that the
+  schema does not record which message wrote a result.
+- **Preview is not authorization.** `recover preview` runs the unchanged
+  recovery service on an in-memory backup and reports the simulated outcome and
+  row changes. A later apply re-evaluates current state, so the preview can be
+  stale.
+- **Executable exercises.** Seven synthetic incidents live under
+  [`exercises/`](exercises/), with analyst instructions kept separate from
+  [`exercises/answer-keys/`](exercises/answer-keys/). The verifier checks the
+  persisted rows and fixture hashes, not command output.
+- `--json` prints exactly one envelope object, and exit codes are stable
+  (`0` ok, `1` check failed, `2` usage, `3` not found, `4` refused, `5` invalid
+  input, `6` internal).
+
+Start with the [analyst lab walkthrough](docs/analyst-lab-walkthrough.md).
+Automated exercise runs are not manual UAT and do not demonstrate Austin's
+mastery. The lab is single-user and synchronous, with no server, GUI,
+scheduler, network transport, or authentication. All data is synthetic; no PHI.
+
 ### Technology
 
 - **Python** (standard library only at runtime).
-- **SQLite** via the stdlib `sqlite3` module.
+- **SQLite** via the stdlib `sqlite3` module (the analyst lab uses its built-in
+  JSON functions, available since SQLite 3.38).
 - Raw, hand-written SQL in `schema.sql` and `queries/`. **No ORM.**
 - **pytest** for tests.
 - Intentionally headless - analyst interaction is demonstrated through Python,
-  raw SQL, generated messages, and validation artifacts.
+  raw SQL, the headless analyst lab CLI, generated messages, and validation
+  artifacts.
 
 ## Repository layout
 
@@ -215,6 +271,7 @@ queries/                Analyst SQL (parameterized where appropriate)
   validation_error_rate.sql Share of orders with blocking errors
   audit_lookup.sql          Full audit trail for one order (bind :order_id)
   interface_error_queue.sql Open inbound interface errors
+  analyst_queue_worklist.sql Queue items of any status with attempt counts (bind :status)
 src/
   db.py                 sqlite3 helpers; parameterized queries; query loader
   workflow.py           patient/order/specimen/result/finalize + audit
@@ -227,11 +284,22 @@ src/
     inbound_hl7.py          inbound ORU-style ingestion + error queue (Session 3)
   recovery.py           controlled error-queue recovery service (v1.1)
   demo_run.py           happy path + missing-probe + outbound + inbound + recovery
+  analyst/              analyst investigation and recovery lab (python -m src.analyst)
+    cli.py                  command-line interface (help, exit codes, --json)
+    store.py                create-new / read-only / read-write database access
+    trace.py                chronological case view over primary/foreign keys
+    reconcile.py            deterministic reconciliation findings
+    preview.py              non-mutating recovery preview (in-memory backup)
+    evidence.py             portable case evidence JSON + short report
+    exercises.py            exercise runner + database-querying verifier
 sample_messages/
   outbound/             sample generated HL7 + FHIR messages
   inbound/              sample inbound instrument ORU-style messages
   recovery/             synthetic recovery corpus (originals + corrected) (v1.1)
+exercises/              seven synthetic incident exercises (instructions + inputs)
+  answer-keys/          reference solutions + expected persisted outcomes
 docs/
+  analyst-lab-walkthrough.md   clean-checkout analyst lab walkthrough
   interface-mapping.md         outbound + inbound field-by-field mapping
   interface-troubleshooting.md analyst runbook + controlled recovery workflow
   demo-script.md               ~6-minute screen-share walkthrough
@@ -239,11 +307,11 @@ docs/
   portfolio-review.md          what it proves / Epic boundary / resume
   hiring-manager-review.md     scorecard + resume/interview framing
 validation/                    validation package
-  requirements.md              v1 numbered requirements (R-001...R-019)
+  requirements.md              v1 + analyst lab requirements (R-001...R-019, R-043...R-052)
   v1.1-design-record.md        frozen v1.1 design decision record (pre-impl)
   v1.1-requirements.md         frozen v1.1 requirements (R-020...R-041) (pre-impl)
   v1.1-test-intent.md          frozen v1.1 test intent (pre-impl)
-  traceability-matrix.md       requirement -> code -> test -> UAT (R-001...R-041)
+  traceability-matrix.md       requirement -> code -> test -> UAT (R-001...R-052)
   uat-test-scripts.md          manual analyst UAT scripts (UAT-001...UAT-018)
   v1.1-recovery-uat-execution-report.md  recovery UAT execution evidence (UAT-011...UAT-018)
   validation-summary.md        approach + results summary
@@ -259,6 +327,13 @@ tests/
   test_recovery_schema.py      v1.1 recovery schema + constraints
   test_failure_classification.py  v1.1 structured failure classification
   test_recovery_service.py     v1.1 controlled recovery service behavior
+  test_analyst_cli.py          analyst CLI: persistence, errors, read-only, exact payloads
+  test_analyst_trace.py        case trace links checked against independent SQL
+  test_analyst_reconcile.py    every reconciliation rule, clean and violating states
+  test_analyst_preview.py      preview non-mutation, preview vs apply, staleness, rollback
+  test_analyst_evidence.py     evidence determinism, fingerprints, report
+  test_analyst_exercises.py    exercise runs, isolation, tamper-detecting verifier
+  test_analyst_scale.py        bounded 1,000-message scale check (timing recorded)
 ```
 
 ## Data model highlights
@@ -312,7 +387,7 @@ recovery service.
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # 176 tests
+python -m pytest -q                   # 513 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python
@@ -348,7 +423,8 @@ A documentation package demonstrating a validation mindset over Sessions 1-3
 
 Every requirement (`R-001`-`R-041`) traces to the code (file/function or schema
 constraint), result-level automated `pytest` coverage, and a manual UAT script
-(`UAT-001`-`UAT-018`). Automated coverage passes today. The v1.1 recovery UATs
+(`UAT-001`-`UAT-018`); the analyst lab requirements (`R-043`-`R-052`) trace to
+code and automated coverage only. Automated coverage passes today. The v1.1 recovery UATs
 (UAT-011-UAT-018) were manually executed and passed - evidence in the
 [recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md) -
 while UAT-001-UAT-010 remain defined but not manually executed. This is
@@ -375,6 +451,10 @@ Done:
   Austin, implemented and validated under bounded tasks (P2-001,
   P3-001 - P3-005), with the recovery UATs (UAT-011 - UAT-018) manually
   executed and passed.
+- [x] Analyst investigation and recovery lab (issue #43): headless CLI, case
+  trace, reconciliation findings, non-mutating recovery preview, seven
+  executable synthetic incident exercises, and portable case evidence, all over
+  the existing services.
 
 Next bounded enhancements:
 

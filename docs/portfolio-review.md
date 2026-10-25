@@ -42,9 +42,9 @@ running it:
   and recovery filings are traceable back to the source message.
 - **Analyst SQL.** Six worklist queries (pending review, STAT aging, turnaround,
   validation error rate, audit lookup, open interface errors).
-- **Testing and traceability discipline.** 176 passing `pytest` tests across
-  eight suites plus a full requirements -> code -> test -> UAT
-  [traceability matrix](../validation/traceability-matrix.md) covering all 41
+- **Testing and traceability discipline.** 513 passing `pytest` tests across
+  fifteen suites plus a full requirements -> code -> test -> UAT
+  [traceability matrix](../validation/traceability-matrix.md) covering all 51
   requirements, a [validation summary](../validation/validation-summary.md), a
   [risk assessment](../validation/risk-assessment.md), and an honest
   [known-issues](../validation/known-issues.md) list. The v1.1 recovery behavior
@@ -134,9 +134,9 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   rejection - specified against a frozen pre-implementation design record and
   proven by dedicated test suites (recovery behavior designed and approved by
   the project owner; implemented with an AI assistant under bounded instructions).
-- Authored a **validation package**: 41 traceable requirements, a
+- Authored a **validation package**: 51 traceable requirements, a
   requirements-to-test **traceability matrix**, 18 **UAT scripts**, risk
-  assessment, and known-issues log; **176 passing automated tests** across eight
+  assessment, and known-issues log; **513 passing automated tests** across fifteen
   suites.
 
 ## Interview talking points

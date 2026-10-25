@@ -392,7 +392,7 @@ deployment, or standards-conformance change. All data remains synthetic.
   preview staleness, injected rollback, exercise runs and tampering detection,
   evidence determinism, and a bounded 1,000-message scale check.
 - Validation package - R-043 - R-052, traceability rows, known-issues and risk
-  rows, and current test counts (@@TESTS@@ tests across @@SUITES@@ suites).
+  rows, and current test counts (513 tests across fifteen suites).
 
 **Authorization:** Austin authorized this bounded implementation in issue #43.
 
@@ -408,7 +408,7 @@ not manual UAT and do not demonstrate Austin's mastery. All data is synthetic.
 
 - **One session/task = one branch = one PR**, never committed straight to `main`.
 - **Tests accompany behavior** - every code session and v1.1 task added matching
-  coverage; the current suite has @@TESTS@@ passing tests across @@SUITES@@ suites,
+  coverage; the current suite has 513 passing tests across fifteen suites,
   including result assertions for all analyst SQL views, the full controlled
   recovery service, and the analyst lab.
 - **Scope guardrails** honored every session and task (no UI/Docker/ORM/new
