@@ -27,6 +27,7 @@ development session. Each session was developed on its own branch and merged to
 | P3-003 | v1.1 controlled recovery service | `src/recovery.py` headless retry/re-drive/history with immutability, idempotency, rollback, terminal rejection | PR #19 merged; status closeout PR #20 merged |
 | P3-004 | v1.1 validation/UAT/portfolio closeout | Recovery demo, R-020-R-041 traceability, UAT-011-UAT-018, troubleshooting/diagram/demo/README/portfolio updates | PR #21 merged (`406509ad`) |
 | P3-005 + finalization | v1.1 recovery UAT execution and finalization | UAT-011-UAT-018 executed and passed (incl. UAT-015A/B); AF-2026-010 - AF-2026-012 recorded; governance simplified; v1.1 declared complete | 2026-07-25/26; evidence in `v1.1-recovery-uat-execution-report.md` |
+| P4-001 | Educational ISCN karyotype subset | `parse_iscn` accepts a documented karyotype subset and rejects the rest as unsupported or malformed; R-042; UAT-019 defined | Authorized 2026-10-24 under Austin's delegation to joint Claude/Codex judgment |
 
 ---
 
@@ -366,11 +367,37 @@ deployment, or standards-conformance change. All data remains synthetic.
 
 ---
 
+## P4-001 - Educational ISCN karyotype subset parser
+
+**Requirements introduced:** R-042.
+
+**What changed:**
+- `src/reports.py` - `parse_iscn` validates karyotype strings against a
+  documented educational subset and returns structured clones (`ISCNClone`) or
+  classified issues (`ISCNIssue`: unsupported notation vs malformed supported
+  notation). The signature and existing result fields are unchanged; the new
+  `clones` and `issues` fields default to empty.
+- `tests/test_iscn_parser.py` - accepted, malformed, unsupported, mixed-input,
+  multi-clone, every-issue and bounds tests.
+- Validation package - R-042, its traceability row, UAT-019 (defined, not
+  executed) and the known-issues ISCN row; current test counts updated (242
+  tests across nine suites).
+
+**Authorization:** Austin delegated the night's bounded task choices on
+2026-10-24 to joint Claude/Codex agreement; Codex agreed this narrowed scope
+before implementation. Claude authored the change.
+
+**Scope:** no schema, interface, report-summary, recovery, frozen-file,
+runtime-dependency or UI change. Not full ISCN validation and not a clinical
+interpretation. All examples are synthetic notation.
+
+---
+
 ## Change-control principles used
 
 - **One session/task = one branch = one PR**, never committed straight to `main`.
 - **Tests accompany behavior** - every code session and v1.1 task added matching
-  coverage; the current suite has 164 passing tests across eight suites,
+  coverage; the current suite has 242 passing tests across nine suites,
   including result assertions for all analyst SQL views and the full controlled
   recovery service.
 - **Scope guardrails** honored every session and task (no UI/Docker/ORM/new

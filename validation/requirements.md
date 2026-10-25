@@ -1,7 +1,7 @@
 # Requirements specification
 
 Numbered, testable requirements for the CytoBridge LIS Interface Simulator
-(Sessions 1-3). Each requirement has a stable ID (`R-0xx`) used throughout the
+(Sessions 1-3, plus R-042 from task P4-001). Each requirement has a stable ID (`R-0xx`) used throughout the
 validation package - the [traceability matrix](traceability-matrix.md) maps every
 ID to the code that implements it, its automated (`pytest`) coverage, and a
 manual [UAT script](uat-test-scripts.md).
@@ -70,6 +70,12 @@ manual [UAT script](uat-test-scripts.md).
 | **R-017** | An inbound `OBX` whose probe code is not part of the AML/MDS panel is routed to `interface_error_queue`. | S3 | Interface (inbound) |
 | **R-018** | Each error-queue entry carries `message_id`, `direction`, a clear `reason`, `status = 'OPEN'`, and a created timestamp. | S3 | Interface (inbound) |
 | **R-019** | Analyst SQL views return the expected worklists and metrics for pending review, STAT aging, turnaround, validation error rate, audit lookup, and open interface errors. | S1-S3 | Analyst query |
+
+## Report nomenclature requirement (P4-001)
+
+| ID | Statement | Source | Type |
+|---|---|---|---|
+| **R-042** | `parse_iscn` accepts only the documented educational ISCN karyotype subset (chromosome total; `XX` or `XY`; autosomal gains and losses; simple two-autosome translocations with lexically valid bands; written-out clones separated by `/` with optional positive cell counts), returns structured clones for accepted input, and rejects every other input with `is_valid = False` and issues classified as *unsupported* or *malformed*. It never returns a partial parse as valid. | P4-001 | Report nomenclature |
 
 See the [traceability matrix](traceability-matrix.md) for the full
 requirement -> code -> test -> UAT mapping and current status.
