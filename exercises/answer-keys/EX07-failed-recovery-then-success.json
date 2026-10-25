@@ -1,0 +1,192 @@
+{
+  "id": "EX07-failed-recovery-then-success",
+  "solution_steps": [
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/correction_v1.hl7",
+        "--request-id",
+        "EX07-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 4,
+      "note": "FAILED: v1 fixes the probe code, which exposes the masked second defect (interpretation EQUIVOCAL -> INVALID_INTERPRETATION). The attempted message is kept as ERRORED, filing side effects roll back, and the item stays OPEN (design record sec 8, sec 9; R-032, R-038)."
+    },
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/correction_v2.hl7",
+        "--request-id",
+        "EX07-REDRIVE-2",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "SUCCEEDED with a new request id while the item is still OPEN (R-037)."
+    }
+  ],
+  "expected": {
+    "orders": [
+      {
+        "accession": "ACC-EX07-0001",
+        "status": "PENDING_REVIEW",
+        "result_count": 9,
+        "results": {
+          "RUNX1T1_RUNX1": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          },
+          "CBFB": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          },
+          "PML_RARA": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "interpretation": "NORMAL"
+          },
+          "KMT2A": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "interpretation": "NORMAL"
+          },
+          "EGR1_5q": {
+            "cells_scored": 200,
+            "cells_abnormal": 4,
+            "interpretation": "NORMAL"
+          },
+          "D7S486_7q": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          },
+          "CEP8": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "interpretation": "NORMAL"
+          },
+          "D20S108_20q": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "interpretation": "NORMAL"
+          },
+          "TP53_17p": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          }
+        },
+        "report_status": null,
+        "audit_action_counts": {
+          "RESULT_ENTERED": 9,
+          "INBOUND_RESULT_FILED": 1
+        },
+        "validation_blocking": false
+      }
+    ],
+    "queue_items": [
+      {
+        "original_control_id": "EX07-ORIG",
+        "failure_code": "UNKNOWN_PROBE_CODE",
+        "failure_category": "FISH_RESULT_CONTENT",
+        "recovery_policy": "REDRIVE_ONLY",
+        "status": "RESOLVED",
+        "original_message_status": "ERRORED",
+        "original_payload_fixture": "inputs/original_result.hl7",
+        "conflict_audit_events": 0,
+        "attempts": [
+          {
+            "request_id": "EX07-REDRIVE-1",
+            "action": "REDRIVE_CORRECTED",
+            "outcome": "FAILED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/correction_v1.hl7",
+            "resulting_message_status": "ERRORED"
+          },
+          {
+            "request_id": "EX07-REDRIVE-2",
+            "action": "REDRIVE_CORRECTED",
+            "outcome": "SUCCEEDED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/correction_v2.hl7",
+            "resulting_message_status": "FILED"
+          }
+        ]
+      }
+    ],
+    "totals": {
+      "audit_event": 14,
+      "fish_result": 9,
+      "interface_error_queue": 1,
+      "interface_message": 3,
+      "interface_recovery_attempt": 2,
+      "lab_order": 1,
+      "patient": 1,
+      "report": 0,
+      "specimen": 1,
+      "validation_error": 0
+    },
+    "reconcile_error_count": 0
+  },
+  "question_answers": [
+    {
+      "question": 1,
+      "answer": "Yes. OBX set id 6 carries probe code D7S468_7q (digits transposed; the display text still reads D7S486 (7q31)) and interpretation EQUIVOCAL, which is not NORMAL, ABNORMAL, or INDETERMINATE. Validation stops at the first failing check, and within an OBX the probe-code check runs before the count and interpretation checks, so only UNKNOWN_PROBE_CODE was reported.",
+      "sources": [
+        "src/interfaces/inbound_hl7.py _validate_obx",
+        "R-017"
+      ]
+    },
+    {
+      "question": 2,
+      "answer": "Outcome FAILED (exit 4). The attempted message (control id EX07-FIX1) is preserved as ERRORED with order_id NULL and is linked as the attempt's resulting message; the outcome_detail names INVALID_INTERPRETATION. The queue item stays OPEN, and no new queue item is created for the failed attempt.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 8",
+        "R-032",
+        "src/recovery.py _process"
+      ]
+    },
+    {
+      "question": 3,
+      "answer": "Rolled back: FISH-result writes, filing audit events, and queue resolution (none persist). Preserved: the resulting message as ERRORED, the FAILED attempt with its outcome_detail, and the queue item OPEN. The order still has no results after the failed attempt.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 9",
+        "R-038"
+      ]
+    },
+    {
+      "question": 4,
+      "answer": "A FAILED attempt leaves the item OPEN, and a genuinely failed attempt may be tried again with a new request id while the item is OPEN and the action is allowed. Reusing EX07-REDRIVE-1 with the v2 payload would be a REQUEST_ID_CONFLICT (payload fingerprint mismatch); reusing it with the v1 payload would replay the recorded FAILED outcome.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 9",
+        "R-034",
+        "R-037",
+        "R-041"
+      ]
+    },
+    {
+      "question": 5,
+      "answer": "Three. Message 1 (EX07-ORIG): the queue item's original, ERRORED. Message 2 (EX07-FIX1): the FAILED attempt's resulting message, ERRORED. Message 3 (EX07-FIX2): the SUCCEEDED attempt's resulting message, FILED to the order. Only message 3 is named by the INBOUND_RESULT_FILED event.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 4",
+        "R-024",
+        "R-016"
+      ]
+    }
+  ]
+}

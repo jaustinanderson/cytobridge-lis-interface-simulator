@@ -1,0 +1,186 @@
+{
+  "id": "EX03-invalid-result-redrive",
+  "solution_steps": [
+    {
+      "argv": [
+        "recover",
+        "preview",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--action",
+        "redrive",
+        "--file",
+        "{inputs}/corrected_result.hl7",
+        "--request-id",
+        "EX03-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "Simulate REDRIVE_CORRECTED with the corrected payload on an isolated copy: simulated outcome SUCCEEDED; source database unchanged."
+    },
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/corrected_result.hl7",
+        "--request-id",
+        "EX03-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "Apply the corrected re-drive. A new message holding exactly the corrected payload files; the original message and the queue raw_payload copy are not modified (design record sec 4, sec 7; R-022, R-028)."
+    }
+  ],
+  "expected": {
+    "orders": [
+      {
+        "accession": "ACC-EX03-0001",
+        "status": "PENDING_REVIEW",
+        "result_count": 9,
+        "results": {
+          "RUNX1T1_RUNX1": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          },
+          "CBFB": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          },
+          "PML_RARA": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "interpretation": "NORMAL"
+          },
+          "KMT2A": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "interpretation": "NORMAL"
+          },
+          "EGR1_5q": {
+            "cells_scored": 200,
+            "cells_abnormal": 4,
+            "interpretation": "NORMAL"
+          },
+          "D7S486_7q": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          },
+          "CEP8": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "interpretation": "NORMAL"
+          },
+          "D20S108_20q": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "interpretation": "NORMAL"
+          },
+          "TP53_17p": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "interpretation": "NORMAL"
+          }
+        },
+        "report_status": null,
+        "audit_action_counts": {
+          "RESULT_ENTERED": 9,
+          "INBOUND_RESULT_FILED": 1
+        },
+        "validation_blocking": false
+      }
+    ],
+    "queue_items": [
+      {
+        "original_control_id": "EX03-ORIG",
+        "failure_code": "INVALID_CELL_COUNT",
+        "failure_category": "FISH_RESULT_CONTENT",
+        "recovery_policy": "REDRIVE_ONLY",
+        "status": "RESOLVED",
+        "original_message_status": "ERRORED",
+        "original_payload_fixture": "inputs/original_result.hl7",
+        "conflict_audit_events": 0,
+        "attempts": [
+          {
+            "request_id": "EX03-REDRIVE-1",
+            "action": "REDRIVE_CORRECTED",
+            "outcome": "SUCCEEDED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/corrected_result.hl7",
+            "resulting_message_status": "FILED"
+          }
+        ]
+      }
+    ],
+    "totals": {
+      "audit_event": 14,
+      "fish_result": 9,
+      "interface_error_queue": 1,
+      "interface_message": 2,
+      "interface_recovery_attempt": 1,
+      "lab_order": 1,
+      "patient": 1,
+      "report": 0,
+      "specimen": 1,
+      "validation_error": 0
+    },
+    "reconcile_error_count": 0
+  },
+  "question_answers": [
+    {
+      "question": 1,
+      "answer": "OBX set id 3, probe PML_RARA: OBX-5 component 1 (cells_scored) is '2OO', written with capital letter O instead of zero, so it is not an integer. Failure INVALID_CELL_COUNT / FISH_RESULT_CONTENT / REDRIVE_ONLY; reason \"Probe PML_RARA: cells_scored '2OO' is not a valid integer.\"",
+      "sources": [
+        "src/interfaces/inbound_hl7.py _parse_count",
+        "R-014"
+      ]
+    },
+    {
+      "question": 2,
+      "answer": "Filing is all-or-nothing: every OBX is validated before any result is written, and one invalid OBX routes the whole message to the error queue, so an order never holds a partially applied instrument message.",
+      "sources": [
+        "src/interfaces/inbound_hl7.py module docstring (ingestion contract), _validate_obx",
+        "R-014"
+      ]
+    },
+    {
+      "question": 3,
+      "answer": "INVALID_CELL_COUNT maps to REDRIVE_ONLY (design record sec 6). An unchanged retry is approved only for ORDER_NOT_FOUND (sec 7, R-025): retrying the same payload would hit the same defect, and the service would record a REJECTED RETRY_ORIGINAL attempt. A corrected re-drive processes the supplied payload as a new message.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 6, sec 7",
+        "R-025",
+        "R-027",
+        "R-028"
+      ]
+    },
+    {
+      "question": 4,
+      "answer": "Original message 1 (control id EX03-ORIG) is still ERRORED with order_id NULL, and its payload hashes to the sha256 of the inputs/original_result.hl7 file bytes; the queue item's raw_payload hashes to the same value. The corrected payload is a distinct message 2 (control id EX03-CORR) and only it is FILED. Besides the corrected count, the corrected file differs only in MSH-7 (message time) and MSH-10 (control id).",
+      "sources": [
+        "validation/v1.1-design-record.md sec 4, sec 11 (I-01)",
+        "R-022",
+        "R-023",
+        "R-028"
+      ]
+    },
+    {
+      "question": 5,
+      "answer": "They are equal. payload_sha256 is the SHA-256 of the exact UTF-8 payload the request processed, and the resulting message stores exactly that payload, so both equal the sha256 of inputs/corrected_result.hl7.",
+      "sources": [
+        "src/recovery.py _payload_sha256",
+        "R-040"
+      ]
+    }
+  ]
+}

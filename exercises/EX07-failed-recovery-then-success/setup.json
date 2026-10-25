@@ -1,0 +1,54 @@
+{
+  "id": "EX07-failed-recovery-then-success",
+  "title": "Failed recovery, then success",
+  "summary": "A first correction re-drive does not file. Investigate why the queue item is still open and what was preserved, then recover it with the follow-up correction.",
+  "steps": [
+    {
+      "argv": [
+        "init",
+        "--db",
+        "{db}"
+      ],
+      "expect_exit": 0,
+      "note": "Create a new, empty synthetic exercise database. init refuses a path that already exists."
+    },
+    {
+      "argv": [
+        "case-create",
+        "--db",
+        "{db}",
+        "--mrn",
+        "SYN-EX07-01",
+        "--last-name",
+        "Synthetic",
+        "--first-name",
+        "ExerciseSeven",
+        "--dob",
+        "1970-01-07",
+        "--sex",
+        "F",
+        "--accession",
+        "ACC-EX07-0001",
+        "--provider",
+        "Dr. Synthetic",
+        "--specimen-type",
+        "BONE_MARROW",
+        "--external-specimen-id",
+        "BM-EX07-01"
+      ],
+      "expect_exit": 0,
+      "note": "Register synthetic patient SYN-EX07-01, AML/MDS FISH order ACC-EX07-0001, and an accessioned bone-marrow specimen."
+    },
+    {
+      "argv": [
+        "ingest",
+        "--db",
+        "{db}",
+        "--file",
+        "{inputs}/original_result.hl7"
+      ],
+      "expect_exit": 4,
+      "note": "Ingest the instrument result for ACC-EX07-0001; the message does not file."
+    }
+  ]
+}

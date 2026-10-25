@@ -157,6 +157,12 @@ LIMITATIONS: dict[str, str] = {
         "then row id. That ordering is presentational and does not establish "
         "causation."
     ),
+    "RESULT_AUDIT_ACTOR": (
+        "workflow.enter_fish_result records RESULT_ENTERED audit events with actor "
+        "'system'. The person or interface that entered a current result value is "
+        "fish_result.entered_by; the RESULT_ENTERED audit actor does not identify "
+        "them."
+    ),
     "FAILED_MESSAGE_ORDER_LINK": (
         "An inbound message that fails before filing keeps order_id NULL. Any "
         "link from such a message to an order is derived from the payload "
