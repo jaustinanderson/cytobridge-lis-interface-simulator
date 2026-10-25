@@ -11,9 +11,10 @@ decided by how it opens the file rather than by convention:
 - ``open_read_write`` open an EXISTING database with SQLite ``mode=rw``, which
   never creates a missing file. Writes are made only by the existing services.
 
-Both open modes verify the file is an initialized CytoBridge database and turn
-low-level SQLite failures into ``AnalystError`` with a useful message. All data
-is synthetic. No PHI.
+Both open modes verify the file is an initialized CytoBridge database, refuse a
+WAL-mode file (CytoBridge never enables WAL, and WAL would create side files),
+and turn low-level SQLite failures into ``AnalystError`` with a useful message.
+All data is synthetic. No PHI.
 """
 
 from __future__ import annotations
@@ -75,7 +76,32 @@ def _existing_file(path: str | Path) -> Path:
         )
     if not p.is_file():
         raise AnalystError("INVALID_INPUT", f"Database path {p} is not a regular file.")
+    _refuse_wal(p)
     return p
+
+
+def _refuse_wal(p: Path) -> None:
+    """Refuse a WAL-mode database by reading its header bytes only.
+
+    CytoBridge creates rollback-journal databases and never enables WAL. A WAL
+    database would make SQLite create ``-wal``/``-shm`` side files even for a
+    read-only open, and committed data in the ``-wal`` file would not be covered
+    by a main-file fingerprint, so the lab refuses it before connecting. Bytes
+    18 and 19 of the SQLite header are the write/read format versions; 2 means
+    WAL.
+    """
+    try:
+        with p.open("rb") as fh:
+            header = fh.read(20)
+    except OSError as exc:
+        raise AnalystError("INVALID_INPUT", f"Cannot read database {p}: {exc}.")
+    if header[:16] == b"SQLite format 3\x00" and 2 in header[18:20]:
+        raise AnalystError(
+            "INVALID_INPUT",
+            f"Database {p} is in SQLite WAL mode. The analyst lab works only on "
+            f"rollback-journal databases (the mode CytoBridge creates); it was not "
+            f"opened.",
+        )
 
 
 def _open(path: str | Path, mode: str) -> sqlite3.Connection:
@@ -101,9 +127,18 @@ def _open(path: str | Path, mode: str) -> sqlite3.Connection:
     return conn
 
 
-def open_read_only(path: str | Path) -> sqlite3.Connection:
-    """Open an existing CytoBridge database read-only (never creates, never writes)."""
-    return _open(path, "ro")
+def open_read_only(path: str | Path, *, snapshot: bool = False) -> sqlite3.Connection:
+    """Open an existing CytoBridge database read-only (never creates, never writes).
+
+    With ``snapshot=True`` the connection begins a read transaction, so every
+    later query sees one consistent state even if another process commits in
+    the meantime; closing the connection ends it. Multi-query views (trace,
+    reconcile, evidence, verification) use this so they never mix two states.
+    """
+    conn = _open(path, "ro")
+    if snapshot:
+        conn.execute("BEGIN")
+    return conn
 
 
 def open_read_write(path: str | Path) -> sqlite3.Connection:

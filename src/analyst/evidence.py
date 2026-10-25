@@ -132,10 +132,14 @@ _REVISION_RE = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
 # ---------------------------------------------------------------------------
 
 def _git(repo_root: str | Path, *args: str) -> str | None:
-    """Run one read-only git command; return stdout, or None on any failure."""
+    """Run one read-only git command; return stdout, or None on any failure.
+
+    ``--no-optional-locks`` keeps ``git status`` from refreshing (rewriting)
+    ``.git/index`` or taking its lock, so resolving the revision never writes.
+    """
     try:
         completed = subprocess.run(
-            ["git", "-C", str(repo_root), *args],
+            ["git", "--no-optional-locks", "-C", str(repo_root), *args],
             capture_output=True,
             text=True,
             timeout=GIT_TIMEOUT_SECONDS,
@@ -384,6 +388,10 @@ def build_evidence(
             "revision": (
                 resolve_source_revision() if source_revision is None else source_revision
             ),
+            # Whether the revision was resolved from git here or supplied by the
+            # caller (for example --source-revision); a supplied value is not
+            # checked against any checkout.
+            "revision_origin": "git" if source_revision is None else "supplied",
             "schema_sha256": sha256_file(db.SCHEMA_PATH),
             "generator": GENERATOR,
         },
@@ -534,7 +542,10 @@ def render_report(evidence: dict[str, Any]) -> str:
     add(f"> {_text(evidence.get('notice', SYNTHETIC_NOTICE))}")
     add("")
     add(f"- Evidence format: {_text(evidence.get('format'))}")
-    add(f"- Source revision: {_text(source.get('revision'))}")
+    add(
+        f"- Source revision: {_text(source.get('revision'))} "
+        f"({_text(source.get('revision_origin'))})"
+    )
     add(f"- Schema sha256: {_text(source.get('schema_sha256'))}")
     add(f"- Generator: {_text(source.get('generator'))}")
     title = scenario.get("title")

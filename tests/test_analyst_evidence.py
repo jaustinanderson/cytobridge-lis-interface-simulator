@@ -189,6 +189,7 @@ def test_evidence_sections_and_source(ex03):
     }
     assert ev["source"] == {
         "revision": TEST_REVISION,
+        "revision_origin": "supplied",
         "schema_sha256": file_sha256(REPO_ROOT / "schema.sql"),
         "generator": "src.analyst.evidence",
     }
@@ -666,9 +667,11 @@ def test_resolve_source_revision_dirty_suffix(monkeypatch, status, expected_suff
 
     monkeypatch.setattr(evidence.subprocess, "run", fake)
     assert evidence.resolve_source_revision("/repo") == sha + expected_suffix
+    # --no-optional-locks: the status probe never rewrites or locks .git/index.
     assert seen == [
-        ["git", "-C", "/repo", "rev-parse", "HEAD"],
-        ["git", "-C", "/repo", "status", "--porcelain", "--untracked-files=no"],
+        ["git", "--no-optional-locks", "-C", "/repo", "rev-parse", "HEAD"],
+        ["git", "--no-optional-locks", "-C", "/repo", "status", "--porcelain",
+         "--untracked-files=no"],
     ]
 
 
@@ -677,6 +680,11 @@ def test_build_evidence_defaults_to_the_resolved_revision(ex03, monkeypatch):
     monkeypatch.setattr(evidence, "resolve_source_revision", lambda *a, **k: "b" * 40 + "-dirty")
     ev = evidence.build_evidence(conn, queue_id=ids["queue_id"])
     assert ev["source"]["revision"] == "b" * 40 + "-dirty"
+    assert ev["source"]["revision_origin"] == "git"
+    report = evidence.render_report(ev)
+    assert "b" * 40 + "-dirty (git)" in report
+    supplied = evidence.build_evidence(conn, queue_id=ids["queue_id"], source_revision="X")
+    assert "- Source revision: X (supplied)" in evidence.render_report(supplied)
 
 
 # ---------------------------------------------------------------------------
