@@ -14,9 +14,9 @@ it immediately. An hour later they sent a follow-up
 
 ## Learning goal
 
-See what a handled recovery failure preserves and what it rolls back, why one
-reported failure can hide another, and how a still-open item is recovered
-later with a new request.
+See what a handled recovery failure preserves, at which processing stage it
+stops and whether anything reached the order, why one reported failure can
+hide another, and how a still-open item is recovered later with a new request.
 
 ## Set up
 
@@ -56,7 +56,8 @@ INPUTS=exercises/EX07-failed-recovery-then-success/inputs
    segment of the original payload, and why did ingestion not report it?
 2. After the first re-drive, what is the attempt outcome, what happened to the
    message that attempt created, and what is the queue status?
-3. What did the failed attempt roll back, and what did it preserve?
+3. What did the failed attempt preserve? At which processing stage did it
+   stop, and was anything filed to the order (and so in need of rolling back)?
 4. Why could you recover the item again, and why did the second request need a
    new request id?
 5. How many interface messages exist for this incident, and what role does

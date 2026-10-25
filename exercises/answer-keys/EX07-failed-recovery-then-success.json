@@ -17,7 +17,7 @@
         "analyst01"
       ],
       "expect_exit": 4,
-      "note": "FAILED: v1 fixes the probe code, which exposes the masked second defect (interpretation EQUIVOCAL -> INVALID_INTERPRETATION). The attempted message is kept as ERRORED, filing side effects roll back, and the item stays OPEN (design record sec 8, sec 9; R-032, R-038)."
+      "note": "FAILED: v1 fixes the probe code, which exposes the masked second defect (interpretation EQUIVOCAL -> INVALID_INTERPRETATION). OBX validation rejects the payload before any result or filing write, so nothing is filed to the order. The attempted message is kept as ERRORED, a FAILED attempt is recorded, and the item stays OPEN (design record sec 8, sec 9; R-032, R-038)."
     },
     {
       "argv": [
@@ -48,47 +48,65 @@
           "RUNX1T1_RUNX1": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "CBFB": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 orange/green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "PML_RARA": {
             "cells_scored": 200,
             "cells_abnormal": 3,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "KMT2A": {
             "cells_scored": 200,
             "cells_abnormal": 1,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 fusion",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "EGR1_5q": {
             "cells_scored": 200,
             "cells_abnormal": 4,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 orange 2 green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "D7S486_7q": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "CEP8": {
             "cells_scored": 200,
             "cells_abnormal": 3,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 aqua",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "D20S108_20q": {
             "cells_scored": 200,
             "cells_abnormal": 1,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "TP53_17p": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           }
         },
         "report_status": null,
@@ -163,10 +181,15 @@
     },
     {
       "question": 3,
-      "answer": "Rolled back: FISH-result writes, filing audit events, and queue resolution (none persist). Preserved: the resulting message as ERRORED, the FAILED attempt with its outcome_detail, and the queue item OPEN. The order still has no results after the failed attempt.",
+      "answer": "Preserved: the attempted message (control id EX07-FIX1) as ERRORED, the FAILED attempt with its outcome_detail, and the queue item OPEN. Nothing was filed, because the failure was detected before filing: INVALID_INTERPRETATION is raised while the OBX segments are validated (inbound_hl7._validate_inbound, which performs no writes), before any fish_result write, filing audit event, or queue resolution. The order therefore still has no results after the failed attempt. The service does open a savepoint and roll it back for a handled failure (design record sec 9, R-038), but in this exercise there were no filing writes for it to undo, so EX07 shows a handled failure, not a rollback of partial writes. That rollback is proven separately by the injected-failure tests listed in the sources.",
       "sources": [
         "validation/v1.1-design-record.md sec 9",
-        "R-038"
+        "R-038",
+        "src/recovery.py _process",
+        "src/interfaces/inbound_hl7.py _validate_inbound, _validate_obx",
+        "tests/test_recovery_service.py::test_handled_mid_operation_failure_rolls_back_all_side_effects",
+        "tests/test_analyst_preview.py::test_handled_failure_rolls_back_filing_in_preview",
+        "tests/test_analyst_cli.py::test_failed_redrive_rolls_back_then_later_success"
       ]
     },
     {

@@ -1,7 +1,9 @@
 """Tests for analyst-lab reconciliation (``src/analyst/reconcile.py``).
 
 A realistic CLEAN database is built through the public services only and must
-produce no ERROR or WARNING findings. Then, for every rule in ``RULES``, a
+produce no ERROR or WARNING findings (a specimen changed after finalization,
+which the services allow, is a WF-002 WARNING by design and has its own test).
+Then, for every rule in ``RULES``, a
 negative test constructs the violating state (direct SQL is used only to build
 states the services never produce; ``PRAGMA foreign_keys = OFF`` /
 ``PRAGMA ignore_check_constraints = ON`` only where the schema would otherwise
@@ -21,7 +23,9 @@ from src.analyst import reconcile, trace
 from src.interfaces import inbound_hl7, outbound_fhir, outbound_hl7, store_message
 from tests.conftest import enter_all_results
 
-# Rule IDs and severities transcribed from the analyst-lab contract (section 3).
+# Rule IDs and severities pinned independently of the module. ``reconcile.RULES``
+# is the authoritative catalogue (R-048 in validation/requirements.md); this copy
+# makes any change to it a deliberate, reviewed edit.
 EXPECTED_SEVERITY = {
     "REL-001": "ERROR", "REL-002": "ERROR",
     "MSG-001": "ERROR", "MSG-002": "WARNING", "MSG-003": "WARNING",
@@ -32,7 +36,7 @@ EXPECTED_SEVERITY = {
     "REC-005": "ERROR", "REC-006": "ERROR", "REC-007": "ERROR", "REC-008": "INFO",
     "AUD-001": "ERROR", "AUD-002": "ERROR", "AUD-003": "ERROR", "AUD-004": "ERROR",
     "AUD-005": "ERROR",
-    "WF-001": "INFO", "WF-002": "ERROR", "WF-003": "INFO",
+    "WF-001": "INFO", "WF-002": "WARNING", "WF-003": "INFO",
 }
 
 GOOD_CBFB = (("CBFB", "200^1^2 orange/green^NORMAL"),)
@@ -287,7 +291,7 @@ def test_findings_shape_sort_and_determinism(conn):
     assert {f["severity"] for f in first} == {"ERROR", "WARNING", "INFO"}
 
 
-def test_rules_catalogue_is_exactly_the_contract(conn):
+def test_rules_catalogue_matches_expected_severities(conn):
     assert set(reconcile.RULES) == set(EXPECTED_SEVERITY)
     for rule_id, rule in reconcile.RULES.items():
         assert set(rule) == {"severity", "title", "documented_rule"}
@@ -807,6 +811,127 @@ def test_wf_scope_limited_to_requested_orders(conn):
     assert subjects_of(scoped, "WF-003") == [[o(b.order_a)]]
     none = reconcile.reconcile_database(conn, order_ids=set())
     assert [f for f in none if f["rule_id"].startswith("WF-")] == []
+
+
+@pytest.mark.parametrize("change", ["receive", "reject"])
+def test_wf_002_specimen_change_after_finalization_is_a_warning(conn, change):
+    """The public services allow a specimen change on a FINALIZED order.
+
+    receive_specimen and reject_specimen do not check order status, and
+    validation reads the latest specimen, so current validation can fail for a
+    correctly finalized order. WF-002 reports that as a WARNING with an
+    ambiguity, never as an ERROR (which would make reconcile exit 1).
+    """
+    b = build_base(conn)
+    assert by_rule(reconcile.reconcile_database(conn), "WF-002") == []
+    if change == "receive":
+        workflow.receive_specimen(conn, b.order_fin)
+    else:
+        specimen = one(
+            conn, "SELECT specimen_id FROM specimen WHERE order_id = ?", (b.order_fin,)
+        )
+        workflow.reject_specimen(conn, specimen, "hemolyzed (synthetic)")
+    assert one(
+        conn, "SELECT status FROM lab_order WHERE order_id = ?", (b.order_fin,)
+    ) == "FINALIZED"
+
+    findings = reconcile.reconcile_database(conn)
+    (hit,) = by_rule(findings, "WF-002")
+    assert hit["subjects"] == [o(b.order_fin)]
+    assert hit["severity"] == "WARNING"
+    assert len(hit["observations"]) == 1
+    assert "SPEC_ACCESSIONED" in hit["observations"][0]
+    assert "receive_specimen" in hit["documented_rule"]
+    assert "reject_specimen" in hit["documented_rule"]
+    assert hit["ambiguity"] and "cannot distinguish" in hit["ambiguity"]
+    assert reconcile.summarize(findings)["ERROR"] == 0
+    assert [f["rule_id"] for f in findings if f["severity"] != "INFO"] == ["WF-002"]
+
+
+# ---------------------------------------------------------------------------
+# Each documented branch of REC-002 / REC-003 / REC-004 fires on its own
+# ---------------------------------------------------------------------------
+
+def _dangle_resulting_message(conn, attempt_id: int, message_id: int) -> None:
+    conn.commit()  # PRAGMA foreign_keys is a no-op inside an open transaction.
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute(
+        "UPDATE interface_recovery_attempt SET resulting_message_id = ? WHERE attempt_id = ?",
+        (message_id, attempt_id),
+    )
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _set_message(conn, message_id: int, column: str, value) -> None:
+    assert column in ("direction", "status", "order_id")
+    conn.execute(
+        f"UPDATE interface_message SET {column} = ? WHERE message_id = ?", (value, message_id)
+    )
+
+
+def _branch_rec_002_terminal(conn, b):
+    conn.execute(
+        "UPDATE interface_error_queue SET status = 'TERMINAL', resolved_at = NULL, "
+        "terminal_at = datetime('now') WHERE queue_id = ?",
+        (b.nf_queue,),
+    )
+    return "REC-002", [sorted([q(b.nf_queue), a(b.retried.attempt_id)])]
+
+
+def _branch_rec_003_missing(conn, b):
+    _dangle_resulting_message(conn, b.retried.attempt_id, 88888)
+    return "REC-003", [[a(b.retried.attempt_id)]]
+
+
+def _branch_rec_003_outbound(conn, b):
+    _set_message(conn, b.retried.resulting_message_id, "direction", "OUTBOUND")
+    return "REC-003", [sorted([a(b.retried.attempt_id), m(b.retried.resulting_message_id)])]
+
+
+def _branch_rec_003_not_filed(conn, b):
+    _set_message(conn, b.retried.resulting_message_id, "status", "RECEIVED")
+    return "REC-003", [sorted([a(b.retried.attempt_id), m(b.retried.resulting_message_id)])]
+
+
+def _branch_rec_003_null_order(conn, b):
+    _set_message(conn, b.retried.resulting_message_id, "order_id", None)
+    return "REC-003", [sorted([a(b.retried.attempt_id), m(b.retried.resulting_message_id)])]
+
+
+def _branch_rec_004_missing(conn, b):
+    _dangle_resulting_message(conn, b.failed.attempt_id, 99999)
+    return "REC-004", [[a(b.failed.attempt_id)]]
+
+
+def _branch_rec_004_not_errored(conn, b):
+    _set_message(conn, b.failed.resulting_message_id, "status", "FILED")
+    return "REC-004", [sorted([a(b.failed.attempt_id), m(b.failed.resulting_message_id)])]
+
+
+RECOVERY_BRANCHES = {
+    "REC-002-terminal-item": _branch_rec_002_terminal,
+    "REC-003-message-missing": _branch_rec_003_missing,
+    "REC-003-message-outbound": _branch_rec_003_outbound,
+    "REC-003-message-not-filed": _branch_rec_003_not_filed,
+    "REC-003-message-null-order": _branch_rec_003_null_order,
+    "REC-004-message-missing": _branch_rec_004_missing,
+    "REC-004-message-not-errored": _branch_rec_004_not_errored,
+}
+
+
+@pytest.mark.parametrize("branch", sorted(RECOVERY_BRANCHES))
+def test_recovery_rule_branch_fires_alone(conn, branch):
+    """Each OR branch of the REC-002/003/004 conditions is enough on its own."""
+    b = build_base(conn)
+    before = reconcile.reconcile_database(conn)
+    rule_id, expected = RECOVERY_BRANCHES[branch](conn, b)
+    assert rule_id == branch[:7]
+    assert by_rule(before, rule_id) == []
+    conn.commit()
+    hits = by_rule(reconcile.reconcile_database(conn), rule_id)
+    assert sorted(f["subjects"] for f in hits) == sorted(expected)
+    assert all(f["severity"] == "ERROR" and f["observations"] for f in hits)
 
 
 # ---------------------------------------------------------------------------

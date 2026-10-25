@@ -283,11 +283,15 @@ RULES: dict[str, dict[str, str]] = {
         ),
     },
     "WF-002": {
-        "severity": "ERROR",
+        "severity": "WARNING",
         "title": "FINALIZED order fails current validation",
         "documented_rule": (
             "R-006: workflow.finalize_order finalizes only when validation has no "
-            "ERROR finding, and results cannot change after finalization."
+            "ERROR finding at that time, and workflow.enter_fish_result refuses "
+            "result changes after finalization. Specimen records can still change "
+            "after finalization (workflow.receive_specimen and "
+            "workflow.reject_specimen do not check order status), and validation "
+            "reads the latest specimen."
         ),
     },
     "WF-003": {
@@ -307,6 +311,12 @@ _AMBIGUITY: dict[str, str] = {
     "QUE-004": (
         "Any REJECTED attempt on the item is accepted as the recorded explanation; "
         "its outcome_detail text is not parsed."
+    ),
+    "WF-002": (
+        "The database does not record the validation state at finalization, so "
+        "this finding cannot distinguish a specimen received or rejected after "
+        "finalization through the public services from a finalization or result "
+        "defect."
     ),
     "WF-003": (
         "Compared as a multiset of (rule_code, severity, message); stored rows "

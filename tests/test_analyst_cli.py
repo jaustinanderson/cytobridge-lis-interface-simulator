@@ -9,7 +9,13 @@ matching output strings:
 - the ``--json`` envelope (stable keys, exactly one object, exit codes);
 - error paths return the contract's exit code and leave state correct
   (nothing created, nothing changed, or exactly the rows the service writes);
-- read-only commands leave the database file byte-identical with no journal;
+- read-only commands leave the database file byte-identical with no journal,
+  and each CLI view reads inside one read transaction;
+- output files are all-or-nothing, and ``export --store`` never commits a
+  message and then fails silently on its ``--out`` file;
+- arguments that are not UTF-8, ids beyond SQLite's 64-bit range, and a stdout
+  that cannot be written map to their documented exit codes (5, 2, 6);
+- every sqlite3 connection the CLI opens is closed (a spy, on every Python);
 - inbound payload bytes (CR and CRLF segment terminators, multibyte UTF-8) are
   stored and shown back exactly;
 - original-message immutability and handled-failure rollback through the CLI
@@ -23,6 +29,7 @@ All data is synthetic. No PHI.
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import io
 import json
@@ -755,6 +762,25 @@ def test_finalize_blocked_and_already_finalized(rich: Lab) -> None:
     assert table_counts(rich.db) == before
 
 
+def test_cancelled_order_refused_by_cli_preflight(rich: Lab) -> None:
+    """workflow.finalize_order has no status check; the CLI preflight refuses.
+
+    No service cancels an order, so direct SQL sets CANCELLED (test-only).
+    """
+    with contextlib.closing(sqlite3.connect(rich.db)) as conn:
+        conn.execute("UPDATE lab_order SET status = 'CANCELLED' WHERE order_id = 2")
+        conn.commit()
+    before = snapshot(rich.db)
+    env = rich.run("finalize", *rich.dbargs, "--order-id", 2, "--by", "analyst01",
+                   expect=4)
+    assert env["error"]["type"] == "REFUSED" and "CANCELLED" in env["error"]["message"]
+    env = rich.run("result-enter", *rich.dbargs, "--order-id", 2, "--probe", "CEP8",
+                   "--scored", 200, "--abnormal", 1, "--pattern", "2", "--interpretation",
+                   "NORMAL", "--entered-by", "t", expect=4)
+    assert env["error"]["type"] == "REFUSED"
+    assert snapshot(rich.db) == before  # no validation rows, still CANCELLED
+
+
 def test_retry_on_redrive_only_item_rejected(open_lab: Lab) -> None:
     before = table_counts(open_lab.db)
     env = open_lab.run("recover", "retry", *open_lab.dbargs, "--queue-id", 1,
@@ -841,6 +867,138 @@ def test_export_refusals_and_out_file(rich: Lab) -> None:
     assert out.read_bytes() == stored.encode("utf-8")
     assert env["result"]["payload_sha256"] == sha256_path(out)
     assert "\n" not in stored and "\r" in stored  # HL7 CR segment terminators
+
+
+class _FullDiskHandle:
+    """Test-only binary handle: writes half the bytes, then fails like a full disk."""
+
+    def __init__(self, real: Any) -> None:
+        self.real = real
+
+    def write(self, data: bytes) -> int:
+        self.real.write(data[: len(data) // 2])
+        self.real.flush()
+        raise OSError(errno.ENOSPC, "No space left on device (test-only)")
+
+    def close(self) -> None:
+        self.real.close()
+
+
+def inject_output_failure(
+    monkeypatch: pytest.MonkeyPatch, target: Path, stage: str
+) -> None:
+    """Make the CLI's exclusive creation ("create") or write ("write") of ``target`` fail.
+
+    Test-only: shadows ``open`` inside ``src.analyst.cli`` (the only place the
+    CLI opens output files); every other path opens normally.
+    """
+    real_open = open
+
+    def fake_open(file: Any, mode: str = "r", *args: Any, **kwargs: Any) -> Any:
+        hit = Path(file) == target
+        if hit and stage == "create":
+            raise PermissionError(errno.EACCES, "Permission denied (test-only)", str(file))
+        handle = real_open(file, mode, *args, **kwargs)
+        return _FullDiskHandle(handle) if hit and stage == "write" else handle
+
+    monkeypatch.setattr(cli, "open", fake_open, raising=False)
+
+
+def _uncreatable_dir(tmp_path: Path) -> Path | None:
+    """An existing directory in which this process cannot create a file, or None."""
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
+        locked = tmp_path / "locked"
+        locked.mkdir()
+        locked.chmod(0o555)
+        return locked
+    if Path("/proc").is_dir():  # root on Linux: procfs refuses new regular files
+        return Path("/proc")
+    return None
+
+
+def test_export_store_uncreatable_out_stores_nothing(rich: Lab) -> None:
+    """F01/F03: an --out that cannot be created is refused BEFORE the store."""
+    before = table_counts(rich.db)
+    missing_dir = rich.root / "no-such-dir" / "export.hl7"
+    env = rich.run("export", *rich.dbargs, "--order-id", 1, "--format", "hl7",
+                   "--store", "--out", missing_dir, expect=3)
+    assert env["error"]["type"] == "NOT_FOUND" and env["result"] is None
+    assert table_counts(rich.db) == before
+
+    locked = _uncreatable_dir(rich.root)
+    if locked is None:
+        pytest.skip("no directory that refuses file creation on this platform")
+    target = locked / "cytobridge-cli-test-export.hl7"
+    try:
+        for fmt in ("hl7", "fhir"):
+            env = rich.run("export", *rich.dbargs, "--order-id", 1, "--format", fmt,
+                           "--store", "--out", target, expect=5)
+            assert env["error"]["type"] == "INVALID_INPUT" and env["result"] is None
+            assert "Nothing was written" in env["error"]["message"]
+            assert table_counts(rich.db) == before  # no OUTBOUND row was committed
+            assert not target.exists()
+    finally:
+        if locked != Path("/proc"):
+            locked.chmod(0o755)
+
+    # The corrected request then stores exactly one message.
+    good_out = rich.root / "export.hl7"
+    env = rich.run("export", *rich.dbargs, "--order-id", 1, "--format", "hl7",
+                   "--store", "--out", good_out, expect=0)
+    after = table_counts(rich.db)
+    assert after["interface_message"] == before["interface_message"] + 1
+    assert good_out.read_bytes().decode("utf-8") == env["result"]["payload"]
+
+
+@pytest.mark.parametrize("stage", ["create", "write"])
+def test_export_store_out_failure_never_hides_a_stored_row(
+    rich: Lab, monkeypatch: pytest.MonkeyPatch, stage: str
+) -> None:
+    """A creation failure stores nothing; a write failure after the store says so."""
+    before = table_counts(rich.db)
+    out = rich.root / f"export-{stage}.hl7"
+    inject_output_failure(monkeypatch, out, stage)
+    env = rich.run("export", *rich.dbargs, "--order-id", 1, "--format", "hl7",
+                   "--store", "--out", out, expect=5)
+    monkeypatch.undo()
+    assert env["error"]["type"] == "INVALID_INPUT"
+    assert not out.exists()  # an incomplete file is never left behind
+    after = table_counts(rich.db)
+    if stage == "create":
+        assert after == before and env["result"] is None
+        return
+    # The store committed before the write failed: the error must say so.
+    assert after["interface_message"] == before["interface_message"] + 1
+    new_id = scalar(rich.db, "SELECT MAX(message_id) FROM interface_message")
+    assert env["result"]["stored_message_id"] == new_id
+    assert env["result"]["out"] is None
+    assert f"WAS stored as OUTBOUND interface_message {new_id}" in env["error"]["message"]
+    stored = scalar(rich.db, "SELECT payload FROM interface_message WHERE message_id = ?",
+                    (new_id,))
+    assert hashlib.sha256(stored.encode("utf-8")).hexdigest() == (
+        env["result"]["payload_sha256"]
+    )
+
+
+def test_export_without_store_write_failure_and_refusal_cleanup(
+    rich: Lab, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before_sha = sha256_path(rich.db)
+    out = rich.root / "export-ro.hl7"
+    inject_output_failure(monkeypatch, out, "write")
+    env = rich.run("export", *rich.dbargs, "--order-id", 1, "--format", "fhir",
+                   "--out", out, expect=5)
+    monkeypatch.undo()
+    assert env["result"] is None and "Nothing was stored" in env["error"]["message"]
+    assert not out.exists()
+    # A service refusal (order 2 is not FINALIZED) removes the empty --out file
+    # this call created, with and without --store.
+    for extra in ([], ["--store"]):
+        env = rich.run("export", *rich.dbargs, "--order-id", 2, "--format", "hl7",
+                       "--out", out, *extra, expect=4)
+        assert env["error"]["type"] == "REFUSED"
+        assert not out.exists()
+    assert sha256_path(rich.db) == before_sha
 
 
 def test_reconcile_error_exit_1(rich: Lab) -> None:
@@ -960,6 +1118,53 @@ def test_evidence_read_only_and_output_files(rich: Lab) -> None:
     assert not new_report.exists()
 
 
+@pytest.mark.parametrize(
+    "stage,failing",
+    [("create", "--report"), ("write", "--report"), ("write", "--out"),
+     ("race", "--report")],
+)
+def test_evidence_outputs_are_all_or_nothing(
+    rich: Lab, monkeypatch: pytest.MonkeyPatch, stage: str, failing: str
+) -> None:
+    """F08/F11: a failing --report (or --out) leaves NO output file; a rerun succeeds."""
+    before_sha = sha256_path(rich.db)
+    out, report = rich.root / "case.json", rich.root / "case.md"
+    target = report if failing == "--report" else out
+    racer = b"synthetic file created by another process"
+    if stage == "race":
+        # Another process creates --report after the existence check passed.
+        real_check = cli._check_new_output
+
+        def check_then_race(path: Path, option: str) -> None:
+            real_check(path, option)
+            if option == failing:
+                path.write_bytes(racer)
+
+        monkeypatch.setattr(cli, "_check_new_output", check_then_race)
+    else:
+        inject_output_failure(monkeypatch, target, stage)
+    argv = ["evidence", *rich.dbargs, "--queue-id", 1, "--source-revision", "test-rev",
+            "--out", out, "--report", report]
+    env = rich.run(*argv, expect=4 if stage == "race" else 5)
+    monkeypatch.undo()
+    assert env["result"] is None
+    if stage == "race":
+        assert env["error"]["type"] == "REFUSED"
+        assert target.read_bytes() == racer  # a file this call did not create is kept
+        target.unlink()
+    else:
+        assert env["error"]["type"] == "INVALID_INPUT"
+        assert "Nothing was written" in env["error"]["message"]
+    assert not out.exists() and not report.exists()
+    assert sha256_path(rich.db) == before_sha
+
+    # The same command, rerun unchanged, now succeeds and writes both files.
+    env = rich.run(*argv, expect=0)
+    written = json.loads(out.read_text(encoding="ascii"))
+    assert written["content_fingerprint"] == env["result"]["content_fingerprint"]
+    assert report.read_bytes()
+
+
 def test_exercise_list_and_show_read_only(rich: Lab) -> None:
     before_sha = sha256_path(rich.db)
     listed = rich.run("exercise", "list", expect=0)
@@ -1024,23 +1229,77 @@ def test_exercise_setup_run_verify_and_run_all(tmp_path: Path, capsys: Any) -> N
 # Connections are always closed
 # ---------------------------------------------------------------------------
 
-def test_no_connection_left_unclosed(rich: Lab) -> None:
-    """Python 3.13+ warns when a sqlite3 connection is collected unclosed."""
-    import gc
-    import warnings
+def _spy_connections(monkeypatch: pytest.MonkeyPatch) -> list[sqlite3.Connection]:
+    """Record every connection ``sqlite3.connect`` returns (test-only spy)."""
+    opened: list[sqlite3.Connection] = []
+    real_connect = sqlite3.connect
 
+    def spy(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        conn = real_connect(*args, **kwargs)
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(sqlite3, "connect", spy)
+    return opened
+
+
+def _still_open(connections: list[sqlite3.Connection]) -> list[sqlite3.Connection]:
+    """Connections that still accept a statement (a closed one raises)."""
+    alive = []
+    for conn in connections:
+        try:
+            conn.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            continue
+        alive.append(conn)
+    return alive
+
+
+def test_no_connection_left_unclosed(rich: Lab, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every sqlite3 connection the CLI opens is closed, on every Python version.
+
+    A spy keeps each connection ``sqlite3.connect`` returns (through
+    ``store.open_*``, ``store.init_database``, and the preview's in-memory copy).
+    Executing on a closed connection raises ``sqlite3.ProgrammingError``, so a
+    leaked one is found directly rather than through a ResourceWarning that only
+    Python 3.13+ emits.
+    """
     good = rich.inputs / "good.hl7"
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always", ResourceWarning)
-        for argv, _expect in READ_ONLY_COMMANDS + TEXT_COMMANDS:
-            rich.text(*_with_db(argv, rich.db, good))
-        for argv in UNKNOWN_ID_COMMANDS:
-            rich.text(*_with_db(argv, rich.db, good))
-        rich.text("finalize", *rich.dbargs, "--order-id", 1, "--by", "a")
-        gc.collect()
-    leaks = [w for w in caught if issubclass(w.category, ResourceWarning)
-             and "sqlite3" in str(w.message).lower() + str(w.filename).lower()]
-    assert leaks == []
+    opened = _spy_connections(monkeypatch)
+    commands = 0
+    for argv, _expect in READ_ONLY_COMMANDS + TEXT_COMMANDS:
+        rich.text(*_with_db(argv, rich.db, good))
+        commands += 1
+    for argv in UNKNOWN_ID_COMMANDS:
+        rich.text(*_with_db(argv, rich.db, good))
+        commands += 1
+    rich.text("finalize", *rich.dbargs, "--order-id", 1, "--by", "a")
+    rich.text("init", "--db", rich.root / "fresh.db")
+    rich.text("evidence", *rich.dbargs, "--order-id", 1, "--source-revision", "t",
+              "--out", rich.root / "leak.json", "--report", rich.root / "leak.md")
+    commands += 3
+    monkeypatch.undo()
+    assert len(opened) >= commands  # the spy really saw the CLI's connections
+    leaked = _still_open(opened)
+    for conn in leaked:
+        conn.close()
+    assert leaked == []
+
+
+def test_spy_detects_a_leaked_connection(rich: Lab, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The leak check can fail: a test-only reader that never closes is caught."""
+    opened = _spy_connections(monkeypatch)
+
+    @contextlib.contextmanager
+    def leaky_read_only(path: str) -> Any:
+        yield store.open_read_only(path, snapshot=True)  # test-only: no close()
+
+    monkeypatch.setattr(cli, "_read_only", leaky_read_only)
+    rich.text("worklist", *rich.dbargs)
+    monkeypatch.undo()
+    leaked = _still_open(opened)
+    assert len(leaked) == 1
+    leaked[0].close()
 
 
 # ---------------------------------------------------------------------------
@@ -1286,5 +1545,253 @@ def test_help_exits_0(capsys: Any, words: list[str]) -> None:
                        (4, "REFUSED"), (5, "INVALID_INPUT"), (6, "INTERNAL")):
         assert f"  {code}  {kind}" in out
     assert "read-only commands" in out and "write commands" in out
+    assert "--help / -h is the one exception" in out
     capsys.readouterr()
+    # Documented exemption from the one-envelope rule: plain help, exit 0.
     assert cli.main(["--json"] + words + ["--help"]) == 0
+    assert capsys.readouterr().out.startswith("usage: python -m src.analyst")
+
+
+# ---------------------------------------------------------------------------
+# Arguments that are not UTF-8 -> 5, before any database is opened
+# ---------------------------------------------------------------------------
+
+BAD = "\udcff"  # how POSIX argv delivers the undecodable byte 0xff (surrogateescape)
+
+
+@pytest.mark.parametrize("option", ["--provider", "--external-specimen-id", "--mrn"])
+def test_non_utf8_argument_refused_before_any_write(rich: Lab, option: str) -> None:
+    before_sha, before_counts = sha256_path(rich.db), table_counts(rich.db)
+    argv = case_args(rich.dbargs, "ACC-CLI-0077", "SYN-CLI-77")
+    argv[argv.index(option) + 1] = f"value {BAD}"
+    env = rich.run(*argv, expect=5)
+    assert env["error"]["type"] == "INVALID_INPUT"
+    assert env["error"]["message"].startswith(f"{option} is not valid UTF-8")
+    assert table_counts(rich.db) == before_counts
+    assert sha256_path(rich.db) == before_sha
+    # The corrected rerun is not refused as a duplicate: nothing was created.
+    rich.run(*case_args(rich.dbargs, "ACC-CLI-0077", "SYN-CLI-77"), expect=0)
+
+
+def test_non_utf8_argument_checked_before_database_open(tmp_path: Path, capsys: Any) -> None:
+    lab = Lab(tmp_path, capsys)
+    missing = tmp_path / "never.db"
+    good = lab.write("good.hl7", oru("U-GOOD", ACC1))
+    for argv, option in (
+        (["ingest", "--db", missing, "--file", good, "--actor", f"inst{BAD}"], "--actor"),
+        (["exercise", "show", f"EX01{BAD}"], "exercise ID"),
+        (["worklist", "--db", f"{tmp_path}/lab{BAD}.db"], "--db"),
+    ):
+        env = lab.run(*argv, expect=5)  # not 3: no database or file was opened
+        assert env["error"]["message"].startswith(f"{option} is not valid UTF-8")
+        code, out, err = lab.text(*argv)
+        assert code == 5 and out == "" and err.startswith("error: ")
+    assert not missing.exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX argv carries raw bytes")
+def test_non_utf8_argv_bytes_subprocess(open_lab: Lab) -> None:
+    """F09: raw non-UTF-8 argv bytes from a real process leave no partial rows."""
+    before_sha, before_counts = sha256_path(open_lab.db), table_counts(open_lab.db)
+    good = open_lab.write("good.hl7", oru("U-GOOD-2", ACC1))
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1")
+    db = os.fsencode(open_lab.db)
+    for argv, option in (
+        ([b"case-create", b"--db", db, b"--mrn", b"SYN-CLI-88", b"--last-name", b"S",
+          b"--first-name", b"U", b"--dob", b"1970-01-01", b"--sex", b"F",
+          b"--accession", b"ACC-CLI-0088", b"--provider", b"Dr \xff"], "--provider"),
+        ([b"ingest", b"--db", db, b"--file", os.fsencode(good), b"--actor",
+          b"inst\xfe"], "--actor"),
+    ):
+        proc = subprocess.run(
+            [os.fsencode(sys.executable), b"-m", b"src.analyst", b"--json", *argv],
+            cwd=REPO_ROOT, capture_output=True, timeout=120, env=env,
+        )
+        envelope = parse_single_json(proc.stdout.decode("ascii"))
+        check_envelope(envelope, proc.returncode)
+        assert proc.returncode == 5 and proc.stderr == b""
+        assert envelope["error"]["message"].startswith(f"{option} is not valid UTF-8")
+    assert table_counts(open_lab.db) == before_counts
+    assert sha256_path(open_lab.db) == before_sha
+
+
+# ---------------------------------------------------------------------------
+# Ids and counts outside SQLite's 64-bit range -> 2; unusable output paths -> 5
+# ---------------------------------------------------------------------------
+
+TOO_BIG = str(2**63)
+TOO_SMALL = str(-(2**63) - 1)
+INT_OPTION_COMMANDS = [
+    ["show-message", "--message-id", "{n}"],
+    ["trace", "--order-id", "{n}"],
+    ["trace", "--queue-id", "{n}"],
+    ["trace", "--message-id", "{n}"],
+    ["reconcile", "--order-id", "{n}"],
+    ["reconcile", "--queue-id", "{n}"],
+    ["audit", "--order-id", "{n}"],
+    ["evidence", "--order-id", "{n}"],
+    ["evidence", "--queue-id", "{n}"],
+    ["export", "--order-id", "{n}", "--format", "hl7", "--store"],
+    ["finalize", "--order-id", "{n}", "--by", "a"],
+    ["specimen-accession", "--specimen-id", "{n}"],
+    ["recover", "history", "--queue-id", "{n}"],
+    ["recover", "preview", "--queue-id", "{n}", "--action", "retry",
+     "--request-id", "R-BIG", "--actor", "a"],
+    ["recover", "retry", "--queue-id", "{n}", "--request-id", "R-BIG", "--actor", "a"],
+    ["recover", "redrive", "--queue-id", "{n}", "--file", "{good}",
+     "--request-id", "R-BIG", "--actor", "a"],
+    ["result-enter", "--order-id", "{n}", "--probe", "CEP8", "--scored", "200",
+     "--abnormal", "1", "--pattern", "2", "--interpretation", "NORMAL",
+     "--entered-by", "t"],
+    ["result-enter", "--order-id", "2", "--probe", "CEP8", "--scored", "{n}",
+     "--abnormal", "1", "--pattern", "2", "--interpretation", "NORMAL",
+     "--entered-by", "t"],
+    ["result-enter", "--order-id", "2", "--probe", "CEP8", "--scored", "200",
+     "--abnormal", "{n}", "--pattern", "2", "--interpretation", "NORMAL",
+     "--entered-by", "t"],
+]
+
+
+@pytest.mark.parametrize("argv", INT_OPTION_COMMANDS, ids=lambda a: " ".join(a[:3]))
+def test_out_of_range_integers_are_usage_errors(rich: Lab, argv: list[str]) -> None:
+    before_sha = sha256_path(rich.db)
+    for value in (TOO_BIG, TOO_SMALL, "99999999999999999999"):
+        full = _with_db([a.replace("{n}", value) for a in argv], rich.db,
+                        rich.inputs / "good.hl7")
+        env = rich.run(*full, expect=2)
+        assert env["error"]["type"] == "USAGE" and "64-bit" in env["error"]["message"]
+    assert sha256_path(rich.db) == before_sha
+
+
+def test_largest_sqlite_integer_is_a_plain_not_found(rich: Lab) -> None:
+    before_sha = sha256_path(rich.db)
+    for argv in (["trace", "--order-id"], ["show-message", "--message-id"],
+                 ["recover", "history", "--queue-id"]):
+        full = _with_db(argv + [str(2**63 - 1)], rich.db, rich.inputs / "good.hl7")
+        assert rich.run(*full, expect=3)["error"]["type"] == "NOT_FOUND"
+        full = _with_db(argv + [str(-(2**63))], rich.db, rich.inputs / "good.hl7")
+        assert rich.run(*full, expect=3)["error"]["type"] == "NOT_FOUND"
+    env = rich.run("trace", *rich.dbargs, "--order-id", "abc", expect=2)
+    assert "invalid int value: 'abc'" in env["error"]["message"]
+    assert sha256_path(rich.db) == before_sha
+
+
+def test_over_long_output_path_is_invalid_input(rich: Lab) -> None:
+    before = table_counts(rich.db)
+    long_name = rich.root / ("x" * 300 + ".out")
+    for argv in (
+        ["export", *rich.dbargs, "--order-id", 1, "--format", "hl7", "--store",
+         "--out", long_name],
+        ["evidence", *rich.dbargs, "--order-id", 1, "--out", long_name],
+        ["evidence", *rich.dbargs, "--order-id", 1, "--out", rich.root / "ok.json",
+         "--report", long_name],
+    ):
+        env = rich.run(*argv, expect=5)
+        assert env["error"]["type"] == "INVALID_INPUT"
+    assert table_counts(rich.db) == before
+    assert not (rich.root / "ok.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# stdout that cannot be written -> 6, never a traceback or exit 1
+# ---------------------------------------------------------------------------
+
+class _BrokenStdout(io.TextIOBase):
+    """Test-only text stream whose every write fails like a full disk."""
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, text: str) -> int:
+        raise OSError(errno.ENOSPC, "No space left on device (test-only)")
+
+
+@pytest.mark.parametrize("json_flag", [True, False], ids=["json", "text"])
+def test_stdout_write_failure_exit_6(
+    rich: Lab, monkeypatch: pytest.MonkeyPatch, json_flag: bool
+) -> None:
+    flag = ["--json"] if json_flag else []
+    rich.capsys.readouterr()
+    monkeypatch.setattr(sys, "stdout", _BrokenStdout())
+    code = cli.main(["worklist", *rich.dbargs, *flag])
+    monkeypatch.undo()
+    err = rich.capsys.readouterr().err
+    assert code == 6
+    assert err.startswith("error: output failed: OSError") and "Traceback" not in err
+    assert "exit code 0" in err
+
+
+def test_stdout_failure_after_a_write_command_reports_its_outcome(
+    rich: Lab, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    before = table_counts(rich.db)
+    rich.capsys.readouterr()
+    monkeypatch.setattr(sys, "stdout", _BrokenStdout())
+    code = cli.main([*case_args(rich.dbargs, "ACC-CLI-0066", "SYN-CLI-66"), "--json"])
+    monkeypatch.undo()
+    err = rich.capsys.readouterr().err
+    assert code == 6
+    assert "the command itself had finished with exit code 0" in err
+    assert table_counts(rich.db)["lab_order"] == before["lab_order"] + 1
+
+
+def test_closed_stdout_and_stderr_exit_6(rich: Lab, monkeypatch: pytest.MonkeyPatch) -> None:
+    for argv in (["worklist", *rich.dbargs, "--json"], ["worklist", *rich.dbargs],
+                 ["trace", *rich.dbargs, "--json"]):  # last one is a usage error
+        monkeypatch.setattr(sys, "stdout", None)
+        monkeypatch.setattr(sys, "stderr", None)
+        code = cli.main(argv)
+        monkeypatch.undo()
+        assert code == 6
+
+
+@pytest.mark.skipif(not Path("/dev/full").exists(), reason="needs /dev/full")
+def test_full_stdout_subprocess_exit_6(rich: Lab) -> None:
+    for flag in (["--json"], []):
+        with open("/dev/full", "wb") as full:
+            proc = subprocess.run(
+                [sys.executable, "-m", "src.analyst", "trace", *rich.dbargs,
+                 "--order-id", "1", *flag],
+                cwd=REPO_ROOT, stdout=full, stderr=subprocess.PIPE, timeout=120,
+                env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+            )
+        assert proc.returncode == 6, proc.stderr
+        assert proc.stderr.startswith(b"error: output failed: OSError")
+        assert b"Traceback" not in proc.stderr
+
+
+# ---------------------------------------------------------------------------
+# Read-only views read one consistent snapshot
+# ---------------------------------------------------------------------------
+
+SNAPSHOT_COMMANDS = [
+    ["worklist", "--status", "ALL"],
+    ["show-message", "--message-id", "1"],
+    ["trace", "--queue-id", "1"],
+    ["reconcile"],
+    ["reconcile", "--order-id", "1"],
+    ["recover", "history", "--queue-id", "1"],
+    ["audit", "--order-id", "1"],
+    ["export", "--order-id", "1", "--format", "fhir"],
+    ["evidence", "--order-id", "1", "--source-revision", "t"],
+]
+
+
+@pytest.mark.parametrize("argv", SNAPSHOT_COMMANDS, ids=lambda a: " ".join(a[:2]))
+def test_read_only_views_hold_one_read_transaction(
+    rich: Lab, monkeypatch: pytest.MonkeyPatch, argv: list[str]
+) -> None:
+    before_sha = sha256_path(rich.db)
+    seen: list[tuple[bool, bool]] = []
+    real_open = store.open_read_only
+
+    def spy(path: Any, **kwargs: Any) -> sqlite3.Connection:
+        conn = real_open(path, **kwargs)
+        seen.append((kwargs.get("snapshot", False), conn.in_transaction))
+        return conn
+
+    monkeypatch.setattr(store, "open_read_only", spy)
+    rich.run(*_with_db(argv, rich.db, rich.inputs / "good.hl7"), expect=0)
+    monkeypatch.undo()
+    assert seen == [(True, True)]
+    assert sha256_path(rich.db) == before_sha and sidecars(rich.db) == []

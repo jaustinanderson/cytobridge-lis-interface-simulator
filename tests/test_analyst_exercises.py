@@ -447,6 +447,205 @@ def test_tamper_outbound_fhir_observation(built, tmp_path):
     assert "EX01 outbound[ACC-EX01-0001 HL7] matches_results" not in failed
 
 
+def _outbound_message(source: Path, fmt: str) -> tuple[int, str]:
+    with closing(store.open_read_only(source)) as conn:
+        row = conn.execute(
+            "SELECT message_id, payload FROM interface_message "
+            "WHERE direction = 'OUTBOUND' AND format = ?",
+            (fmt,),
+        ).fetchone()
+    return row[0], row[1]
+
+
+def _edit_cep8_obx(edit_fields: Callable[[list[str]], None]) -> Callable[[str], str]:
+    """Edit the fields of the stored HL7 export's CEP8 OBX segment."""
+    def edit(payload: str) -> str:
+        segments = payload.split("\r")
+        hits = [i for i, s in enumerate(segments) if s.startswith("OBX|") and "|CEP8^" in s]
+        assert len(hits) == 1
+        fields = segments[hits[0]].split("|")
+        edit_fields(fields)
+        segments[hits[0]] = "|".join(fields)
+        return "\r".join(segments)
+    return edit
+
+
+def _edit_cep8_observation(edit_resource: Callable[[dict], None]) -> Callable[[str], str]:
+    """Edit the stored FHIR export's CEP8 Observation resource."""
+    def edit(payload: str) -> str:
+        bundle = json.loads(payload)
+        hits = [
+            e["resource"] for e in bundle["entry"]
+            if e["resource"]["resourceType"] == "Observation"
+            and e["resource"]["code"]["coding"][0]["code"] == "CEP8"
+        ]
+        assert len(hits) == 1
+        edit_resource(hits[0])
+        return json.dumps(bundle, indent=2)
+    return edit
+
+
+def _obx5(old: str, new: str) -> Callable[[list[str]], None]:
+    def edit(fields: list[str]) -> None:
+        assert old in fields[5]
+        fields[5] = fields[5].replace(old, new)
+    return edit
+
+
+def _obx8(new: str) -> Callable[[list[str]], None]:
+    def edit(fields: list[str]) -> None:
+        assert fields[8] == "N"
+        fields[8] = new
+    return edit
+
+
+def _set_value_quantity(res: dict) -> None:
+    assert res["valueQuantity"]["value"] == 1.5
+    res["valueQuantity"]["value"] = 42.0
+
+
+def _set_note_pattern(res: dict) -> None:
+    res["note"][0]["text"] = res["note"][0]["text"].replace("2 aqua", "4 aqua")
+
+
+def _set_interpretation_code(res: dict) -> None:
+    assert res["interpretation"][0]["coding"][0]["code"] == "N"
+    res["interpretation"][0]["coding"][0]["code"] = "A"
+
+
+@pytest.mark.parametrize("fmt, edit, field, want, got", [
+    ("HL7", _edit_cep8_obx(_obx5("(1.5%)", "(9.9%)")), "percent_abnormal", "1.5", "9.9"),
+    ("HL7", _edit_cep8_obx(_obx5("signal 2 aqua", "signal 4 aqua")),
+     "signal_pattern", "2 aqua", "4 aqua"),
+    ("HL7", _edit_cep8_obx(_obx8("A")), "flag", "N", "A"),
+    ("FHIR", _edit_cep8_observation(_set_value_quantity), "percent_abnormal", 1.5, 42.0),
+    ("FHIR", _edit_cep8_observation(_set_note_pattern), "signal_pattern", "2 aqua", "4 aqua"),
+    ("FHIR", _edit_cep8_observation(_set_interpretation_code), "flag", "N", "A"),
+], ids=[
+    "hl7-percent", "hl7-signal-pattern", "hl7-flag",
+    "fhir-value-quantity", "fhir-signal-pattern", "fhir-interpretation-code",
+])
+def test_tamper_outbound_percent_pattern_and_flag(built, tmp_path, fmt, edit, field, want, got):
+    # Counts and interpretation text are untouched: only the percent abnormal,
+    # the signal pattern, or the N/A/I flag/code of one export differs.
+    ex = "EX01-valid-result-export"
+    mid, payload = _outbound_message(built[ex], fmt)
+    tampered = edit(payload)
+    assert tampered != payload
+    result = _verify_tampered(
+        built, tmp_path, ex,
+        ("UPDATE interface_message SET payload = ? WHERE message_id = ?", (tampered, mid)),
+    )
+    label = f"EX01 outbound[ACC-EX01-0001 {fmt}]"
+    per_message = f"{label} message[{mid}] per-probe values"
+    assert _failed(result) == {f"{label} matches_results", per_message}
+    detail = _check(result, per_message)
+    assert detail["expected"]["CEP8"][field] == want
+    assert detail["observed"]["CEP8"][field] == got
+    others = {k: v for k, v in detail["observed"]["CEP8"].items() if k != field}
+    assert others == {k: v for k, v in detail["expected"]["CEP8"].items() if k != field}
+
+
+def test_outbound_expected_values_are_recomputed_from_fish_result(built, tmp_path):
+    # A fish_result signal_pattern change makes both stored exports stale.
+    result = _verify_tampered(
+        built, tmp_path, "EX01-valid-result-export",
+        ("UPDATE fish_result SET signal_pattern = '9 zzz' WHERE probe_id = "
+         "(SELECT probe_id FROM probe WHERE probe_code = 'CEP8')", ()),
+    )
+    failed = _failed(result)
+    assert "EX01 order[ACC-EX01-0001] result[CEP8] signal_pattern" in failed
+    for fmt in ("HL7", "FHIR"):
+        assert f"EX01 outbound[ACC-EX01-0001 {fmt}] matches_results" in failed
+    hl7 = [c for c in result["checks"]
+           if c["name"].startswith("EX01 outbound[ACC-EX01-0001 HL7] message[")]
+    assert hl7[0]["expected"]["CEP8"] == {
+        "cells_scored": 200, "cells_abnormal": 3, "percent_abnormal": "1.5",
+        "interpretation": "NORMAL", "flag": "N", "signal_pattern": "9 zzz",
+    }
+    assert hl7[0]["observed"]["CEP8"]["signal_pattern"] == "2 aqua"
+
+
+@pytest.mark.parametrize("ex_id, step, option, value, failing", [
+    ("EX01-valid-result-export", 1, "--by", "someone_else",
+     "EX01 order[ACC-EX01-0001] report_finalized_by"),
+    ("EX06-finalize-blocked-correction", 0, "--pattern", "NOT RECORDED",
+     "EX06 order[ACC-EX06-0001] result[TP53_17p] signal_pattern"),
+    ("EX06-finalize-blocked-correction", 1, "--entered-by", "tech02",
+     "EX06 order[ACC-EX06-0001] result[CEP8] entered_by"),
+])
+def test_task_specified_actor_and_pattern_are_verified(
+    exercise_copy, tmp_path, ex_id, step, option, value, failing
+):
+    # The analyst follows every step but uses the wrong identity or worksheet
+    # pattern: the run still matches every exit code, and verification fails on
+    # exactly the stated value.
+    def edit(d: dict) -> None:
+        argv = d["solution_steps"][step]["argv"]
+        argv[argv.index(option) + 1] = value
+
+    _edit_json(exercise_copy / "answer-keys" / f"{ex_id}.json", edit)
+    run = exercises.run_exercise(ex_id, tmp_path / "run.db")
+    assert all(s["matched"] for s in run["steps"])
+    assert run["verification"]["passed"] is False
+    assert _failed(run["verification"]) == {failing}
+    assert _check(run["verification"], failing)["observed"] == value
+
+
+def test_tamper_recovery_filing_actor(built, tmp_path):
+    # EX02's results were filed by the analyst01 retry, not by the interface.
+    result = _verify_tampered(
+        built, tmp_path, "EX02-unknown-accession-retry",
+        ("UPDATE fish_result SET entered_by = 'interface'", ()),
+    )
+    failed = _failed(result)
+    assert len(failed) == 9
+    assert all(n.startswith("EX02 order[ACC-EX02-0001] result[") and n.endswith("] entered_by")
+               for n in failed)
+    check = _check(result, "EX02 order[ACC-EX02-0001] result[CEP8] entered_by")
+    assert (check["expected"], check["observed"]) == ("analyst01", "interface")
+
+
+def test_verify_reads_one_snapshot(built, tmp_path, monkeypatch):
+    # verify_exercise holds one read transaction for all of its queries, so a
+    # writer cannot commit in the middle of a verification.
+    source = tmp_path / "snapshot.db"
+    shutil.copyfile(built["EX05-replay-and-conflict"], source)
+    seen = []
+    original = exercises.reconcile.reconcile_database
+
+    def spy(conn, *args, **kwargs):
+        seen.append(conn.in_transaction)
+        with closing(sqlite3.connect(source, timeout=0)) as writer:
+            writer.execute(
+                "INSERT INTO patient (mrn, last_name, first_name, date_of_birth, sex) "
+                "VALUES ('SYN-EX05-99', 'Synthetic', 'Writer', '1970-01-05', 'U')"
+            )
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                writer.commit()
+            writer.rollback()
+        return original(conn, *args, **kwargs)
+
+    monkeypatch.setattr(exercises.reconcile, "reconcile_database", spy)
+    assert exercises.verify_exercise("EX05", source)["passed"] is True
+    assert seen == [True]
+
+
+def test_unsupported_result_key_fails_instead_of_being_ignored(built, exercise_copy):
+    ex = "EX03-invalid-result-redrive"
+    _edit_json(
+        exercise_copy / "answer-keys" / f"{ex}.json",
+        lambda d: d["expected"]["orders"][0]["results"]["CEP8"].update(
+            {"entered_at": "2026-10-25 09:00:00"}
+        ),
+    )
+    result = exercises.verify_exercise(ex, built[ex])
+    assert result["passed"] is False
+    assert _failed(result) == {
+        "EX03 answer key order[ACC-EX03-0001] result[CEP8] key 'entered_at' is supported"
+    }
+
+
 def test_tamper_outbound_count(built, tmp_path):
     result = _verify_tampered(
         built, tmp_path, "EX01-valid-result-export",

@@ -26,7 +26,9 @@ database under one working directory.
 Verifier
 --------
 ``verify_exercise`` is read-only (``store.open_read_only``: SQLite ``mode=ro``
-plus ``PRAGMA query_only``). It never looks at CLI output or exit codes: every
+plus ``PRAGMA query_only``) and reads one snapshot (``snapshot=True``: a single
+read transaction, so every check sees the same committed state). It never
+looks at CLI output or exit codes: every
 observed value comes from SQL queries on the persisted rows (plus the read-only
 ``validation.validate_order`` and ``reconcile.reconcile_database``, which only
 SELECT), and every fixture fingerprint is the SHA-256 of the fixture FILE BYTES,
@@ -36,6 +38,11 @@ only with a stored fingerprint column). Each check is ``{"name", "passed",
 ``1`` are different values. Checks are emitted in a fixed order: orders,
 queue_items, outbound (each in answer-key list order, per-probe and per-action
 keys sorted), totals by table name, then reconcile_error_count.
+
+An outbound ``matches_results`` check compares, per probe, what each stored
+HL7/FHIR export carries (counts, percent abnormal, interpretation, the N/A/I
+flag or code, signal pattern) with values recomputed from the current
+``fish_result`` rows (``_expected_export_values``).
 
 Automated exercise execution is automated testing of the simulator. It is not
 manual UAT and is not evidence of any analyst's understanding or mastery. The
@@ -58,7 +65,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import validation
-from ..interfaces import inbound_hl7, outbound_fhir
+from ..interfaces import INTERPRETATION_FLAG, inbound_hl7, outbound_fhir
 from . import reconcile, store
 from .common import (
     EXIT_INTERNAL,
@@ -82,7 +89,8 @@ ANSWER_KEY_ONLY_KEYS = ("expected", "question_answers", "solution_steps")
 
 _PLACEHOLDER_RE = re.compile(r"\{db\}|\{inputs\}")
 
-# EXPECTED vocabulary (contract sec 7/8; exercises/answer-keys/README.md). Any
+# EXPECTED vocabulary. The constants below are the authoritative definition;
+# exercises/answer-keys/README.md documents them for answer-key authors. Any
 # other key inside ``expected`` is reported as a failing check rather than being
 # silently ignored, so an expectation is never quietly skipped.
 _EXPECTED_SECTIONS = (
@@ -90,9 +98,12 @@ _EXPECTED_SECTIONS = (
 )
 _ORDER_KEYS = (
     "accession", "status", "result_count", "results", "report_status",
-    "audit_action_counts", "validation_blocking",
+    "report_finalized_by", "audit_action_counts", "validation_blocking",
 )
-_RESULT_FIELDS = ("cells_scored", "cells_abnormal", "interpretation")
+# Per-probe fish_result columns an answer key may state.
+_RESULT_FIELDS = (
+    "cells_scored", "cells_abnormal", "signal_pattern", "interpretation", "entered_by",
+)
 _QUEUE_KEYS = (
     "original_control_id", "failure_code", "failure_category", "recovery_policy",
     "status", "original_message_status", "original_payload_fixture",
@@ -541,21 +552,54 @@ def _order_row(conn: sqlite3.Connection, accession: str) -> sqlite3.Row | None:
 
 
 def _current_results(conn: sqlite3.Connection, order_id: int) -> dict[str, dict[str, Any]]:
-    """``{probe_code: {cells_scored, cells_abnormal, interpretation}}`` from fish_result."""
+    """``{probe_code: {<each _RESULT_FIELDS column>}}`` from the order's fish_result rows."""
     rows = conn.execute(
-        "SELECT pr.probe_code, fr.cells_scored, fr.cells_abnormal, fr.interpretation "
+        "SELECT pr.probe_code, fr.cells_scored, fr.cells_abnormal, fr.signal_pattern, "
+        "       fr.interpretation, fr.entered_by "
         "FROM fish_result fr JOIN probe pr ON pr.probe_id = fr.probe_id "
         "WHERE fr.order_id = ? ORDER BY pr.probe_code",
         (order_id,),
     ).fetchall()
-    return {
-        r["probe_code"]: {
+    return {r["probe_code"]: {f: r[f] for f in _RESULT_FIELDS} for r in rows}
+
+
+def _percent_abnormal(scored: Any, abnormal: Any) -> float | None:
+    """Percent abnormal recomputed the way ``interfaces.collect_report_data`` does.
+
+    ``round(100.0 * abnormal / scored, 1)``, or ``0.0`` when nothing was scored.
+    None when a stored count is not an integer (a damaged row), so it never matches.
+    """
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in (scored, abnormal)):
+        return None
+    return round(100.0 * abnormal / scored, 1) if scored else 0.0
+
+
+def _expected_export_values(
+    current: dict[str, dict[str, Any]], fmt: str
+) -> dict[str, dict[str, Any]]:
+    """Per-probe values the outbound generators write for the current fish_result rows.
+
+    Counts, signal pattern and interpretation are the fish_result columns.
+    ``percent_abnormal`` is recomputed (``_percent_abnormal``): HL7 OBX-5 writes
+    it as text (``str`` of the rounded float, e.g. ``"1.5"``), FHIR as the number
+    ``valueQuantity.value``. ``flag`` is ``interfaces.INTERPRETATION_FLAG`` of the
+    interpretation (N/A/I; None for a value outside that mapping), written to
+    HL7 OBX-8 and to the FHIR interpretation coding code.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for code, r in current.items():
+        pct = _percent_abnormal(r["cells_scored"], r["cells_abnormal"])
+        if fmt == "HL7" and pct is not None:
+            pct = str(pct)
+        out[code] = {
             "cells_scored": r["cells_scored"],
             "cells_abnormal": r["cells_abnormal"],
+            "percent_abnormal": pct,
             "interpretation": r["interpretation"],
+            "flag": INTERPRETATION_FLAG.get(r["interpretation"]),
+            "signal_pattern": r["signal_pattern"],
         }
-        for r in rows
-    }
+    return out
 
 
 def _verify_orders(
@@ -609,6 +653,14 @@ def _verify_orders(
                 f"{label} report_status",
                 exp["report_status"],
                 _scalar(conn, "SELECT status FROM report WHERE order_id = ?", (oid,)),
+            )
+        if "report_finalized_by" in exp:
+            # report.finalized_by (workflow.finalize_order's finalized_by, the
+            # CLI's finalize --by); null when there is no report row.
+            checks.add(
+                f"{label} report_finalized_by",
+                exp["report_finalized_by"],
+                _scalar(conn, "SELECT finalized_by FROM report WHERE order_id = ?", (oid,)),
             )
         if "audit_action_counts" in exp:
             counts = exp["audit_action_counts"]
@@ -759,8 +811,10 @@ def _hl7_probe_values(payload: str, panel_codes: set[str]) -> dict[str, Any]:
     """Per-probe values from a stored outbound HL7 payload.
 
     Reads every OBX whose OBX-3 first component is a panel probe code and parses
-    OBX-5 as ``outbound_hl7._obx_segments`` writes it. An unparseable value or a
-    repeated probe code is reported as such (and therefore never matches).
+    OBX-5 as ``outbound_hl7._obx_segments`` writes it (counts, the percent text,
+    interpretation, signal pattern), plus the OBX-8 abnormal flag. An
+    unparseable value or a repeated probe code is reported as such (and
+    therefore never matches).
     """
     observed: dict[str, Any] = {}
     for seg in inbound_hl7._split_segments(payload):
@@ -779,7 +833,10 @@ def _hl7_probe_values(payload: str, panel_codes: set[str]) -> dict[str, Any]:
             observed[code] = {
                 "cells_scored": int(match.group(2)),
                 "cells_abnormal": int(match.group(1)),
+                "percent_abnormal": match.group(3),
                 "interpretation": match.group(4),
+                "flag": _hl7_unescape(inbound_hl7._field(seg, 8)),
+                "signal_pattern": match.group(5),
             }
     return {k: observed[k] for k in sorted(observed)}
 
@@ -792,13 +849,28 @@ def _first_text(items: Any) -> str | None:
     return None
 
 
+def _fhir_interpretation_code(items: Any) -> Any:
+    """The single ``interpretation[0].coding`` code whose system is SYS_INTERPRETATION.
+
+    None when there is no such coding or more than one, so it never matches.
+    """
+    if not (isinstance(items, list) and items and isinstance(items[0], dict)):
+        return None
+    codings = items[0].get("coding")
+    codes = [c.get("code") for c in (codings if isinstance(codings, list) else [])
+             if isinstance(c, dict) and c.get("system") == outbound_fhir.SYS_INTERPRETATION]
+    return codes[0] if len(codes) == 1 else None
+
+
 def _fhir_probe_values(payload: str) -> dict[str, Any]:
     """Per-probe values from a stored outbound FHIR Bundle payload.
 
     Reads every Observation entry: the probe code is the ``code.coding`` entry
-    whose system is ``outbound_fhir.SYS_PROBE``; counts come from ``note[0].text``
-    and the interpretation from ``interpretation[0].text``, as
-    ``outbound_fhir._observation_resource`` writes them.
+    whose system is ``outbound_fhir.SYS_PROBE``; counts and signal pattern come
+    from ``note[0].text``, percent abnormal from ``valueQuantity.value``, the
+    interpretation from ``interpretation[0].text`` and the flag from its
+    ``SYS_INTERPRETATION`` coding code, as ``outbound_fhir._observation_resource``
+    writes them.
     """
     try:
         bundle = json.loads(payload)
@@ -820,6 +892,7 @@ def _fhir_probe_values(payload: str) -> dict[str, Any]:
         code = codes[0]
         note = _first_text(res.get("note"))
         interp = _first_text(res.get("interpretation"))
+        quantity = res.get("valueQuantity")
         match = _FHIR_NOTE_RE.fullmatch(note) if note is not None else None
         if code in observed:
             observed[code] = "DUPLICATE_OBSERVATION"
@@ -829,7 +902,12 @@ def _fhir_probe_values(payload: str) -> dict[str, Any]:
             observed[code] = {
                 "cells_scored": int(match.group(2)),
                 "cells_abnormal": int(match.group(1)),
+                "percent_abnormal": (
+                    quantity.get("value") if isinstance(quantity, dict) else None
+                ),
                 "interpretation": interp,
+                "flag": _fhir_interpretation_code(res.get("interpretation")),
+                "signal_pattern": match.group(3),
             }
     return {k: observed[k] for k in sorted(observed)}
 
@@ -863,7 +941,7 @@ def _verify_outbound(
         if "count" in exp:
             checks.add(f"{label} count", exp["count"], len(messages))
         if "matches_results" in exp:
-            current = _current_results(conn, oid)
+            want = _jsonable(_expected_export_values(_current_results(conn, oid), fmt))
             panel_codes = {
                 r[0] for r in conn.execute(
                     "SELECT probe_code FROM probe WHERE panel_id = ?",
@@ -882,13 +960,17 @@ def _verify_outbound(
                 for m in messages
             ]
             # Every stored message must cover exactly the fish_result probe set
-            # with equal values; with no stored message there is nothing that
-            # matches, so the observation is false.
-            matches = bool(parsed) and all(values == current for _mid, values in parsed)
+            # with equal values (compared as canonical JSON, like every check);
+            # with no stored message there is nothing that matches, so the
+            # observation is false.
+            matches = bool(parsed) and all(
+                canonical_json(_jsonable(values)) == canonical_json(want)
+                for _mid, values in parsed
+            )
             checks.add(f"{label} matches_results", exp["matches_results"], matches)
             if exp["matches_results"] is True:
                 for mid, values in parsed:
-                    checks.add(f"{label} message[{mid}] per-probe values", current, values)
+                    checks.add(f"{label} message[{mid}] per-probe values", want, values)
 
 
 def _verify_totals(conn: sqlite3.Connection, checks: _Checks, totals: Any) -> None:
@@ -908,9 +990,10 @@ def _verify_totals(conn: sqlite3.Connection, checks: _Checks, totals: Any) -> No
 def verify_exercise(ex_id: str, db_path: str | Path) -> dict[str, Any]:
     """Verify a database against the exercise answer key's ``expected`` outcome.
 
-    Read-only: the database is opened with ``store.open_read_only`` and only
-    SELECT statements run (a missing file raises ``NOT_FOUND`` and is never
-    created). Every observed value is derived from the persisted rows or from
+    Read-only: the database is opened with ``store.open_read_only(...,
+    snapshot=True)`` and only SELECT statements run, all inside one read
+    transaction (a missing file raises ``NOT_FOUND`` and is never created).
+    Every observed value is derived from the persisted rows or from
     fixture file bytes, never from CLI output. Returns ``{"exercise",
     "passed", "checks"}``; ``passed`` is true only when at least one check ran
     and every check passed.
@@ -919,7 +1002,8 @@ def verify_exercise(ex_id: str, db_path: str | Path) -> dict[str, Any]:
     resolved = loaded["id"]
     expected = loaded["answer_key"].get("expected", {})
     checks = _Checks(_short(resolved))
-    conn = store.open_read_only(db_path)
+    # snapshot=True: one read transaction, so every check sees one state.
+    conn = store.open_read_only(db_path, snapshot=True)
     try:
         checks.unsupported("expected", [k for k in expected if k not in _EXPECTED_SECTIONS])
         for section in ("orders", "queue_items", "outbound"):

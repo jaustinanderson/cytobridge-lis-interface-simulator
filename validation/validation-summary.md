@@ -28,10 +28,10 @@ Validation is layered:
    and `R-043`-`R-052` (analyst lab) in [`requirements.md`](requirements.md),
    and `R-020`-`R-041` (v1.1 controlled recovery) in the frozen
    [`v1.1-requirements.md`](v1.1-requirements.md).
-2. **Automated tests** - `pytest` across **fifteen** suites (`test_workflow.py`,
+2. **Automated tests** - `pytest` across **sixteen** suites (`test_workflow.py`,
    `test_validation.py`, `test_outbound_interfaces.py`,
    `test_inbound_interfaces.py`, `test_queries.py`, `test_recovery_schema.py`,
-   `test_failure_classification.py`, `test_recovery_service.py`, and the seven
+   `test_failure_classification.py`, `test_recovery_service.py`, and the eight
    `test_analyst_*.py` suites).
 3. **Manual UAT** - 18 analyst-style acceptance scripts (`UAT-001`-`UAT-018`)
    in [`uat-test-scripts.md`](uat-test-scripts.md). UAT-011-UAT-018 (including
@@ -57,7 +57,7 @@ Validation is layered:
 
 | Metric | Result |
 |---|---|
-| Automated tests | **513 passed** (`pytest`, fifteen suites) |
+| Automated tests | **597 passed** (`pytest`, sixteen suites) |
 | Requirements traced | 51 / 51 mapped to code + test; the 41 v1/v1.1 requirements also map to a UAT |
 | Requirements with automated coverage passing | 51 / 51 |
 | Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
@@ -138,7 +138,7 @@ is recorded here and in the traceability matrix, not in those frozen files.
 ## Analyst lab evidence
 
 The analyst investigation and recovery lab (`src/analyst/`, issue #43) adds no
-recovery semantics and is proven by the seven `test_analyst_*.py` suites:
+recovery semantics and is proven by the eight `test_analyst_*.py` suites:
 
 - **Persistence and errors:** each CLI command runs in a separate process
   against a file database, and a new interpreter reads the results back.
@@ -153,7 +153,8 @@ recovery semantics and is proven by the seven `test_analyst_*.py` suites:
   clean database, built only through the services across filing, failure,
   recovery, conflict, terminal, and export cases, yields no ERROR or WARNING
   finding. Only the expected INFO findings for outstanding prerequisites and
-  recorded conflicts appear.
+  recorded conflicts appear. A specimen received or rejected after finalization (the workflow
+  allows it) is reported as a WF-002 WARNING by design, not as an ERROR.
 - **Preview:** the source is unchanged and no request id or audit row is
   consumed. Normalized preview changes equal a real apply from the same
   baseline. When order state changes after a preview, the apply follows the
@@ -188,7 +189,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # -> 513 passed
+python -m pytest -q                   # -> 597 passed
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 mkdir lab-work && python -m src.analyst exercise run-all --workdir lab-work/all   # -> 7 verified
 ```

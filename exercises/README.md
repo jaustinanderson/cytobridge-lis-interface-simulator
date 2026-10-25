@@ -22,11 +22,16 @@ commands and then act on it through the existing CytoBridge services.
 | [EX04-finalized-order-terminal](EX04-finalized-order-terminal/README.md) | Late result for a finalized order | 4. Finalized order -> terminal recovery rejection |
 | [EX05-replay-and-conflict](EX05-replay-and-conflict/README.md) | Request replay and request-id conflict | 5. Successful request replay -> no duplicate filing; conflicting request-ID reuse rejected |
 | [EX06-finalize-blocked-correction](EX06-finalize-blocked-correction/README.md) | Blocked finalization and result correction | 6. Incomplete panel and interpretation mismatch -> finalization blocked -> correction -> completion |
-| [EX07-failed-recovery-then-success](EX07-failed-recovery-then-success/README.md) | Failed recovery, then success | Handled recovery failure and rollback, then later success |
+| [EX07-failed-recovery-then-success](EX07-failed-recovery-then-success/README.md) | Failed recovery, then success | Handled recovery failure, then later success (rollback of partial filing writes: see the note below) |
 
 EX07 needs no fault injection: its failed attempt is an ordinary inbound
 validation failure that the unchanged recovery service handles as a `FAILED`
-attempt (design record sec 8 and sec 9).
+attempt (design record sec 8 and sec 9). EX07 is therefore not evidence that
+partial filing writes are rolled back. That savepoint rollback is proven
+separately by injected-failure tests:
+`tests/test_recovery_service.py::test_handled_mid_operation_failure_rolls_back_all_side_effects`,
+`tests/test_analyst_preview.py::test_handled_failure_rolls_back_filing_in_preview`,
+and `tests/test_analyst_cli.py::test_failed_redrive_rolls_back_then_later_success`.
 
 ## Layout
 

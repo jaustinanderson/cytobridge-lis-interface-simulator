@@ -29,7 +29,7 @@ validation evidence, and troubleshooting documentation.
 > checks and Austin's sign-off provide the project evidence; an AI self-review
 > is not represented as independent review.
 
-**Verified state (this codebase):** 513 passing pytest tests across fifteen suites,
+**Verified state (this codebase):** 597 passing pytest tests across sixteen suites,
 five end-to-end demonstration scenarios, seven executable analyst-lab incident
 exercises, and 51/51 requirements with result-level automated coverage that
 passes today, plus 18 manual UAT definitions. The v1.1
@@ -240,9 +240,9 @@ invocations.
   [`exercises/`](exercises/), with analyst instructions kept separate from
   [`exercises/answer-keys/`](exercises/answer-keys/). The verifier checks the
   persisted rows and fixture hashes, not command output.
-- `--json` prints exactly one envelope object, and exit codes are stable
-  (`0` ok, `1` check failed, `2` usage, `3` not found, `4` refused, `5` invalid
-  input, `6` internal).
+- `--json` prints exactly one envelope object (`--help` prints plain help), and
+  exit codes are stable (`0` ok, `1` check failed, `2` usage, `3` not found,
+  `4` refused, `5` invalid input, `6` internal).
 
 Start with the [analyst lab walkthrough](docs/analyst-lab-walkthrough.md).
 Automated exercise runs are not manual UAT and do not demonstrate Austin's
@@ -334,6 +334,7 @@ tests/
   test_analyst_evidence.py     evidence determinism, fingerprints, report
   test_analyst_exercises.py    exercise runs, isolation, tamper-detecting verifier
   test_analyst_scale.py        bounded 1,000-message scale check (timing recorded)
+  test_analyst_store.py        read-only, create-new, and snapshot database access
 ```
 
 ## Data model highlights
@@ -387,7 +388,7 @@ recovery service.
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # 513 tests
+python -m pytest -q                   # 597 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python

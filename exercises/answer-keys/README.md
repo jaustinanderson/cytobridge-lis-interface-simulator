@@ -24,9 +24,17 @@ One JSON file per exercise, named `<EXID>.json`:
 
 - `orders`: per accession, the order `status`, `result_count`, current
   `results` per probe, `report_status` (`null` means no report row),
-  `audit_action_counts` (number of `audit_event` rows with that `action` whose
-  `order_id` is the order), and `validation_blocking` (whether the current
-  `validation.validate_order` result has an ERROR finding).
+  `report_finalized_by` (the report row's `finalized_by`, set by `finalize
+  --by`; `null` when there is no report row), `audit_action_counts` (number of
+  `audit_event` rows with that `action` whose `order_id` is the order), and
+  `validation_blocking` (whether the current `validation.validate_order` result
+  has an ERROR finding). Each probe in `results` may state the current
+  `fish_result` columns `cells_scored`, `cells_abnormal`, `signal_pattern`,
+  `interpretation`, and `entered_by`. `signal_pattern` is OBX-5 component 3 of
+  the message that filed the result, or the `result-enter --pattern` value.
+  `entered_by` is the actor of the filing: `ingest --actor` (default
+  `interface`), the recovery request's `--actor` for a retry or re-drive, or
+  `result-enter --entered-by`.
 - `queue_items`: per original message control id (MSH-10), the stored
   classification and status, the original message status,
   `original_payload_fixture` (the fixture whose file bytes the original
@@ -35,8 +43,19 @@ One JSON file per exercise, named `<EXID>.json`:
   item), and `attempts` in `attempt_id` order. An attempt's `payload_fixture`
   is the fixture whose sha256 must equal the attempt's `payload_sha256` and,
   when a resulting message exists, that message's payload.
-- `outbound`: stored OUTBOUND messages per accession and format, and whether
-  their per-probe values match the current `fish_result` rows.
+- `outbound`: stored OUTBOUND messages per accession and format (`count`),
+  and whether every stored message's per-probe values match the current
+  `fish_result` rows (`matches_results`). Per probe the verifier compares cells
+  scored, cells abnormal, signal pattern, interpretation, percent abnormal
+  (recomputed as `round(100 * abnormal / scored, 1)`, as
+  `interfaces.collect_report_data` does; HL7 OBX-5 text and FHIR
+  `valueQuantity.value`), and the N/A/I flag (HL7 OBX-8 and the FHIR
+  interpretation coding code).
+
+Any other key inside `expected`, an order, a result, a queue item, an attempt,
+or an outbound entry is reported as a failing check, never silently ignored.
+The supported keys are defined by the constants at the top of
+[`src/analyst/exercises.py`](../../src/analyst/exercises.py).
 - `totals`: exact row counts per table.
 - `reconcile_error_count`: number of ERROR reconciliation findings for the
   whole database.
@@ -54,7 +73,12 @@ sec 7 to sec 9 recovery rules), the frozen
 [`schema.sql`](../../schema.sql), and the audit writes of the existing
 services. The values were then confirmed by replaying each exercise through
 the existing public services against an in-memory database; they were not
-back-filled from an implementation run.
+back-filled from an implementation run. The per-probe `signal_pattern` and
+`entered_by` values and `report_finalized_by` were likewise derived from the
+fixtures and the documented actor rules above (the filing fixture's OBX-5
+component 3 or `result-enter --pattern`; `ingest --actor`, the recovery
+`--actor`, or `result-enter --entered-by`; `finalize --by`) and then
+confirmed by running the exercises.
 
 Several exercises exercise behavior covered by the human-approved invariants
 in design record sec 11: original-message immutability (I-01; EX03, also

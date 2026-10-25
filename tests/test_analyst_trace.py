@@ -178,7 +178,8 @@ def expected_fk_links(conn, case):
 
 
 def assert_closure_complete(conn, case):
-    """Independent SQL: the case is closed under every FK edge of the contract."""
+    """Independent SQL: the case is closed under every FK edge that the
+    ``src/analyst/trace.py`` module docstring lists for the closure."""
     orders = set(ids(case["orders"], "order_id"))
     messages = set(ids(case["messages"], "message_id"))
     queues = set(ids(case["queue_items"], "queue_id"))
@@ -478,6 +479,73 @@ def test_inbound_direct_role_and_audit_detail_link(conn):
     assert notes(case, "FAILED_MESSAGE_NO_ORDER_FK") == []
 
 
+def test_link_bases_vocabulary():
+    assert trace.BASES == (
+        "FOREIGN_KEY", "PAYLOAD_DERIVED", "AUDIT_DETAIL_TEXT", "DENORMALIZED_COLUMN",
+        "POLYMORPHIC_REFERENCE",
+    )
+    assert trace.REL_AUDIT_ENTITY == "audit_event.entity_type/entity_id"
+
+
+def test_audit_events_selected_by_entity_reference_are_linked(conn, recovery_case):
+    """EX05-style conflict on a queue item, and the patient CREATED event."""
+    rc = recovery_case
+    with pytest.raises(recovery.RequestIdConflictError):
+        recovery.retry_queue_item(
+            conn, rc["queue_id"], request_id="TR-REQ-2", actor="someone-else"
+        )
+    conflict, conflict_order = conn.execute(
+        "SELECT event_id, order_id FROM audit_event WHERE action = 'REQUEST_ID_CONFLICT'"
+    ).fetchone()
+    created, created_order = conn.execute(
+        "SELECT event_id, order_id FROM audit_event WHERE entity_type = 'patient' "
+        "AND entity_id = ? AND action = 'CREATED'",
+        (rc["patient_id"],),
+    ).fetchone()
+    assert conflict_order is None and created_order is None
+
+    case = trace.build_case(conn, queue_id=rc["queue_id"])
+    poly = links_of(case, "POLYMORPHIC_REFERENCE")
+    assert {
+        "from": f"audit_event:{conflict}",
+        "to": f"interface_error_queue:{rc['queue_id']}",
+        "relation": "audit_event.entity_type/entity_id",
+        "basis": "POLYMORPHIC_REFERENCE",
+    } in poly
+    assert {
+        "from": f"audit_event:{created}",
+        "to": f"patient:{rc['patient_id']}",
+        "relation": "audit_event.entity_type/entity_id",
+        "basis": "POLYMORPHIC_REFERENCE",
+    } in poly
+
+    # Independent SQL: exactly the case's audit events that are not on a case
+    # order but name a case queue item or patient by entity reference.
+    orders = set(ids(case["orders"], "order_id"))
+    queues = set(ids(case["queue_items"], "queue_id"))
+    patients = {o["patient"]["patient_id"] for o in case["orders"]}
+    expected = set()
+    for event_id, entity_type, entity_id, order_id in conn.execute(
+        "SELECT event_id, entity_type, entity_id, order_id FROM audit_event"
+    ):
+        if order_id in orders:
+            continue
+        if (entity_type == "interface_error_queue" and entity_id in queues) or (
+            entity_type == "patient" and entity_id in patients
+        ):
+            expected.add((f"audit_event:{event_id}", f"{entity_type}:{entity_id}"))
+    assert {(l["from"], l["to"]) for l in poly} == expected
+    assert {l["relation"] for l in poly} == {"audit_event.entity_type/entity_id"}
+    # An event linked by its order_id column gets no entity-reference link.
+    denormalized = {l["from"] for l in links_of(case, "DENORMALIZED_COLUMN")}
+    assert not denormalized & {l["from"] for l in poly}
+    # Every audit event in the case now has at least one stated relationship.
+    linked = {l["from"] for l in case["links"] if l["from"].startswith("audit_event:")}
+    assert linked == {f"audit_event:{e}" for e in ids(case["audit_events"], "event_id")}
+    # Each target is a record in the case.
+    assert {l["to"] for l in poly} <= trace.case_record_refs(case)
+
+
 # ---------------------------------------------------------------------------
 # PAYLOAD_DERIVED links and message provenance
 # ---------------------------------------------------------------------------
@@ -686,6 +754,45 @@ def test_same_probe_filed_twice_lists_both_candidates(conn):
         expected.add((f"audit_event:{event_id}",
                       f"interface_message:{int(detail.split()[0].split('=')[1])}"))
     assert audit_links == expected and len(expected) == 2
+
+
+def test_probe_repeated_in_one_message_counts_each_occurrence(conn):
+    """One message with two OBX segments for the same probe files normally."""
+    order_id = make_order(conn, "DOBX")
+    filed = inbound_hl7.ingest_message(
+        conn,
+        hl7("ACC-TR-DOBX", "TR-DOBX-1",
+            obx=(("CBFB", "200^1^2F^NORMAL"), ("CBFB", "200^2^2F^NORMAL"))),
+    )
+    assert filed.filed
+    results = _result_ids(conn, order_id)
+    assert list(results) == ["CBFB"]
+    rid = results["CBFB"]
+    # Independent SQL: two RESULT_ENTERED events for the one upserted row, and
+    # one INBOUND_RESULT_FILED event listing the probe twice.
+    assert conn.execute(
+        "SELECT COUNT(*) FROM audit_event WHERE entity_type = 'fish_result' "
+        "AND entity_id = ? AND action = 'RESULT_ENTERED'",
+        (rid,),
+    ).fetchone()[0] == 2
+    (detail,) = [r[0] for r in conn.execute(
+        "SELECT detail FROM audit_event WHERE action = 'INBOUND_RESULT_FILED' AND order_id = ?",
+        (order_id,),
+    )]
+    assert detail == f"message_id={filed.message_id} probes=2 (CBFB, CBFB)"
+    assert trace.audit_probe_occurrences(detail) == ["CBFB", "CBFB"]
+    assert trace.audit_probe_codes(detail) == ["CBFB"]
+
+    case = trace.build_case(conn, order_id=order_id)
+    (note,) = notes(case, "RESULT_SOURCE_NOT_RECORDED")
+    assert note["subject"] == f"fish_result:{rid}"
+    text = note["detail"]
+    assert "RESULT_ENTERED events for this result: 2" in text
+    assert "inbound filings naming this probe: 2" in text
+    assert "without a matching inbound filing: no" in text
+    # The single candidate message is listed once.
+    assert text.count(f"interface_message:{filed.message_id}") == 1
+    assert "names CBFB: interface_message:" in text
 
 
 def test_manual_entry_without_inbound_filing_is_reported(conn):

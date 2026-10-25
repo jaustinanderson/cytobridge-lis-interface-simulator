@@ -73,47 +73,65 @@
           "RUNX1T1_RUNX1": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "CBFB": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 orange/green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "PML_RARA": {
             "cells_scored": 200,
             "cells_abnormal": 3,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "KMT2A": {
             "cells_scored": 200,
             "cells_abnormal": 1,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 fusion",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "EGR1_5q": {
             "cells_scored": 200,
             "cells_abnormal": 4,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 orange 2 green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "D7S486_7q": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "CEP8": {
             "cells_scored": 200,
             "cells_abnormal": 3,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 aqua",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "D20S108_20q": {
             "cells_scored": 200,
             "cells_abnormal": 1,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           },
           "TP53_17p": {
             "cells_scored": 200,
             "cells_abnormal": 2,
-            "interpretation": "NORMAL"
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
           }
         },
         "report_status": null,

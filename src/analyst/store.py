@@ -137,7 +137,11 @@ def open_read_only(path: str | Path, *, snapshot: bool = False) -> sqlite3.Conne
     """
     conn = _open(path, "ro")
     if snapshot:
-        conn.execute("BEGIN")
+        try:
+            conn.execute("BEGIN")
+        except BaseException:
+            conn.close()
+            raise
     return conn
 
 

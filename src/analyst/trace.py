@@ -9,7 +9,8 @@ single deterministic, JSON-serializable case view:
   recovery attempts; audit events);
 - typed links between them, each labelled with its evidential ``basis``
   (a real foreign key, a payload-derived accession match, free-text audit
-  detail, or a denormalized column);
+  detail, a denormalized column, or an audit event's polymorphic
+  entity_type/entity_id reference);
 - a chronological timeline;
 - provenance notes stating what the schema does NOT record (for example which
   message produced a current FISH result), and the standard limitations.
@@ -50,18 +51,26 @@ from ..interfaces import inbound_hl7
 from .common import AnalystError, limitation_list, ref, sha256_text
 
 # ---------------------------------------------------------------------------
-# Link vocabulary (exact strings; see the analyst-lab contract, section 2)
+# Link vocabulary (exact strings; these constants are the authoritative
+# definition; R-047 in validation/requirements.md states the labelling rule)
 # ---------------------------------------------------------------------------
 
 BASIS_FOREIGN_KEY = "FOREIGN_KEY"
 BASIS_PAYLOAD_DERIVED = "PAYLOAD_DERIVED"
 BASIS_AUDIT_DETAIL_TEXT = "AUDIT_DETAIL_TEXT"
 BASIS_DENORMALIZED_COLUMN = "DENORMALIZED_COLUMN"
+# audit_event.entity_id is NOT a foreign key: schema.sql declares it a plain
+# INTEGER whose meaning depends on entity_type (for example 'patient' or
+# 'interface_error_queue'), so the database does not enforce that the named row
+# exists. A link with this basis is emitted only for an audit event the case
+# selected by that (entity_type, entity_id) pair, never by audit_event.order_id.
+BASIS_POLYMORPHIC_REFERENCE = "POLYMORPHIC_REFERENCE"
 BASES = (
     BASIS_FOREIGN_KEY,
     BASIS_PAYLOAD_DERIVED,
     BASIS_AUDIT_DETAIL_TEXT,
     BASIS_DENORMALIZED_COLUMN,
+    BASIS_POLYMORPHIC_REFERENCE,
 )
 
 REL_QUEUE_MESSAGE = "interface_error_queue.message_id"
@@ -78,6 +87,7 @@ REL_PAYLOAD_ACCESSION = "payload OBR-3 accession = lab_order.accession_number"
 # the link's "to" ref.
 REL_AUDIT_DETAIL = "audit detail message_id=N"
 REL_AUDIT_ORDER = "audit_event.order_id"
+REL_AUDIT_ENTITY = "audit_event.entity_type/entity_id"
 
 # Message roles.
 ROLE_INBOUND_DIRECT = "INBOUND_DIRECT"
@@ -155,14 +165,24 @@ def audit_message_ids(detail: str | None) -> list[int]:
     return sorted({int(m) for m in AUDIT_MESSAGE_ID_RE.findall(detail)})
 
 
-def audit_probe_codes(detail: str | None) -> list[str]:
-    """Probe codes listed in an INBOUND_RESULT_FILED detail ``(A, B, ...)``."""
+def audit_probe_occurrences(detail: str | None) -> list[str]:
+    """Every probe code listed in an INBOUND_RESULT_FILED detail ``(A, B, ...)``.
+
+    Kept in listed order with duplicates: the inbound filing path writes one
+    RESULT_ENTERED event per OBX segment, so a message that repeats a probe
+    lists it once per segment.
+    """
     if not detail:
         return []
     match = _AUDIT_PROBE_LIST_RE.search(detail)
     if match is None:
         return []
-    return sorted({p.strip() for p in match.group(1).split(",") if p.strip()})
+    return [p.strip() for p in match.group(1).split(",") if p.strip()]
+
+
+def audit_probe_codes(detail: str | None) -> list[str]:
+    """Probe codes listed in an INBOUND_RESULT_FILED detail (sorted, unique)."""
+    return sorted(set(audit_probe_occurrences(detail)))
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +203,7 @@ def payload_accession(payload: str) -> str | None:
                 value = inbound_hl7._component(inbound_hl7._field(segment, 3), 0)
                 return value or None
         return None
-    except Exception:  # noqa: BLE001 - best effort by contract
+    except Exception:  # noqa: BLE001 - best effort; the docstring says never raises
         return None
 
 
@@ -741,12 +761,22 @@ def build_case(
                 ref(table, row[key]), ref("lab_order", row["order_id"]),
                 relation, BASIS_FOREIGN_KEY,
             ))
+    # (entity_type, entity_id) pairs by which the audit query selects events.
+    entity_refs = {("interface_error_queue", qid) for qid in raw_queues} | {
+        ("patient", pid) for pid in patient_ids
+    }
     for a in audit_events:
         src = ref("audit_event", a["event_id"])
         if a["order_id"] is not None and a["order_id"] in order_ids:
             links.append(_link(
                 src, ref("lab_order", a["order_id"]),
                 REL_AUDIT_ORDER, BASIS_DENORMALIZED_COLUMN,
+            ))
+        elif (a["entity_type"], a["entity_id"]) in entity_refs:
+            # Selected by entity reference only; entity_id is not a foreign key.
+            links.append(_link(
+                src, ref(a["entity_type"], a["entity_id"]),
+                REL_AUDIT_ENTITY, BASIS_POLYMORPHIC_REFERENCE,
             ))
         if a["action"] == INBOUND_RESULT_FILED:
             for mid in audit_message_ids(a["detail"]):
@@ -920,9 +950,13 @@ def _provenance(
         for r in o["current_results"]:
             code = r["probe_code"]
             candidates: set[int] = set()
+            # Counted per listed occurrence of the probe, so one message that
+            # repeats the probe in two OBX segments (two RESULT_ENTERED events)
+            # counts as two filings; candidates stay de-duplicated for display.
             filings = 0
             for a in filed_events:
-                if a["order_id"] != oid or code not in audit_probe_codes(a["detail"]):
+                occurrences = audit_probe_occurrences(a["detail"]).count(code)
+                if a["order_id"] != oid or occurrences == 0:
                     continue
                 for mid in audit_message_ids(a["detail"]):
                     target = named_messages.get(mid)
@@ -933,7 +967,7 @@ def _provenance(
                         and target["order_id"] == oid
                     ):
                         candidates.add(mid)
-                        filings += 1
+                        filings += occurrences
             entered = entered_counts.get(r["result_id"], 0)
             cand_text = (
                 ", ".join(ref("interface_message", c) for c in sorted(candidates))
@@ -947,7 +981,8 @@ def _provenance(
                 f"the current value; the schema records no source message for it. "
                 f"Candidate FILED inbound messages whose {INBOUND_RESULT_FILED} audit "
                 f"detail names {code}: {cand_text}. RESULT_ENTERED events for this "
-                f"result: {entered}; inbound filings naming this probe: {filings}; "
+                f"result: {entered}; inbound filings naming this probe: {filings} "
+                f"(each listed occurrence counted); "
                 f"RESULT_ENTERED events without a matching inbound filing: "
                 f"{'yes (' + str(unmatched) + ')' if unmatched > 0 else 'no'}. "
                 f"The current value is not attributed to any one source.",

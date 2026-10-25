@@ -13,13 +13,26 @@ How a command may touch the database is decided by how it opens the file:
 - create      ``init`` makes a NEW database file and refuses any existing path.
 - read-only   worklist, show-message, trace, reconcile, recover preview,
               recover history, audit, export (without ``--store``), evidence,
-              exercise list/show/verify. They never create, modify, or leave a
-              journal next to the database.
+              exercise list/show/verify. They never create or modify the
+              database. The CLI's own views (worklist, show-message, trace,
+              reconcile, recover history, audit, export, evidence) each read
+              inside one read transaction, so a view never mixes two committed
+              states. No journal or other side file is left next to the
+              database because the lab opens only rollback-journal databases
+              (the mode CytoBridge creates) and refuses a WAL-mode file, for
+              which even a read-only open would create ``-wal``/``-shm`` files.
 - read-write  case-create, specimen-accession, result-enter, finalize, ingest,
               recover retry, recover redrive, export ``--store``. They open an
               EXISTING file (``mode=rw`` never creates one) and refuse
               documented-invalid requests with a read-only preflight before the
               first service write.
+
+Every string argument must be valid UTF-8 (argv bytes that do not decode are
+refused as INVALID_INPUT before any database is opened), and every id or count
+must fit SQLite's signed 64-bit INTEGER (otherwise a USAGE error). Output files
+(``--out``, ``--report``) are created exclusively before anything is written;
+a failed command removes the output files it created and never touches a file
+that already existed.
 
 Output
 ------
@@ -28,11 +41,16 @@ to stdout::
 
     {"format", "command", "ok", "exit_code", "result", "error", "synthetic"}
 
+The one exception is ``--help``/``-h``: it prints the plain argparse help text
+and exits 0, with or without ``--json``.
+
 Text mode prints readable lines to stdout, each data output starting with the
 one-line synthetic notice, and errors to stderr as ``error: <message>``. Text is
 written in the stream's encoding with ``backslashreplace`` so non-ASCII content
 (for example the em dash the report summary puts into outbound payloads) never
-crashes a terminal with a narrow encoding.
+crashes a terminal with a narrow encoding. If stdout itself cannot be written
+(closed, or a full disk), one ``error:`` line goes to stderr when possible and
+the exit code is 6; a write command may already have committed by then.
 
 ``main(argv)`` returns the exit code and never calls ``sys.exit`` itself, so the
 exercise runner can call it in-process; every connection it opens is closed.
@@ -52,10 +70,10 @@ import re
 import sqlite3
 import sys
 import textwrap
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Iterator, Sequence
+from typing import Any, BinaryIO, Callable, Iterator, Sequence
 
 from .. import db, recovery, workflow
 from ..interfaces import OutboundError, inbound_hl7, outbound_fhir, outbound_hl7
@@ -84,8 +102,16 @@ ACTION_CHOICES: dict[str, str] = {
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")
 
-# Order states in which workflow.enter_fish_result / finalize_order refuse work.
+# Order states the CLI refuses in its read-only preflight, before any service
+# call. workflow.enter_fish_result itself refuses results for these states.
+# workflow.finalize_order has NO order-status check (it would write validation
+# rows and then fail on report.order_id UNIQUE, or finalize a CANCELLED order),
+# so the finalize refusal is a CLI-only guard, not service behavior.
 _CLOSED_ORDER_STATES = ("FINALIZED", "CANCELLED")
+
+# SQLite INTEGER is a signed 64-bit value; a larger Python int cannot be bound.
+_SQLITE_INT_MIN = -(2**63)
+_SQLITE_INT_MAX = 2**63 - 1
 
 _TOP_COMMANDS = (
     "init", "case-create", "specimen-accession", "result-enter", "finalize",
@@ -108,11 +134,16 @@ exit codes:
                     closed order, finalize blocked, message routed to the error
                     queue, recovery outcome not SUCCEEDED, REQUEST_ID_CONFLICT,
                     existing output file, init on an existing path
-  5  INVALID_INPUT  input file not UTF-8, not a CytoBridge database, invalid
-                    result values
-  6  INTERNAL       unexpected error (the message names the exception type)
+  5  INVALID_INPUT  input file not UTF-8, not a CytoBridge database, WAL-mode
+                    database, invalid result values, argument not valid UTF-8,
+                    output file that cannot be created or written
+  6  INTERNAL       unexpected error (the message names the exception type),
+                    including stdout that cannot be written
 
-read-only commands (SQLite mode=ro + query_only; never create or change the db):
+ids and counts must fit SQLite's signed 64-bit INTEGER (otherwise exit 2).
+
+read-only commands (SQLite mode=ro + query_only; never create or change the db;
+WAL-mode databases are refused, so no -wal/-shm side files are created):
   worklist, show-message, trace, reconcile, recover preview, recover history,
   audit, export (without --store), evidence, exercise list/show/verify
 
@@ -126,6 +157,11 @@ create commands (new files only; an existing path is refused):
 
 --json may appear anywhere and prints exactly one JSON object:
   {"format", "command", "ok", "exit_code", "result", "error", "synthetic"}
+--help / -h is the one exception: it prints this plain help text (exit 0),
+with or without --json.
+
+output files (--out, --report) are created as NEW files before anything is
+written; a failed command removes the output files it created.
 
 Synthetic educational data only. Not a production LIS, certified interface
 engine, validated medical device, or Epic/Beaker implementation. No PHI.
@@ -256,7 +292,13 @@ def _status(value: Any) -> str:
 
 @contextmanager
 def _read_only(path: str) -> Iterator[sqlite3.Connection]:
-    conn = store.open_read_only(path)
+    """Read-only connection inside one read transaction (one consistent state).
+
+    Every query a command makes through it sees the same committed state, even
+    if another process commits in the meantime; closing the connection ends the
+    transaction. It never writes, so no journal is created.
+    """
+    conn = store.open_read_only(path, snapshot=True)
     try:
         yield conn
     finally:
@@ -340,31 +382,86 @@ def _check_datetime(value: str, option: str) -> None:
 
 
 def _check_new_output(path: Path, option: str) -> None:
-    """Refuse an existing output path before anything is written."""
-    if path.exists() or path.is_symlink():
+    """Refuse an existing output path before anything is written.
+
+    A path the operating system cannot even examine (for example a name that is
+    too long) is INVALID_INPUT, like any other output path that cannot be
+    created.
+    """
+    try:
+        exists = path.exists() or path.is_symlink()
+        parent = path.parent if str(path.parent) else Path(".")
+        parent_is_dir = parent.is_dir()
+    except OSError as exc:
+        raise AnalystError(
+            "INVALID_INPUT",
+            f"Cannot use output path {path} ({option}): {exc}. Nothing was written.",
+        )
+    if exists:
         raise AnalystError(
             "REFUSED",
             f"Refusing to overwrite existing file {path} ({option}); choose a new "
             f"path. Nothing was written.",
         )
-    parent = path.parent if str(path.parent) else Path(".")
-    if not parent.is_dir():
+    if not parent_is_dir:
         raise AnalystError(
             "NOT_FOUND", f"Output directory {parent} ({option}) does not exist."
         )
 
 
-def _write_new_file(path: Path, data: bytes, option: str) -> None:
-    """Create ``path`` exclusively and write exact bytes."""
+def _create_new_file(path: Path, option: str) -> BinaryIO:
+    """Create ``path`` exclusively (``O_EXCL``: never replaces anything)."""
     try:
-        with open(path, "xb") as handle:
-            handle.write(data)
+        return open(path, "xb")
     except FileExistsError:
         raise AnalystError(
-            "REFUSED", f"Refusing to overwrite existing file {path} ({option})."
+            "REFUSED",
+            f"Refusing to overwrite existing file {path} ({option}); choose a new "
+            f"path. Nothing was written.",
         )
     except OSError as exc:
-        raise AnalystError("INVALID_INPUT", f"Cannot write {path} ({option}): {exc}.")
+        raise AnalystError(
+            "INVALID_INPUT",
+            f"Cannot create {path} ({option}): {exc}. Nothing was written.",
+        )
+
+
+@contextmanager
+def _new_output_files(outputs: Sequence[tuple[Path, str]]) -> Iterator[list[BinaryIO]]:
+    """Create every requested output file before anything is written to any.
+
+    ``outputs`` holds ``(path, option)`` pairs; the open binary handles are
+    yielded in the same order. If creating one of them fails, or the body
+    raises, every file THIS call created is closed and removed. A path that
+    already existed is never opened, so it is never touched. The body writes
+    each handle with ``_write_output``; on success the files are kept.
+    """
+    created: list[tuple[Path, BinaryIO]] = []
+    try:
+        for path, option in outputs:
+            created.append((path, _create_new_file(path, option)))
+        yield [handle for _path, handle in created]
+    except BaseException:
+        for path, handle in created:
+            with suppress(OSError):
+                handle.close()
+            with suppress(OSError):
+                path.unlink()
+        raise
+    finally:
+        for _path, handle in created:
+            with suppress(OSError):
+                handle.close()
+
+
+def _write_output(handle: BinaryIO, data: bytes) -> None:
+    """Write exact bytes to a handle from ``_new_output_files`` and close it.
+
+    Closing here (not later) makes a deferred flush failure, such as a full
+    disk, surface as this call's ``OSError`` so the caller can report it.
+    """
+    handle.write(data)
+    handle.close()
 
 
 def _findings(findings: Sequence[Any]) -> list[dict[str, str]]:
@@ -787,46 +884,74 @@ def _cmd_export(ns: argparse.Namespace) -> dict[str, Any]:
     if ns.generated_at is not None:
         _check_datetime(ns.generated_at, "--generated-at")
     out = None if ns.out is None else Path(ns.out)
-    if out is not None:
-        _check_new_output(out, "--out")
+    outputs = [] if out is None else [(out, "--out")]
+    for path, option in outputs:
+        _check_new_output(path, option)
     opener = _read_write if ns.store else _read_only
     stored_id: int | None = None
-    with opener(ns.db) as conn:
-        _order_row(conn, ns.order_id)
-        try:
-            if ns.store:
-                if fmt == "HL7":
-                    stored_id = outbound_hl7.store_oru(
+    # The --out file is created exclusively BEFORE the store service runs, so an
+    # output path that cannot be created refuses the request with nothing
+    # stored. If anything after that fails, the file this call created is
+    # removed; a write failure after a successful store says the row exists.
+    with _new_output_files(outputs) as handles:
+        with opener(ns.db) as conn:
+            _order_row(conn, ns.order_id)
+            try:
+                if ns.store:
+                    if fmt == "HL7":
+                        stored_id = outbound_hl7.store_oru(
+                            conn, ns.order_id, ns.generated_at
+                        )
+                    else:
+                        stored_id = outbound_fhir.store_diagnostic_report(
+                            conn, ns.order_id, ns.generated_at
+                        )
+                    payload = conn.execute(
+                        "SELECT payload FROM interface_message WHERE message_id = ?",
+                        (stored_id,),
+                    ).fetchone()["payload"]
+                elif fmt == "HL7":
+                    payload = outbound_hl7.generate_oru(
                         conn, ns.order_id, ns.generated_at
                     )
                 else:
-                    stored_id = outbound_fhir.store_diagnostic_report(
+                    payload = outbound_fhir.generate_diagnostic_report_json(
                         conn, ns.order_id, ns.generated_at
                     )
-                payload = conn.execute(
-                    "SELECT payload FROM interface_message WHERE message_id = ?",
-                    (stored_id,),
-                ).fetchone()["payload"]
-            elif fmt == "HL7":
-                payload = outbound_hl7.generate_oru(conn, ns.order_id, ns.generated_at)
-            else:
-                payload = outbound_fhir.generate_diagnostic_report_json(
-                    conn, ns.order_id, ns.generated_at
+            except OutboundError as exc:
+                raise AnalystError("REFUSED", f"{exc} Nothing was stored or written.")
+        data = payload.encode("utf-8")
+        result = {
+            "order_id": ns.order_id,
+            "format": fmt,
+            "payload_sha256": sha256_bytes(data),
+            "payload_bytes": len(data),
+            "stored_message_id": stored_id,
+            "out": None if out is None else str(out),
+            "payload": payload,
+        }
+        for handle in handles:
+            try:
+                _write_output(handle, data)
+            except OSError as exc:
+                if stored_id is None:
+                    raise AnalystError(
+                        "INVALID_INPUT",
+                        f"Cannot write {out} (--out): {exc}. Nothing was stored; "
+                        f"the incomplete output file was removed.",
+                    )
+                result["out"] = None
+                raise AnalystError(
+                    "INVALID_INPUT",
+                    f"Cannot write {out} (--out): {exc}. The export WAS stored as "
+                    f"OUTBOUND interface_message {stored_id}; only the output file "
+                    f"is missing (the incomplete file was removed). Re-running with "
+                    f"--store would store another message; the stored payload's "
+                    f"exact bytes are available with: show-message --db {ns.db} "
+                    f"--message-id {stored_id} --raw",
+                    result=result,
                 )
-        except OutboundError as exc:
-            raise AnalystError("REFUSED", f"{exc} Nothing was stored or written.")
-    data = payload.encode("utf-8")
-    if out is not None:
-        _write_new_file(out, data, "--out")
-    return {
-        "order_id": ns.order_id,
-        "format": fmt,
-        "payload_sha256": sha256_bytes(data),
-        "payload_bytes": len(data),
-        "stored_message_id": stored_id,
-        "out": None if out is None else str(out),
-        "payload": payload,
-    }
+    return result
 
 
 def _cmd_audit(ns: argparse.Namespace) -> dict[str, Any]:
@@ -852,10 +977,13 @@ def _cmd_evidence(ns: argparse.Namespace) -> dict[str, Any]:
         out.resolve() == report.resolve()
     ):
         raise AnalystError("USAGE", "--out and --report must name different files.")
-    if out is not None:
-        _check_new_output(out, "--out")
-    if report is not None:
-        _check_new_output(report, "--report")
+    outputs = [
+        (path, option)
+        for path, option in ((out, "--out"), (report, "--report"))
+        if path is not None
+    ]
+    for path, option in outputs:
+        _check_new_output(path, option)
     revision = (
         ns.source_revision
         if ns.source_revision is not None
@@ -872,10 +1000,22 @@ def _cmd_evidence(ns: argparse.Namespace) -> dict[str, Any]:
         )
     evidence_text = canonical_json(ev)
     report_text = evidence.render_report(ev)
-    if out is not None:
-        _write_new_file(out, evidence_text.encode("utf-8"), "--out")
-    if report is not None:
-        _write_new_file(report, report_text.encode("utf-8"), "--report")
+    contents = {
+        "--out": evidence_text.encode("utf-8"),
+        "--report": report_text.encode("utf-8"),
+    }
+    # All or nothing: every requested output is created exclusively before any
+    # is written, and on any failure the files this call created are removed.
+    with _new_output_files(outputs) as handles:
+        for (path, option), handle in zip(outputs, handles):
+            try:
+                _write_output(handle, contents[option])
+            except OSError as exc:
+                raise AnalystError(
+                    "INVALID_INPUT",
+                    f"Cannot write {path} ({option}): {exc}. Nothing was written: "
+                    f"every output file this command created was removed.",
+                )
     records = ev.get("records", {})
     counts = {name: len(records.get(name, [])) for name in (
         "orders", "messages", "queue_items", "recovery_attempts", "audit_events"
@@ -1560,6 +1700,52 @@ def _db(parser: argparse.ArgumentParser) -> None:
                         help="CytoBridge SQLite database file")
 
 
+def _sqlite_int(text: str) -> int:
+    """argparse type for ids and counts: an int within SQLite's 64-bit range.
+
+    A value SQLite cannot bind would otherwise surface as an OverflowError
+    (exit 6 INTERNAL); it is a usage error instead (exit 2).
+    """
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid int value: {text!r}")
+    if not _SQLITE_INT_MIN <= value <= _SQLITE_INT_MAX:
+        raise argparse.ArgumentTypeError(
+            f"{text} is outside SQLite's signed 64-bit INTEGER range "
+            f"({_SQLITE_INT_MIN} to {_SQLITE_INT_MAX})"
+        )
+    return value
+
+
+def _option_name(dest: str) -> str:
+    """The command-line spelling of a parsed argument's ``dest``."""
+    if dest == "exercise_id":
+        return "exercise ID"
+    return "--" + dest.replace("_", "-")
+
+
+def _check_utf8_arguments(ns: argparse.Namespace) -> None:
+    """Refuse any string argument that is not valid UTF-8 text.
+
+    On POSIX, argv bytes that do not decode as UTF-8 reach Python as lone
+    surrogates (``surrogateescape``). SQLite cannot bind such a string, so a
+    service call would fail part-way through a multi-step command. This check
+    runs right after parsing, before any file or database is opened.
+    """
+    for dest, value in sorted(vars(ns).items()):
+        if dest.startswith("_") or not isinstance(value, str):
+            continue
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:
+            raise AnalystError(
+                "INVALID_INPUT",
+                f"{_option_name(dest)} is not valid UTF-8 text (the argument holds "
+                f"bytes that do not decode as UTF-8). Nothing was read or written.",
+            )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the ``python -m src.analyst`` argument parser."""
     parser = _ArgumentParser(
@@ -1604,16 +1790,16 @@ def build_parser() -> argparse.ArgumentParser:
     p = _leaf(sub, "specimen-accession", "specimen-accession", _cmd_specimen_accession,
               _render_specimen_accession, "Accession a RECEIVED specimen.", "read-write")
     _db(p)
-    p.add_argument("--specimen-id", required=True, type=int, metavar="N")
+    p.add_argument("--specimen-id", required=True, type=_sqlite_int, metavar="N")
 
     p = _leaf(sub, "result-enter", "result-enter", _cmd_result_enter,
               _render_result_enter,
               "Enter (upsert) one structured per-probe FISH result.", "read-write")
     _db(p)
-    p.add_argument("--order-id", required=True, type=int, metavar="N")
+    p.add_argument("--order-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--probe", required=True, metavar="CODE")
-    p.add_argument("--scored", required=True, type=int, metavar="N")
-    p.add_argument("--abnormal", required=True, type=int, metavar="N")
+    p.add_argument("--scored", required=True, type=_sqlite_int, metavar="N")
+    p.add_argument("--abnormal", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--pattern", required=True, metavar="TEXT")
     p.add_argument("--interpretation", required=True,
                    choices=("NORMAL", "ABNORMAL", "INDETERMINATE"))
@@ -1623,7 +1809,7 @@ def build_parser() -> argparse.ArgumentParser:
               "Validate and finalize an order (blocked by ERROR findings).",
               "read-write")
     _db(p)
-    p.add_argument("--order-id", required=True, type=int, metavar="N")
+    p.add_argument("--order-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--by", required=True, metavar="WHO")
 
     p = _leaf(sub, "ingest", "ingest", _cmd_ingest, _render_ingest,
@@ -1642,7 +1828,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = _leaf(sub, "show-message", "show-message", _cmd_show_message,
               _render_show_message, "Show one stored interface message.", "read-only")
     _db(p)
-    p.add_argument("--message-id", required=True, type=int, metavar="N")
+    p.add_argument("--message-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--raw", action="store_true",
                    help="text mode: write only the exact stored payload bytes")
 
@@ -1651,9 +1837,9 @@ def build_parser() -> argparse.ArgumentParser:
               "read-only")
     _db(p)
     group = p.add_mutually_exclusive_group(required=True)
-    group.add_argument("--order-id", type=int, metavar="N")
-    group.add_argument("--queue-id", type=int, metavar="N")
-    group.add_argument("--message-id", type=int, metavar="N")
+    group.add_argument("--order-id", type=_sqlite_int, metavar="N")
+    group.add_argument("--queue-id", type=_sqlite_int, metavar="N")
+    group.add_argument("--message-id", type=_sqlite_int, metavar="N")
     group.add_argument("--accession", metavar="ACC")
 
     p = _leaf(sub, "reconcile", "reconcile", _cmd_reconcile, _render_reconcile,
@@ -1661,8 +1847,8 @@ def build_parser() -> argparse.ArgumentParser:
               "read-only")
     _db(p)
     group = p.add_mutually_exclusive_group()
-    group.add_argument("--order-id", type=int, metavar="N")
-    group.add_argument("--queue-id", type=int, metavar="N")
+    group.add_argument("--order-id", type=_sqlite_int, metavar="N")
+    group.add_argument("--queue-id", type=_sqlite_int, metavar="N")
 
     recover = sub.add_parser(
         "recover",
@@ -1683,7 +1869,7 @@ def build_parser() -> argparse.ArgumentParser:
               "Simulate a retry/redrive on an isolated in-memory copy (exit 0 only "
               "when it would SUCCEED).", "read-only source")
     _db(p)
-    p.add_argument("--queue-id", required=True, type=int, metavar="N")
+    p.add_argument("--queue-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--action", required=True, choices=tuple(ACTION_CHOICES))
     p.add_argument("--file", metavar="PATH",
                    help="corrected payload (required for redrive, refused for retry)")
@@ -1695,7 +1881,7 @@ def build_parser() -> argparse.ArgumentParser:
               "RETRY_ORIGINAL: re-process the stored original payload unchanged.",
               "read-write")
     _db(p)
-    p.add_argument("--queue-id", required=True, type=int, metavar="N")
+    p.add_argument("--queue-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--request-id", required=True, metavar="ID")
     p.add_argument("--actor", required=True, metavar="WHO")
 
@@ -1704,7 +1890,7 @@ def build_parser() -> argparse.ArgumentParser:
               "REDRIVE_CORRECTED: process a corrected payload file exactly as its "
               "bytes.", "read-write")
     _db(p)
-    p.add_argument("--queue-id", required=True, type=int, metavar="N")
+    p.add_argument("--queue-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--file", required=True, metavar="PATH")
     p.add_argument("--request-id", required=True, metavar="ID")
     p.add_argument("--actor", required=True, metavar="WHO")
@@ -1714,13 +1900,13 @@ def build_parser() -> argparse.ArgumentParser:
               "Show recovery attempts and REQUEST_ID_CONFLICT audit events for a "
               "queue item.", "read-only")
     _db(p)
-    p.add_argument("--queue-id", required=True, type=int, metavar="N")
+    p.add_argument("--queue-id", required=True, type=_sqlite_int, metavar="N")
 
     p = _leaf(sub, "export", "export", _cmd_export, _render_export,
               "Generate the outbound HL7- or FHIR-style message for a FINALIZED "
               "order.", "read-only, or read-write with --store")
     _db(p)
-    p.add_argument("--order-id", required=True, type=int, metavar="N")
+    p.add_argument("--order-id", required=True, type=_sqlite_int, metavar="N")
     p.add_argument("--format", required=True, type=str.lower, choices=("hl7", "fhir"))
     p.add_argument("--store", action="store_true",
                    help="persist as an OUTBOUND interface_message (read-write)")
@@ -1731,15 +1917,15 @@ def build_parser() -> argparse.ArgumentParser:
               "Show the audit trail for one order (queries/audit_lookup.sql).",
               "read-only")
     _db(p)
-    p.add_argument("--order-id", required=True, type=int, metavar="N")
+    p.add_argument("--order-id", required=True, type=_sqlite_int, metavar="N")
 
     p = _leaf(sub, "evidence", "evidence", _cmd_evidence, _render_evidence,
               "Build portable, deterministic case evidence (JSON and a short "
               "report).", "read-only")
     _db(p)
     group = p.add_mutually_exclusive_group(required=True)
-    group.add_argument("--queue-id", type=int, metavar="N")
-    group.add_argument("--order-id", type=int, metavar="N")
+    group.add_argument("--queue-id", type=_sqlite_int, metavar="N")
+    group.add_argument("--order-id", type=_sqlite_int, metavar="N")
     p.add_argument("--scenario", metavar="ID")
     p.add_argument("--title", metavar="T")
     p.add_argument("--source-revision", metavar="REV")
@@ -1842,6 +2028,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ns = build_parser().parse_args(args)
         words = ns._words
         ns.json_mode = json_mode
+        _check_utf8_arguments(ns)
         result = ns._handler(ns)
     except _ParserExit as exc:
         return exc.status
@@ -1854,20 +2041,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         error = {"type": "INTERNAL", "message": f"{type(exc).__name__}: {exc}"}
         result = None
 
+    command_exit = exit_code
     try:
         if json_mode:
-            text = canonical_json(_envelope(words, exit_code, result, error))
+            try:
+                text = canonical_json(_envelope(words, exit_code, result, error))
+            except Exception as exc:  # e.g. an unserializable result: still one envelope
+                exit_code = EXIT_INTERNAL
+                error = {
+                    "type": "INTERNAL",
+                    "message": f"output rendering failed: {type(exc).__name__}: {exc}",
+                }
+                text = canonical_json(_envelope(words, exit_code, None, error))
             _emit_text(sys.stdout, text)
         else:
             _render_text(ns, result, error)
-    except Exception as exc:  # rendering must not turn into a traceback either
+    except Exception as exc:  # stdout itself failed: never a traceback, never exit 1
         exit_code = EXIT_INTERNAL
-        error = {
-            "type": "INTERNAL",
-            "message": f"output rendering failed: {type(exc).__name__}: {exc}",
-        }
-        if json_mode:
-            _emit_text(sys.stdout, canonical_json(_envelope(words, exit_code, None, error)))
-        else:
-            _emit_text(sys.stderr, f"error: {error['message']}\n")
+        _last_resort_error(
+            f"output failed: {type(exc).__name__}: {exc} (the command itself had "
+            f"finished with exit code {command_exit} before its output was written)"
+        )
     return exit_code
+
+
+def _last_resort_error(message: str) -> None:
+    """One ``error:`` line on stderr; never raises (stderr may be None or broken)."""
+    stream = sys.stderr
+    if stream is None:
+        return
+    with suppress(Exception):
+        _emit_text(stream, f"error: {message}\n")

@@ -117,7 +117,7 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 ## 5:30-6:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
-- **Say:** "The bottom line: 513 automated tests pass across fifteen suites, all 51
+- **Say:** "The bottom line: 597 automated tests pass across sixteen suites, all 51
   requirements are traced to code and passing automated coverage within the
   synthetic scope, the demo runs clean through five scenarios, and of the 18
   UAT scripts the eight recovery ones were manually executed and passed. And I
