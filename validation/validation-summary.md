@@ -144,9 +144,11 @@ recovery semantics and is proven by the eight `test_analyst_*.py` suites:
   against a file database, and a new interpreter reads the results back.
   Invalid arguments, unknown ids, missing or non-UTF-8 files, existing `init`
   targets, and blocked transitions return the documented exit codes and leave
-  state correct. Refused preflight requests write nothing, a blocked finalize
-  records only its findings and `FINALIZE_BLOCKED` audit event, and a
-  `REJECTED` recovery records only its attempt row.
+  state correct. Refused preflight requests write nothing. A blocked finalize
+  records its validation findings plus `VALIDATION_RUN` and `FINALIZE_BLOCKED`
+  audit events. A `REJECTED` recovery records its attempt row and, when the
+  target order has since become FINALIZED or CANCELLED, moves the queue item
+  `OPEN -> TERMINAL`.
 - **Read-only guarantees:** the database file hash is identical before and
   after every read command, and a missing database is never created.
 - **Trace and reconciliation:** case links are checked against independent SQL,

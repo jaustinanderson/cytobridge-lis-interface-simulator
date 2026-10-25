@@ -1789,7 +1789,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--specimen-type", choices=("BONE_MARROW", "PERIPHERAL_BLOOD"),
                    default="BONE_MARROW")
     p.add_argument("--external-specimen-id", default=None)
-    p.add_argument("--collected-at", default=None)
+    p.add_argument("--collected-at", default=None, metavar='"YYYY-MM-DD HH:MM:SS"')
     p.add_argument("--no-accession", action="store_true",
                    help="leave the specimen RECEIVED (not accessioned)")
 
