@@ -73,6 +73,13 @@ production fitness or zero risk.
 | RA-21 | A reused `request_id` silently overwrites a prior attempt or is applied to the wrong request, with no trace | Low | Med | **Low** | `request_id` is globally unique; a mismatched reuse (different queue/action/payload/actor) raises `REQUEST_ID_CONFLICT`, fabricates no records, never overwrites the original attempt, and records exactly one `REQUEST_ID_CONFLICT` audit event (R-041); every attempt carries a `payload_sha256` fingerprint and `outcome_detail` (R-040). Tests: the four per-dimension conflict tests and conflict-before-eligibility. | Low |
 | RA-22 | A reader assumes the recovery service is a production interface-engine recovery subsystem | Med | Med | **Med** | Recovery is documented as a synchronous, headless, single-process educational service with no scheduler, worker, async queue, UI, or API (README, `known-issues.md`, `docs/workflow-diagram.md`, `docs/interface-troubleshooting.md`, and the `recovery.py` docstring). It reuses the same synthetic-only, style-only inbound path. | Low |
 
+### F. Analyst lab risks (issue #43)
+
+| ID | Risk | Likelihood | Impact | Severity | Mitigation (in place) | Residual |
+|---|---|---|---|---|---|---|
+| RA-23 | An analyst tool changes data outside the controlled services, or a read-only investigation silently writes (consuming a request id, adding audit rows) | Low | High | **Med** | Read commands open SQLite `mode=ro` with `query_only` and never create files; write commands call only the existing public services; `init` refuses existing paths (R-043, R-044). Tests compare database file hashes before and after every read command and assert row counts after refused commands. | Low |
+| RA-24 | A recovery preview is treated as approval, or its result as a guarantee, so a stale preview is applied blindly | Med | Med | **Med** | The preview runs the unchanged service on an isolated copy and says it describes one snapshot; apply re-invokes the service against current state (R-049). Tests change the order state after a preview and show the apply follows current rules (REJECTED and queue TERMINAL after finalization). | Low |
+
 ## Highest-attention risks
 
 The residual-risk profile is low across the board; the ones worth stating out

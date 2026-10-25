@@ -1,0 +1,250 @@
+{
+  "id": "EX02-unknown-accession-retry",
+  "solution_steps": [
+    {
+      "argv": [
+        "case-create",
+        "--db",
+        "{db}",
+        "--mrn",
+        "SYN-EX02-01",
+        "--last-name",
+        "Synthetic",
+        "--first-name",
+        "ExerciseTwo",
+        "--dob",
+        "1970-01-02",
+        "--sex",
+        "M",
+        "--accession",
+        "ACC-EX02-0001",
+        "--provider",
+        "Dr. Synthetic",
+        "--specimen-type",
+        "BONE_MARROW",
+        "--external-specimen-id",
+        "BM-EX02-01"
+      ],
+      "expect_exit": 0,
+      "note": "Register the order the queued message names (accession from OBR-3, MRN from PID-3) with an accessioned bone-marrow specimen."
+    },
+    {
+      "argv": [
+        "recover",
+        "preview",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--action",
+        "retry",
+        "--request-id",
+        "EX02-RETRY-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "Simulate RETRY_ORIGINAL on an isolated in-memory copy: the item is OPEN ORDER_NOT_FOUND / RETRY_OR_REDRIVE and the order now exists, so the simulated outcome is SUCCEEDED. The source database and request id are untouched."
+    },
+    {
+      "argv": [
+        "recover",
+        "retry",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--request-id",
+        "EX02-RETRY-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "Apply the unchanged retry with the same request id (the preview did not consume it). A new message with an exact copy of the original payload files; the queue item moves OPEN -> RESOLVED (design record sec 7, R-025, R-026)."
+    }
+  ],
+  "expected": {
+    "orders": [
+      {
+        "accession": "ACC-EX02-0001",
+        "status": "PENDING_REVIEW",
+        "result_count": 9,
+        "results": {
+          "RUNX1T1_RUNX1": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "CBFB": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 orange/green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "PML_RARA": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "KMT2A": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 fusion",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "EGR1_5q": {
+            "cells_scored": 200,
+            "cells_abnormal": 4,
+            "signal_pattern": "2 orange 2 green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "D7S486_7q": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "CEP8": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2 aqua",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "D20S108_20q": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "TP53_17p": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          }
+        },
+        "report_status": null,
+        "audit_action_counts": {
+          "ORDERED": 1,
+          "RECEIVED": 1,
+          "ACCESSIONED": 1,
+          "RESULT_ENTERED": 9,
+          "INBOUND_RESULT_FILED": 1,
+          "VALIDATION_RUN": 0,
+          "FINALIZED": 0
+        },
+        "validation_blocking": false,
+        "patient": {
+          "mrn": "SYN-EX02-01",
+          "last_name": "Synthetic",
+          "first_name": "ExerciseTwo",
+          "date_of_birth": "1970-01-02",
+          "sex": "M"
+        },
+        "ordering_provider": "Dr. Synthetic",
+        "specimens": [
+          {
+            "specimen_type": "BONE_MARROW",
+            "status": "ACCESSIONED"
+          }
+        ]
+      }
+    ],
+    "queue_items": [
+      {
+        "original_control_id": "EX02-ORIG",
+        "failure_code": "ORDER_NOT_FOUND",
+        "failure_category": "ORDER_MATCHING",
+        "recovery_policy": "RETRY_OR_REDRIVE",
+        "status": "RESOLVED",
+        "original_message_status": "ERRORED",
+        "original_payload_fixture": "inputs/early_result.hl7",
+        "conflict_audit_events": 0,
+        "attempts": [
+          {
+            "request_id": "EX02-RETRY-1",
+            "action": "RETRY_ORIGINAL",
+            "outcome": "SUCCEEDED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/early_result.hl7",
+            "resulting_message_status": "FILED"
+          }
+        ]
+      }
+    ],
+    "totals": {
+      "audit_event": 14,
+      "fish_result": 9,
+      "interface_error_queue": 1,
+      "interface_message": 2,
+      "interface_recovery_attempt": 1,
+      "lab_order": 1,
+      "patient": 1,
+      "report": 0,
+      "specimen": 1,
+      "validation_error": 0
+    },
+    "reconcile_error_count": 0
+  },
+  "question_answers": [
+    {
+      "question": 1,
+      "answer": "failure_code ORDER_NOT_FOUND, failure_category ORDER_MATCHING, recovery_policy RETRY_OR_REDRIVE, with reason 'No order matches accession number ACC-EX02-0001.' The mapping is the design record sec 6 table, implemented once as inbound_hl7._FAILURE_CLASSIFICATION.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 6",
+        "src/interfaces/inbound_hl7.py _FAILURE_CLASSIFICATION",
+        "R-012",
+        "R-020",
+        "R-021"
+      ]
+    },
+    {
+      "question": 2,
+      "answer": "A message that fails before filing keeps order_id NULL; ingestion sets order_id only when a message files. The link from the ERRORED message to the order is derived by matching the payload's OBR-3 accession to lab_order.accession_number, so the trace marks it PAYLOAD_DERIVED and states the FAILED_MESSAGE_ORDER_LINK limitation. The queue -> original message and attempt -> resulting message links are real foreign keys.",
+      "sources": [
+        "src/interfaces/inbound_hl7.py ingest_message, _update_message",
+        "schema.sql interface_error_queue.message_id, interface_recovery_attempt.resulting_message_id"
+      ]
+    },
+    {
+      "question": 3,
+      "answer": "Design record sec 7 approves an unchanged retry only for ORDER_NOT_FOUND, after the matching order may have become available (R-025). The payload itself was valid; only the order was missing, and it now exists. For any other failure code the same payload would fail the same check again, and the service records a REJECTED RETRY_ORIGINAL attempt instead.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 7",
+        "R-025",
+        "R-026",
+        "src/recovery.py _recover"
+      ]
+    },
+    {
+      "question": 4,
+      "answer": "No. The preview copied the database with the sqlite3 backup API into an isolated in-memory database and called the unchanged recovery service on the copy. Its snapshot section shows the source file hash unchanged, recover history still shows no attempts afterwards, and the later apply with the same request id was a fresh SUCCEEDED attempt (replayed false), not a replay. A preview describes one snapshot and is not an authorization or a guarantee.",
+      "sources": [
+        "issue #43 deliverable 3",
+        "analyst limitation PREVIEW_SNAPSHOT"
+      ]
+    },
+    {
+      "question": 5,
+      "answer": "A new message (message_id 2) is FILED with order_id set; the original message 1 stays ERRORED with order_id NULL (R-022, R-023). The payloads are byte-identical: both hash to the sha256 of inputs/early_result.hl7, which is also the attempt's payload_sha256. The new message even carries the same control id, EX02-ORIG, because it is an exact copy.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 4, sec 7",
+        "R-022",
+        "R-023",
+        "R-026",
+        "R-040"
+      ]
+    }
+  ]
+}

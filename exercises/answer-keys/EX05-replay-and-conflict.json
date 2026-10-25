@@ -1,0 +1,246 @@
+{
+  "id": "EX05-replay-and-conflict",
+  "solution_steps": [
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/corrected_result.hl7",
+        "--request-id",
+        "EX05-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "SUCCEEDED: the corrected payload files and the item moves OPEN -> RESOLVED."
+    },
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/corrected_result.hl7",
+        "--request-id",
+        "EX05-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "Matching replay (same queue item, action, payload fingerprint, actor): the recorded SUCCEEDED attempt is returned and nothing is written (design record sec 9; R-034)."
+    },
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/corrected_result.hl7",
+        "--request-id",
+        "EX05-REDRIVE-1",
+        "--actor",
+        "analyst02"
+      ],
+      "expect_exit": 4,
+      "note": "Same request id with a different actor: REQUEST_ID_CONFLICT. No message, attempt or result is created; exactly one audit event is recorded (R-041)."
+    },
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/corrected_result.hl7",
+        "--request-id",
+        "EX05-REDRIVE-2",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 4,
+      "note": "New request id against the RESOLVED item: REJECTED attempt, no processing message, no second filing event (R-035, R-036)."
+    }
+  ],
+  "expected": {
+    "orders": [
+      {
+        "accession": "ACC-EX05-0001",
+        "status": "PENDING_REVIEW",
+        "result_count": 9,
+        "results": {
+          "RUNX1T1_RUNX1": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "CBFB": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 orange/green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "PML_RARA": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "KMT2A": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 fusion",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "EGR1_5q": {
+            "cells_scored": 200,
+            "cells_abnormal": 4,
+            "signal_pattern": "2 orange 2 green",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "D7S486_7q": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "CEP8": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2 aqua",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "D20S108_20q": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          },
+          "TP53_17p": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "analyst01"
+          }
+        },
+        "report_status": null,
+        "audit_action_counts": {
+          "RESULT_ENTERED": 9,
+          "INBOUND_RESULT_FILED": 1
+        },
+        "validation_blocking": false
+      }
+    ],
+    "queue_items": [
+      {
+        "original_control_id": "EX05-ORIG",
+        "failure_code": "SPECIMEN_UNRECOGNIZED",
+        "failure_category": "SPECIMEN",
+        "recovery_policy": "REDRIVE_ONLY",
+        "status": "RESOLVED",
+        "original_message_status": "ERRORED",
+        "original_payload_fixture": "inputs/original_result.hl7",
+        "conflict_audit_events": 1,
+        "attempts": [
+          {
+            "request_id": "EX05-REDRIVE-1",
+            "action": "REDRIVE_CORRECTED",
+            "outcome": "SUCCEEDED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/corrected_result.hl7",
+            "resulting_message_status": "FILED"
+          },
+          {
+            "request_id": "EX05-REDRIVE-2",
+            "action": "REDRIVE_CORRECTED",
+            "outcome": "REJECTED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/corrected_result.hl7",
+            "resulting_message_status": null
+          }
+        ]
+      }
+    ],
+    "totals": {
+      "audit_event": 15,
+      "fish_result": 9,
+      "interface_error_queue": 1,
+      "interface_message": 2,
+      "interface_recovery_attempt": 2,
+      "lab_order": 1,
+      "patient": 1,
+      "report": 0,
+      "specimen": 1,
+      "validation_error": 0
+    },
+    "reconcile_error_count": 0
+  },
+  "question_answers": [
+    {
+      "question": 1,
+      "answer": "SPM-4 (specimen type) is 'ZZZ^Unknown Specimen^L'. ZZZ is not a recognized specimen code, so ingestion raised SPECIMEN_UNRECOGNIZED (SPECIMEN / REDRIVE_ONLY). The corrected payload carries BMA (bone marrow), which matches the panel.",
+      "sources": [
+        "src/interfaces/inbound_hl7.py _check_specimen",
+        "validation/v1.1-design-record.md sec 6"
+      ]
+    },
+    {
+      "question": 2,
+      "answer": "A matching replay: the queue item, action, payload fingerprint, and actor all match the recorded request, so the service returned the existing SUCCEEDED attempt (same attempt_id) and wrote nothing: no message, result, attempt, or audit row.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 9, sec 11 (I-02 steps 4-5)",
+        "R-034"
+      ]
+    },
+    {
+      "question": 3,
+      "answer": "The actor differed (analyst02 instead of analyst01), so reusing EX05-REDRIVE-1 is a REQUEST_ID_CONFLICT. It creates no message, attempt, or result and never changes the original attempt; it records exactly one audit_event with action REQUEST_ID_CONFLICT on entity interface_error_queue (order_id NULL, actor analyst02). get_recovery_history excludes it because no attempt row exists; recover history lists it as a conflict audit event, and reconcile reports it as REC-008 (INFO).",
+      "sources": [
+        "validation/v1.1-design-record.md sec 9",
+        "R-041",
+        "src/recovery.py _record_conflict, get_recovery_history"
+      ]
+    },
+    {
+      "question": 4,
+      "answer": "The queue item was already RESOLVED. A fresh request against a closed item records a REJECTED attempt with no processing message, no result change, and no filing event. At most one SUCCEEDED attempt per queue item is also enforced by a partial unique index in schema.sql.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 8, sec 9, sec 11 (I-02 steps 6-8)",
+        "R-035",
+        "R-036",
+        "schema.sql idx_recovery_attempt_single_success"
+      ]
+    },
+    {
+      "question": 5,
+      "answer": "One INBOUND_RESULT_FILED event (naming message_id=2) and nine RESULT_ENTERED events. The replay, the conflict, and the rejected request did not file again, so the results were applied exactly once.",
+      "sources": [
+        "R-016",
+        "R-036",
+        "validation/v1.1-design-record.md sec 11 (I-02)"
+      ]
+    }
+  ]
+}

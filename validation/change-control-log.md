@@ -27,6 +27,7 @@ development session. Each session was developed on its own branch and merged to
 | P3-003 | v1.1 controlled recovery service | `src/recovery.py` headless retry/re-drive/history with immutability, idempotency, rollback, terminal rejection | PR #19 merged; status closeout PR #20 merged |
 | P3-004 | v1.1 validation/UAT/portfolio closeout | Recovery demo, R-020-R-041 traceability, UAT-011-UAT-018, troubleshooting/diagram/demo/README/portfolio updates | PR #21 merged (`406509ad`) |
 | P3-005 + finalization | v1.1 recovery UAT execution and finalization | UAT-011-UAT-018 executed and passed (incl. UAT-015A/B); AF-2026-010 - AF-2026-012 recorded; governance simplified; v1.1 declared complete | 2026-07-25/26; evidence in `v1.1-recovery-uat-execution-report.md` |
+| Issue #43 | Analyst investigation and recovery lab | Headless `python -m src.analyst` CLI over the existing services; case trace, reconciliation findings, non-mutating recovery preview, seven executable incident exercises, portable case evidence; R-043 - R-052 | Authorized by Austin in issue #43 |
 
 ---
 
@@ -366,13 +367,54 @@ deployment, or standards-conformance change. All data remains synthetic.
 
 ---
 
+## Issue #43 - Analyst investigation and recovery lab
+
+**Requirements introduced:** R-043 - R-052 (see
+[`requirements.md`](requirements.md)).
+
+**What changed:**
+- `src/analyst/` - a standard-library, headless analyst lab:
+  `store.py` (create-new, read-only, and read-write database access),
+  `trace.py` (chronological case view built from primary/foreign keys, with
+  payload-derived and audit-text links labeled), `reconcile.py` (29
+  deterministic findings rules tied to documented requirements), `preview.py`
+  (the unchanged recovery service run on an in-memory backup of a read-only
+  source), `evidence.py` (deterministic case evidence JSON and a short report),
+  `exercises.py` (exercise runner and database-querying verifier), and `cli.py`
+  (`python -m src.analyst`).
+- `queries/analyst_queue_worklist.sql` - queue items of any status with attempt
+  counts and last outcome.
+- `exercises/` - seven synthetic incident exercises, with analyst instructions
+  kept separate from `exercises/answer-keys/`.
+- Exercise verification checks EX02 registration demographics, ordering provider,
+  and accessioned bone-marrow specimen against the supplied fixture/task, plus
+  EX01's prescribed HL7 timestamp and control id against persisted output.
+  AUD-002 rejects an outbound message cited as inbound filing evidence.
+- `tests/test_analyst_*.py` - persistence across separate processes, error
+  paths, read-only guarantees, trace relationships checked against independent
+  SQL, every reconciliation rule, preview versus apply from the same baseline,
+  preview staleness, injected rollback, exercise runs and tampering detection,
+  evidence determinism, and a bounded 1,000-message scale check.
+- Validation package - R-043 - R-052, traceability rows, known-issues and risk
+  rows, and current test counts (616 tests across sixteen suites).
+
+**Authorization:** Austin authorized this bounded implementation in issue #43.
+
+**Scope:** no schema, taxonomy, recovery-semantics, core workflow, frozen-file,
+runtime-dependency, CI, or permission change. The CLI is additive: it wraps
+the frozen v1.1 service boundary (`retry_queue_item`, `redrive_queue_item`,
+`get_recovery_history`) and does not replace it. Automated exercise runs are
+not manual UAT and do not demonstrate Austin's mastery. All data is synthetic.
+
+---
+
 ## Change-control principles used
 
 - **One session/task = one branch = one PR**, never committed straight to `main`.
 - **Tests accompany behavior** - every code session and v1.1 task added matching
-  coverage; the current suite has 164 passing tests across eight suites,
-  including result assertions for all analyst SQL views and the full controlled
-  recovery service.
+  coverage; the current suite has 616 passing tests across sixteen suites,
+  including result assertions for all analyst SQL views, the full controlled
+  recovery service, and the analyst lab.
 - **Scope guardrails** honored every session and task (no UI/Docker/ORM/new
   panels/new DB/real HL7-FHIR deps/Epic content; synthetic data only). CI was
   added as a maintenance gate without changing application behavior.

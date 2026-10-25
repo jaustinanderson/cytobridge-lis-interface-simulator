@@ -1,0 +1,43 @@
+{
+  "id": "EX01-valid-result-export",
+  "title": "Valid inbound result to final report and exports",
+  "summary": "File a complete synthetic AML/MDS FISH instrument result, finalize the order, and store HL7-style and FHIR-style exports that you can compare with the filed results.",
+  "steps": [
+    {
+      "argv": [
+        "init",
+        "--db",
+        "{db}"
+      ],
+      "expect_exit": 0,
+      "note": "Create a new, empty synthetic exercise database. init refuses a path that already exists."
+    },
+    {
+      "argv": [
+        "case-create",
+        "--db",
+        "{db}",
+        "--mrn",
+        "SYN-EX01-01",
+        "--last-name",
+        "Synthetic",
+        "--first-name",
+        "ExerciseOne",
+        "--dob",
+        "1970-01-01",
+        "--sex",
+        "F",
+        "--accession",
+        "ACC-EX01-0001",
+        "--provider",
+        "Dr. Synthetic",
+        "--specimen-type",
+        "BONE_MARROW",
+        "--external-specimen-id",
+        "BM-EX01-01"
+      ],
+      "expect_exit": 0,
+      "note": "Register synthetic patient SYN-EX01-01, AML/MDS FISH order ACC-EX01-0001, and an accessioned bone-marrow specimen."
+    }
+  ]
+}
