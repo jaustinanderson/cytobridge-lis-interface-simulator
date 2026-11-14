@@ -57,7 +57,7 @@ Validation is layered:
 
 | Metric | Result |
 |---|---|
-| Automated tests | **616 passed** (`pytest`, sixteen suites) |
+| Automated tests | **622 passed** (`pytest`, sixteen suites) |
 | Requirements traced | 51 / 51 mapped to code + test; the 41 v1/v1.1 requirements also map to a UAT |
 | Requirements with automated coverage passing | 51 / 51 |
 | Manual UAT | 18 / 18 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 not manually executed |
@@ -196,7 +196,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # -> 616 passed
+python -m pytest -q                   # -> 622 passed
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 mkdir lab-work && python -m src.analyst exercise run-all --workdir lab-work/all   # -> 7 verified
 ```

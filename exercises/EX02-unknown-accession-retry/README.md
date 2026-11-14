@@ -33,7 +33,7 @@ DB=lab-work/EX02-unknown-accession-retry.db
   records are linked, and on what basis? Read the provenance and limitations.
 - `python -m src.analyst show-message --db "$DB" --message-id MESSAGE_ID --raw`
   - find the accession (OBR-3), MRN (PID-3), name (PID-5), birth date
-  (PID-7), sex (PID-8), and ordering provider (OBR-16).
+  (PID-7), sex (PID-8), and ordering provider (OBR-16, name component).
 - `python -m src.analyst reconcile --db "$DB"`
 - After you register the order, re-run `trace` for the queue item. What
   changed in the links?

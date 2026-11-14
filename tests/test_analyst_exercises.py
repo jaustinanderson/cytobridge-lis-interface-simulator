@@ -885,6 +885,61 @@ def test_unsupported_expected_key_fails_instead_of_being_ignored(built, exercise
     }
 
 
+@pytest.mark.parametrize("field, value, failed_check", [
+    pytest.param(
+        "patient", {"middle_name": "Example"},
+        "patient key 'middle_name' is supported", id="unsupported-patient-key",
+    ),
+    pytest.param(
+        "specimens", [{"collection_site": "Example"}],
+        "specimen[1] key 'collection_site' is supported", id="unsupported-specimen-key",
+    ),
+    pytest.param(
+        "patient", [], "patient key '(not an object)' is supported", id="patient-not-object",
+    ),
+    pytest.param(
+        "specimens", {}, "specimens key '(not a list)' is supported", id="specimens-not-list",
+    ),
+])
+def test_invalid_registration_expectation_fails(built, exercise_copy, field, value, failed_check):
+    ex = "EX02-unknown-accession-retry"
+    _edit_json(
+        exercise_copy / "answer-keys" / f"{ex}.json",
+        lambda d: d["expected"]["orders"][0].update({field: value}),
+    )
+    result = exercises.verify_exercise(ex, built[ex])
+    assert _failed(result) == {f"EX02 answer key order[ACC-EX02-0001] {failed_check}"}
+    assert result["passed"] is False
+
+
+def test_hl7_header_key_on_fhir_entry_fails(built, exercise_copy):
+    ex = "EX01-valid-result-export"
+
+    def add_hl7_key(data):
+        fhir = next(entry for entry in data["expected"]["outbound"] if entry["format"] == "FHIR")
+        fhir["hl7_timestamp"] = "20261025090000"
+
+    _edit_json(exercise_copy / "answer-keys" / f"{ex}.json", add_hl7_key)
+    result = exercises.verify_exercise(ex, built[ex])
+    assert _failed(result) == {
+        "EX01 answer key outbound[ACC-EX01-0001 FHIR] key 'hl7_timestamp (HL7 only)' is supported"
+    }
+    assert result["passed"] is False
+
+
+def test_hl7_header_expectation_without_messages_fails(built, exercise_copy):
+    # EX02 has no outbound messages. A header expectation alone requires one.
+    ex = "EX02-unknown-accession-retry"
+    entry = {"accession": "ACC-EX02-0001", "format": "HL7", "hl7_timestamp": "20261025090000"}
+    _edit_json(
+        exercise_copy / "answer-keys" / f"{ex}.json",
+        lambda d: d["expected"].update({"outbound": [entry]}),
+    )
+    result = exercises.verify_exercise(ex, built[ex])
+    assert _failed(result) == {"EX02 outbound[ACC-EX02-0001 HL7] header messages present"}
+    assert result["passed"] is False
+
+
 def test_answer_key_unknown_top_level_keys_are_ignored(built, exercise_copy):
     ex = "EX03-invalid-result-redrive"
     _edit_json(

@@ -91,12 +91,13 @@ component 3 or `result-enter --pattern`; `ingest --actor`, the recovery
 confirmed by running the exercises.
 
 EX02's patient and provider expectations come from `inputs/early_result.hl7`
-(PID-3/5/7/8 and OBR-16); its specimen type and status come from the exercise's
-instruction to register an accessioned bone-marrow specimen. EX01's MSH-7
-expectation comes from the generated-at time specified in its task; its
-control id combines the documented exporter prefix, accession with separators
-removed, and that timestamp. These values are explicit task expectations,
-not values captured from an exercise run.
+(PID-3/5/7/8 and OBR-16 component 2). Its specimen type and status come from
+the instruction to register an accessioned bone-marrow specimen. EX01's MSH-7
+expectation comes from the generated-at time specified in its task. The
+`_control_id` function in [`src/interfaces/outbound_hl7.py`](../../src/interfaces/outbound_hl7.py)
+combines the exporter's prefix, the alphanumeric characters of the accession,
+and that timestamp to produce MSH-10. These values are explicit task
+expectations, not values captured from an exercise run.
 
 Several exercises exercise behavior covered by the human-approved invariants
 in design record sec 11: original-message immutability (I-01; EX03, also
