@@ -26,8 +26,7 @@ A self-review of the CytoBridge LIS Interface Simulator from the perspective of 
 > recovery UATs, UAT-011 - UAT-018, executed by Codex and passed, with a same-agent replay; the v1 manual UATs and UAT-019 defined, not manually executed; the ten lab requirements have no manual UAT), and **five** clean demo scenarios. A notable maturity
 > signal: the recovery behavior was specified in a **frozen, pre-implementation
 > design record** and proven against two human-approved invariants. Provenance is
-> stated plainly - the recovery safety design and decisions were the owner's,
-> and the owner reviewed and accepted the validation evidence; it is not
+> stated plainly - the recovery safety design and decisions were the owner's; it is not
 > presented as unaided work, certified HL7/FHIR, regulatory validation,
 > production-ready software, or Epic build experience.
 

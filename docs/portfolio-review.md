@@ -77,8 +77,7 @@ Stated plainly so no reviewer is misled:
 
 ## Provenance (v1.1 recovery)
 
-Recovery behavior and safety decisions were **designed and approved by Austin**;
-and the **validation evidence was reviewed and accepted by Austin**. This project
+Recovery behavior and safety decisions were **designed and approved by Austin**. This project
 must never be represented as unaided work or as autonomous output its author
 cannot explain. The frozen
 [design record](../validation/v1.1-design-record.md),
@@ -155,7 +154,7 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   content. I'm careful not to overstate it.
 - **"Did you build the recovery logic yourself?"** The safety design and
   decisions are mine (the project owner's), captured in a frozen design record
-  before any code, and I reviewed and accepted the validation evidence. I don't
+  before any code. I don't
   represent it as unaided work.
 - **"What would you do next?"** Nothing beyond the approved scope without
   sign-off. The error-queue resolve/re-drive workflow (former KI-03) is now built
