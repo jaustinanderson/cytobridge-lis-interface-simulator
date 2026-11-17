@@ -1,5 +1,7 @@
 # Demo script (~6 minutes)
 
+Implementation was done with AI assistants; recovery followed my approved design and bounded instructions.
+
 A screen-share walkthrough of the CytoBridge LIS Interface Simulator for a
 hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 (what's on screen) and a **say** (the one or two sentences to narrate).

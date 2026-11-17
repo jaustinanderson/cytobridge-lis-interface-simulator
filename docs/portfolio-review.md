@@ -1,5 +1,7 @@
 # Portfolio review
 
+Implementation was done with AI assistants; recovery followed my approved design and bounded instructions.
+
 An honest self-assessment of the CytoBridge LIS Interface Simulator as a
 portfolio artifact: what it proves, what it deliberately does **not** prove, the
 Epic/Beaker boundary, and ready-to-use resume bullets and interview talking
@@ -70,15 +72,12 @@ Stated plainly so no reviewer is misled:
   synchronous, headless, and single-process - no scheduler, worker, async queue,
   UI, or API. It demonstrates the *safety design* of a recovery workflow, not a
   production interface-engine feature.
-- **Not unaided authorship.** See the provenance note below - the recovery work
-  was designed and approved by a human and implemented by an assistant under
-  bounded instructions.
+- **Not unaided authorship.** See the provenance note below.
 - **Not Epic build experience** - see the boundary below.
 
 ## Provenance (v1.1 recovery)
 
 Recovery behavior and safety decisions were **designed and approved by Austin**;
-the implementation was **performed with Claude under bounded task instructions**;
 and the **validation evidence was reviewed and accepted by Austin**. This project
 must never be represented as unaided work or as autonomous output its author
 cannot explain. The frozen
@@ -127,7 +126,7 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   idempotency and conflict handling, transaction-safe rollback, and terminal
   rejection - specified against a frozen pre-implementation design record and
   proven by dedicated test suites (recovery behavior designed and approved by
-  the project owner; implemented with an AI assistant under bounded instructions).
+  the project owner).
 - Authored a **validation package**: 52 traceable requirements, a
   requirements-to-test **traceability matrix**, 19 **UAT scripts**, risk
   assessment, and known-issues log; **688 passing automated tests and one platform skip** (689 cases across 17 test modules, November 14).
@@ -156,8 +155,7 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   content. I'm careful not to overstate it.
 - **"Did you build the recovery logic yourself?"** The safety design and
   decisions are mine (the project owner's), captured in a frozen design record
-  before any code; the implementation was done with an AI assistant under bounded
-  task instructions, and I reviewed and accepted the validation evidence. I don't
+  before any code, and I reviewed and accepted the validation evidence. I don't
   represent it as unaided work.
 - **"What would you do next?"** Nothing beyond the approved scope without
   sign-off. The error-queue resolve/re-drive workflow (former KI-03) is now built
