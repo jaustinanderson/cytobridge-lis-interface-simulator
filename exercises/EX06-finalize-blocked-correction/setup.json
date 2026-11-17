@@ -1,0 +1,67 @@
+{
+  "id": "EX06-finalize-blocked-correction",
+  "title": "Blocked finalization and result correction",
+  "summary": "Finalization of a filed order is blocked. Identify the blocking validation findings, enter the technologist's corrected results, and finalize.",
+  "steps": [
+    {
+      "argv": [
+        "init",
+        "--db",
+        "{db}"
+      ],
+      "expect_exit": 0,
+      "note": "Create a new, empty synthetic exercise database. init refuses a path that already exists."
+    },
+    {
+      "argv": [
+        "case-create",
+        "--db",
+        "{db}",
+        "--mrn",
+        "SYN-EX06-01",
+        "--last-name",
+        "Synthetic",
+        "--first-name",
+        "ExerciseSix",
+        "--dob",
+        "1970-01-06",
+        "--sex",
+        "M",
+        "--accession",
+        "ACC-EX06-0001",
+        "--provider",
+        "Dr. Synthetic",
+        "--specimen-type",
+        "BONE_MARROW",
+        "--external-specimen-id",
+        "BM-EX06-01"
+      ],
+      "expect_exit": 0,
+      "note": "Register synthetic patient SYN-EX06-01, AML/MDS FISH order ACC-EX06-0001, and an accessioned bone-marrow specimen."
+    },
+    {
+      "argv": [
+        "ingest",
+        "--db",
+        "{db}",
+        "--file",
+        "{inputs}/incomplete_result.hl7"
+      ],
+      "expect_exit": 0,
+      "note": "Ingest the instrument result; it files to ACC-EX06-0001."
+    },
+    {
+      "argv": [
+        "finalize",
+        "--db",
+        "{db}",
+        "--order-id",
+        "1",
+        "--by",
+        "analyst01"
+      ],
+      "expect_exit": 4,
+      "note": "Attempt finalization as analyst01; finalization does not complete."
+    }
+  ]
+}
