@@ -1,5 +1,7 @@
 # Demo script (~6 minutes)
 
+Implementation was done with AI assistants; recovery followed my approved design and bounded instructions.
+
 A screen-share walkthrough of the CytoBridge LIS Interface Simulator for a
 hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 (what's on screen) and a **say** (the one or two sentences to narrate).
@@ -78,10 +80,10 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
   `aml_mds_invalid_result_value.hl7`; then `docs/interface-troubleshooting.md`.
 - **Say:** "Inbound messages carry the per-probe result packed into OBX-5. A
   valid one files to the matched open order. The invalid one has a non-numeric
-  count - and because filing is **all-or-nothing**, the good result in that same
+  count - and because this non-numeric count is rejected before filing, the good result in that same
   message is *not* filed either; the whole message goes to the error queue. The
   troubleshooting doc is the analyst runbook: how to read the reason and resolve
-  it."
+  it. KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects that condition."
 
 ## 4:15-5:00 - Controlled recovery (scenario 5)
 
@@ -107,20 +109,19 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 ## 5:00-5:30 - Traceability matrix
 
 - **Show:** `validation/traceability-matrix.md`.
-- **Say:** "Every requirement - R-001 through R-041 - maps to the exact file,
+- **Say:** "Every requirement - R-001 through R-052 - maps to the exact file,
   function, or schema constraint that implements it, the `pytest` test that
-  proves it, and a manual UAT script. I keep the statuses separate and honest:
+  proves it, and, for R-001 through R-042, a manual UAT script. I keep the statuses separate and honest:
   the automated status is a test that actually passes; the recovery UATs
-  (UAT-011 through UAT-018) were manually executed and passed with recorded
-  evidence; the v1 UATs are *defined*, not executed."
+  (UAT-011 through UAT-018) were executed by Codex and passed with recorded evidence and a same-agent replay; the v1 UATs and UAT-019 are *defined*, not manually executed."
 
 ## 5:30-6:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
-- **Say:** "The bottom line: 176 automated tests pass across eight suites, all 41
+- **Say:** "The bottom line: 688 automated tests passed, with one platform skip (689 cases across 17 test modules, November 14), all 52
   requirements are traced to code and passing automated coverage within the
-  synthetic scope, the demo runs clean through five scenarios, and of the 18
-  UAT scripts the eight recovery ones were manually executed and passed. And I
+  synthetic scope, the demo runs clean through five scenarios, and of the 19
+  UAT scripts the eight recovery ones were executed by Codex and passed, with a same-agent replay. And I
   wrote down the limitations honestly in `known-issues.md` and
   `risk-assessment.md` - including that this is Beaker-adjacent learning, not
   Epic build experience."
@@ -130,8 +131,7 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 ## If you have 60 more seconds (optional Q&A hooks)
 
 - **"Show me a test."** Open `tests/test_inbound_interfaces.py::`
-  `test_invalid_numeric_result_goes_to_error_queue` - "all-or-nothing proven in
-  one test." For recovery, `tests/test_recovery_service.py::`
+  `test_invalid_numeric_result_goes_to_error_queue` - "rejection before filing proven for this non-numeric sample; KI-04 remains outside that proof." For recovery, `tests/test_recovery_service.py::`
   `test_invariant_I02_duplicate_and_replay_protection` - "one success per item,
   replay is a no-op, post-resolution requests are rejected."
 - **"How does recovery stay safe?"** Point to `src/recovery.py`: the original
@@ -144,8 +144,8 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
   approved before implementation.
 - **"What would you build next?"** Nothing beyond the approved scope without
   Austin's sign-off - the error-queue resolve/re-drive workflow (former KI-03) is
-  now built and reviewed; the ISCN parser seam is a candidate only if it serves a
-  specific learning goal.
+  now built and reviewed, and an educational ISCN karyotype subset parser exists;
+  broader ISCN coverage is a candidate only if it serves a specific learning goal.
 - **"How is this different from Epic?"** Point to
   [`portfolio-review.md`](portfolio-review.md) - "I model the *category* of
   system Beaker is; I don't use Epic software or build content."

@@ -50,6 +50,7 @@ substantive changes require Austin's explicit approval.
 | P3-003 - Controlled recovery service core | Merged via PR #19 |
 | P3-004 - Validation, UAT, and portfolio closeout | Merged via PR #21 |
 | P3-005 - Recovery UAT evidence pilot | Executed 2026-07-25; durable evidence in the [execution report](validation/v1.1-recovery-uat-execution-report.md) |
+| P4-001 - Educational ISCN karyotype subset parser | Authorized 2026-10-24 under Austin's delegation to joint Claude/Codex judgment; R-042 with automated coverage; UAT-019 defined |
 
 ## Governance
 
@@ -67,6 +68,6 @@ substantive changes require Austin's explicit approval.
 ## Next permitted action
 
 None. No implementation task is active or approved. Any future enhancement
-(for example, the ISCN parser seam) starts with a new bounded authorization
+(for example, broader ISCN coverage) starts with a new bounded authorization
 from Austin: one task per branch and pull request, with one genuinely
 independent review, and no status-only follow-up work.

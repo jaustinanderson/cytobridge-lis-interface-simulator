@@ -40,6 +40,27 @@ Both action functions return a `RecoveryAttempt` (its `outcome` is `SUCCEEDED`,
 `recovery.RequestIdConflictError`; a contradictory queue state raises
 `recovery.RecoveryError`.
 
+### The same steps from the command line
+
+The [analyst lab](analyst-lab-walkthrough.md) (`python -m src.analyst`) runs
+this runbook against a persistent database file without writing Python. Its
+`recover` commands call the three service functions above and add no rules of
+their own:
+
+| Runbook step | Command (add `--db PATH`) |
+|---|---|
+| Find open failures | `worklist` |
+| Inspect a failed message and its links | `trace --queue-id N`, `show-message --message-id N --raw` |
+| Check stored state against documented rules | `reconcile` |
+| See what a recovery would do, without writing | `recover preview --queue-id N --action retry\|redrive [--file F] --request-id R --actor A` |
+| Apply an allowed recovery | `recover retry ...` or `recover redrive --file F ...` |
+| Review attempts and conflicts | `recover history --queue-id N` |
+| Export evidence | `evidence --queue-id N --out FILE.json --report FILE.md` |
+
+A preview describes one snapshot. The apply re-invokes the service, so if the
+order changed in between (for example, it was finalized), the current rules
+decide the outcome.
+
 ## Where to look
 
 | Question | Where |

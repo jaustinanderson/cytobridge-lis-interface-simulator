@@ -1,0 +1,233 @@
+{
+  "id": "EX04-finalized-order-terminal",
+  "solution_steps": [
+    {
+      "argv": [
+        "recover",
+        "preview",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--action",
+        "redrive",
+        "--file",
+        "{inputs}/late_result.hl7",
+        "--request-id",
+        "EX04-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 4,
+      "note": "Simulated outcome REJECTED: the queue item is TERMINAL (ORDER_FINALIZED / ORDER_STATE / TERMINAL). Nothing is written to the source database."
+    },
+    {
+      "argv": [
+        "recover",
+        "redrive",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--file",
+        "{inputs}/late_result.hl7",
+        "--request-id",
+        "EX04-REDRIVE-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 4,
+      "note": "Recorded outcome REJECTED: a fresh request against a closed (TERMINAL) item records a REJECTED attempt with no resulting message (design record sec 7, sec 8; R-029, R-032)."
+    },
+    {
+      "argv": [
+        "recover",
+        "retry",
+        "--db",
+        "{db}",
+        "--queue-id",
+        "1",
+        "--request-id",
+        "EX04-RETRY-1",
+        "--actor",
+        "analyst01"
+      ],
+      "expect_exit": 4,
+      "note": "Recorded outcome REJECTED for the same reason; the order stays FINALIZED and its filed results are unchanged (CytoBridge never reopens or unfinalizes an order)."
+    }
+  ],
+  "expected": {
+    "orders": [
+      {
+        "accession": "ACC-EX04-0001",
+        "status": "FINALIZED",
+        "result_count": 9,
+        "results": {
+          "RUNX1T1_RUNX1": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "CBFB": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 orange/green",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "PML_RARA": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "KMT2A": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 fusion",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "EGR1_5q": {
+            "cells_scored": 200,
+            "cells_abnormal": 4,
+            "signal_pattern": "2 orange 2 green",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "D7S486_7q": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "CEP8": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2 aqua",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "D20S108_20q": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "TP53_17p": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          }
+        },
+        "report_status": "FINALIZED",
+        "report_finalized_by": "analyst01",
+        "audit_action_counts": {
+          "RESULT_ENTERED": 9,
+          "INBOUND_RESULT_FILED": 1,
+          "VALIDATION_RUN": 1,
+          "FINALIZE_BLOCKED": 0,
+          "REPORT_FINALIZED": 1,
+          "FINALIZED": 1
+        },
+        "validation_blocking": false
+      }
+    ],
+    "queue_items": [
+      {
+        "original_control_id": "EX04-LATE",
+        "failure_code": "ORDER_FINALIZED",
+        "failure_category": "ORDER_STATE",
+        "recovery_policy": "TERMINAL",
+        "status": "TERMINAL",
+        "original_message_status": "ERRORED",
+        "original_payload_fixture": "inputs/late_result.hl7",
+        "conflict_audit_events": 0,
+        "attempts": [
+          {
+            "request_id": "EX04-REDRIVE-1",
+            "action": "REDRIVE_CORRECTED",
+            "outcome": "REJECTED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/late_result.hl7",
+            "resulting_message_status": null
+          },
+          {
+            "request_id": "EX04-RETRY-1",
+            "action": "RETRY_ORIGINAL",
+            "outcome": "REJECTED",
+            "actor": "analyst01",
+            "payload_fixture": "inputs/late_result.hl7",
+            "resulting_message_status": null
+          }
+        ]
+      }
+    ],
+    "totals": {
+      "audit_event": 17,
+      "fish_result": 9,
+      "interface_error_queue": 1,
+      "interface_message": 2,
+      "interface_recovery_attempt": 2,
+      "lab_order": 1,
+      "patient": 1,
+      "report": 1,
+      "specimen": 1,
+      "validation_error": 0
+    },
+    "reconcile_error_count": 0
+  },
+  "question_answers": [
+    {
+      "question": 1,
+      "answer": "The late message failed the order-state check because the order is FINALIZED: ORDER_FINALIZED maps to ORDER_STATE / TERMINAL. A TERMINAL policy initializes the queue item directly as TERMINAL with terminal_at set and resolved_at NULL. The default worklist shows only OPEN items, which is why it was empty.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 5.1, sec 6, sec 8",
+        "src/interfaces/inbound_hl7.py _match_order, _route_to_error_queue",
+        "R-015"
+      ]
+    },
+    {
+      "question": 2,
+      "answer": "Simulated outcome REJECTED: on the in-memory copy one REJECTED attempt row would be added and nothing else, and the source database was unchanged. A preview describes one snapshot of an isolated copy; apply re-invokes the recovery service against the state that exists at that time, so the result can differ if state changes in between.",
+      "sources": [
+        "issue #43 deliverable 3",
+        "analyst limitation PREVIEW_SNAPSHOT"
+      ]
+    },
+    {
+      "question": 3,
+      "answer": "Each request created exactly one interface_recovery_attempt row with outcome REJECTED, resulting_message_id NULL, and outcome_detail 'Queue item 1 is TERMINAL; recovery is not permitted against a closed queue item.' No interface_message, fish_result change, audit event, queue change, or order change was made: the queue item stays TERMINAL and the order stays FINALIZED. The retry's payload_sha256 is the fingerprint of the late (original) payload.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 7, sec 8",
+        "R-029",
+        "R-032",
+        "src/recovery.py _reject"
+      ]
+    },
+    {
+      "question": 4,
+      "answer": "The first message's values. Exactly one INBOUND_RESULT_FILED event exists and it names message_id=1; the late message 2 is ERRORED with order_id NULL and was never FILED; the current fish_result values equal the first fixture's counts. In general fish_result is upserted and keeps only the current value per probe, and it has no foreign key to the message that wrote it, so earlier values cannot be reconstructed from the schema; audit text and message statuses are indirect evidence only.",
+      "sources": [
+        "schema.sql fish_result UNIQUE(order_id, probe_id)",
+        "R-016",
+        "analyst limitations RESULTS_UPSERTED, NO_RESULT_SOURCE_FK"
+      ]
+    },
+    {
+      "question": 5,
+      "answer": "Nothing that changes the order: design record sec 7 states v1.1 may not reopen, override, unfinalize, or uncancel an order, and any recovery request against a TERMINAL item is rejected (R-029). Acting on the late values would need a process this simulator does not model; the analyst escalates rather than forcing the data in.",
+      "sources": [
+        "validation/v1.1-design-record.md sec 3, sec 7",
+        "R-029"
+      ]
+    }
+  ]
+}

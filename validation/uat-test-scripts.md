@@ -6,14 +6,15 @@ the outcome - they map to the same behavior covered by the automated `pytest`
 suite (see the [traceability matrix](traceability-matrix.md)) and to the five
 scenarios in `python -m src.demo_run`. UAT-001 through UAT-010 cover v1;
 UAT-011 through UAT-018 cover the v1.1 controlled error-queue recovery service
-(frozen requirements R-020 through R-041).
+(frozen requirements R-020 through R-041). UAT-019 covers the P4-001
+educational ISCN karyotype subset (R-042).
 
 > **Synthetic learning project - no PHI.** These are demonstration acceptance
 > tests, not clinical/regulatory validation. Accession numbers, MRNs, and
 > results are synthetic. This is **Beaker-adjacent learning, not Epic build
 > experience.**
 
-> **Execution status.** UAT-001 through UAT-010 are defined, not manually executed:
+> **Execution status.** UAT-001 through UAT-010 and UAT-019 are defined, not manually executed:
 > their human Pass/Fail blanks remain empty. UAT-004 additionally passed an
 > AI-executed functional replay on 2026-09-04; its separate
 > [synthetic evidence](uat004-ai-functional-replay.json) does not establish
@@ -727,6 +728,35 @@ attempt, and `FILED` message after reopen.
 
 ---
 
+## UAT-019 - Educational ISCN karyotype subset
+
+**Requirements:** R-042
+
+**Precondition:** A Python shell at the repository root:
+`from src.reports import parse_iscn`.
+
+**Steps:**
+1. Parse `46,XY,t(9;22)(q34;q11.2)[20]` and `47,XX,+8[15]/46,XX[5]`.
+2. Parse `46,XX,+8[20]` (the total does not match the gain) and
+   `46,XY,t(22;9)(q11.2;q34)` (chromosome order).
+3. Parse `46,XX,del(5)(q13q33)[10]` and `47,XX,+8,del(5)(q13q33)[20]` (a
+   construct outside the subset, alone and mixed with a supported one).
+4. For each, inspect `raw`, `is_valid`, `clones`, `abnormalities`, `issues`
+   and `notes`.
+
+**Expected result:** The step 1 strings are accepted with one and two structured
+clones (cell counts 20; 15 and 5). The step 2 strings are rejected with
+`malformed` issues that explain the problem. The step 3 strings are rejected
+with an `unsupported` issue, and the mixed string returns no clones or
+abnormalities. `raw` always equals the input. Accepted results carry the subset
+note stating this is not full ISCN validation or a clinical interpretation.
+
+**Evidence to capture:** The printed result for each string.
+
+**Pass / Fail:** [ ] Pass [ ] Fail  Notes: ________________________________
+
+---
+
 ## Result summary
 
 | UAT | Title | Requirements | Result |
@@ -749,8 +779,9 @@ attempt, and `FILED` message after reopen.
 | UAT-016 | Replay, post-resolution reject, conflict | R-034, R-035, R-036, R-041 | PASS (2026-07-25) |
 | UAT-017 | Ordered history, fingerprint/detail, audit | R-033, R-040 | PASS (2026-07-25) |
 | UAT-018 | Durability, no dangling txn, FK integrity | R-030, R-031, R-039 | PASS (2026-07-25) |
+| UAT-019 | Educational ISCN karyotype subset | R-042 | [ ] P [ ] F |
 
-> UAT-001 - UAT-010 blanks are unfilled by design: those v1 scripts are defined
+> UAT-001 - UAT-010 and UAT-019 blanks are unfilled by design: those scripts are defined
 > but not manually executed, and a manual pass may be recorded only after
 > actually running the steps and capturing the evidence. UAT-011 - UAT-018 were
 > manually executed and passed on 2026-07-25, including both UAT-015 subcases;

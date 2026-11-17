@@ -1,0 +1,205 @@
+{
+  "id": "EX06-finalize-blocked-correction",
+  "solution_steps": [
+    {
+      "argv": [
+        "result-enter",
+        "--db",
+        "{db}",
+        "--order-id",
+        "1",
+        "--probe",
+        "TP53_17p",
+        "--scored",
+        "200",
+        "--abnormal",
+        "2",
+        "--pattern",
+        "2R2G",
+        "--interpretation",
+        "NORMAL",
+        "--entered-by",
+        "tech01"
+      ],
+      "expect_exit": 0,
+      "note": "Enter the missing required probe (clears MISSING_PROBE)."
+    },
+    {
+      "argv": [
+        "result-enter",
+        "--db",
+        "{db}",
+        "--order-id",
+        "1",
+        "--probe",
+        "CEP8",
+        "--scored",
+        "200",
+        "--abnormal",
+        "12",
+        "--pattern",
+        "3 aqua",
+        "--interpretation",
+        "ABNORMAL",
+        "--entered-by",
+        "tech01"
+      ],
+      "expect_exit": 0,
+      "note": "Re-enter CEP8 with the technologist's ABNORMAL call. 12/200 = 6.0% is at/above the synthetic 2.5% cutoff, so a NORMAL call was an INTERP_CONSISTENCY ERROR. The row is upserted; the earlier value is not retained."
+    },
+    {
+      "argv": [
+        "finalize",
+        "--db",
+        "{db}",
+        "--order-id",
+        "1",
+        "--by",
+        "analyst01"
+      ],
+      "expect_exit": 0,
+      "note": "Validation now has no ERROR findings; the stored findings from the blocked run are replaced and the order finalizes."
+    }
+  ],
+  "expected": {
+    "orders": [
+      {
+        "accession": "ACC-EX06-0001",
+        "status": "FINALIZED",
+        "result_count": 9,
+        "results": {
+          "RUNX1T1_RUNX1": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "CBFB": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 orange/green",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "PML_RARA": {
+            "cells_scored": 200,
+            "cells_abnormal": 3,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "KMT2A": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 fusion",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "EGR1_5q": {
+            "cells_scored": 200,
+            "cells_abnormal": 4,
+            "signal_pattern": "2 orange 2 green",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "D7S486_7q": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "CEP8": {
+            "cells_scored": 200,
+            "cells_abnormal": 12,
+            "signal_pattern": "3 aqua",
+            "interpretation": "ABNORMAL",
+            "entered_by": "tech01"
+          },
+          "D20S108_20q": {
+            "cells_scored": 200,
+            "cells_abnormal": 1,
+            "signal_pattern": "2 signals",
+            "interpretation": "NORMAL",
+            "entered_by": "interface"
+          },
+          "TP53_17p": {
+            "cells_scored": 200,
+            "cells_abnormal": 2,
+            "signal_pattern": "2R2G",
+            "interpretation": "NORMAL",
+            "entered_by": "tech01"
+          }
+        },
+        "report_status": "FINALIZED",
+        "report_finalized_by": "analyst01",
+        "audit_action_counts": {
+          "RESULT_ENTERED": 10,
+          "INBOUND_RESULT_FILED": 1,
+          "VALIDATION_RUN": 2,
+          "FINALIZE_BLOCKED": 1,
+          "REPORT_FINALIZED": 1,
+          "FINALIZED": 1
+        },
+        "validation_blocking": false
+      }
+    ],
+    "totals": {
+      "audit_event": 20,
+      "fish_result": 9,
+      "interface_error_queue": 0,
+      "interface_message": 1,
+      "interface_recovery_attempt": 0,
+      "lab_order": 1,
+      "patient": 1,
+      "report": 1,
+      "specimen": 1,
+      "validation_error": 0
+    },
+    "reconcile_error_count": 0
+  },
+  "question_answers": [
+    {
+      "question": 1,
+      "answer": "MISSING_PROBE (ERROR): required probe TP53_17p has no result. INTERP_CONSISTENCY (ERROR): CEP8 is 12/200 = 6.0% abnormal, at or above its synthetic 2.5% cutoff, but called NORMAL. Both come from validation.validate_order; any ERROR finding blocks finalization.",
+      "sources": [
+        "src/validation.py validate_order, has_blocking_errors",
+        "schema.sql probe seed",
+        "R-006"
+      ]
+    },
+    {
+      "question": 2,
+      "answer": "Ingestion checks message structure, order matching, specimen, probe codes, integer counts, abnormal <= scored, and the interpretation vocabulary only. Required-probe completeness and cutoff consistency belong to validation.validate_order, which runs at finalization, so a partial or inconsistent but well-formed panel files.",
+      "sources": [
+        "src/interfaces/inbound_hl7.py _validate_obx",
+        "src/validation.py validate_order"
+      ]
+    },
+    {
+      "question": 3,
+      "answer": "One. fish_result is UNIQUE(order_id, probe_id) and workflow.enter_fish_result upserts, so the CEP8 row was updated in place (same result_id). The earlier counts and pattern are not retained; only the RESULT_ENTERED audit details remain, 'probe=CEP8 interp=NORMAL' then 'probe=CEP8 interp=ABNORMAL', and they record probe and interpretation only.",
+      "sources": [
+        "schema.sql fish_result",
+        "src/workflow.py enter_fish_result",
+        "analyst limitation RESULTS_UPSERTED"
+      ]
+    },
+    {
+      "question": 4,
+      "answer": "workflow.run_validation replaces an order's stored findings on every run (_persist_findings deletes, then inserts). The blocked run stored two ERROR rows; the successful run found none, so no validation_error rows remain.",
+      "sources": [
+        "src/workflow.py run_validation, _persist_findings"
+      ]
+    },
+    {
+      "question": 5,
+      "answer": "VALIDATION_RUN 'findings=2 errors=2' followed by FINALIZE_BLOCKED '2 blocking error(s)'; later VALIDATION_RUN 'findings=0 errors=0', REPORT_FINALIZED, and FINALIZED.",
+      "sources": [
+        "src/workflow.py run_validation, finalize_order",
+        "R-007"
+      ]
+    }
+  ]
+}

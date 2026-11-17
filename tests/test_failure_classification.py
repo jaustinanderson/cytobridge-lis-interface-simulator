@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 import pytest
 
@@ -317,6 +318,28 @@ def test_corpus_exercises_exactly_14_unique_approved_codes():
     assert len(codes) == 14
     assert len(set(codes)) == 14
     assert set(codes) == APPROVED_CODES
+
+
+def test_schema_and_classification_admit_only_frozen_failure_codes(conn):
+    """Corpus coverage alone cannot detect an unused extra taxonomy entry.
+
+    Compare both closed vocabularies to the independently transcribed frozen
+    design expectations, rather than deriving expected codes from runtime data.
+    """
+    ddl = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' "
+        "AND name = 'interface_error_queue'"
+    ).fetchone()["sql"]
+    failure_check = re.search(
+        r"failure_code\s+TEXT\s+CHECK\s*\(failure_code IS NULL OR "
+        r"failure_code IN\s*\((.*?)\)\)",
+        ddl,
+        re.DOTALL,
+    )
+    assert failure_check is not None, "Cannot inspect failure_code CHECK"
+    schema_codes = set(re.findall(r"'([^']+)'", failure_check.group(1)))
+    assert schema_codes == APPROVED_CODES
+    assert set(inbound_hl7._FAILURE_CLASSIFICATION) == APPROVED_CODES
 
 
 def test_no_classification_field_is_null_across_corpus():

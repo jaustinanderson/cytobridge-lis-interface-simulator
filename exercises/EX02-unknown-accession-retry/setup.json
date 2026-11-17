@@ -1,0 +1,27 @@
+{
+  "id": "EX02-unknown-accession-retry",
+  "title": "Unknown accession and unchanged retry",
+  "summary": "An instrument result arrived before its order was registered. Investigate the queued message, register the matching order, then preview and apply a recovery that does not change the payload.",
+  "steps": [
+    {
+      "argv": [
+        "init",
+        "--db",
+        "{db}"
+      ],
+      "expect_exit": 0,
+      "note": "Create a new, empty synthetic exercise database. init refuses a path that already exists."
+    },
+    {
+      "argv": [
+        "ingest",
+        "--db",
+        "{db}",
+        "--file",
+        "{inputs}/early_result.hl7"
+      ],
+      "expect_exit": 4,
+      "note": "Ingest the instrument result for ACC-EX02-0001. No order has been registered yet; the message does not file."
+    }
+  ]
+}

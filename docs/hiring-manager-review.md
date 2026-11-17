@@ -1,6 +1,8 @@
-# Hiring-manager review
+# Self-review written with AI assistance
 
-A review of the CytoBridge LIS Interface Simulator from the perspective of an
+Implementation was done with AI assistants; recovery followed my approved design and bounded instructions.
+
+A self-review of the CytoBridge LIS Interface Simulator from the perspective of an
 **LIS Analyst / Beaker-adjacent hiring manager** skimming the public repo for
 10-15 minutes before deciding whether to talk to the candidate.
 
@@ -10,7 +12,7 @@ A review of the CytoBridge LIS Interface Simulator from the perspective of an
 > itself states repeatedly, which is exactly what a careful reviewer wants to
 > see.
 
-## Overall score: 8.9 / 10
+## Overall assessment
 
 > **Follow-up status (2026-07-11):** the review's two actionable engineering
 > gaps are now closed. GitHub Actions runs the full suite and demo on Python 3.11
@@ -19,19 +21,12 @@ A review of the CytoBridge LIS Interface Simulator from the perspective of an
 
 > **v1.1 follow-up assessment (2026-07):** the "what would you build next" item -
 > a controlled error-queue resolve/re-drive workflow (former KI-03) - has since
-> been designed, approved, implemented, and validated. The score is deliberately
-> **held at 8.9**: the addition strengthens dimensions 6 (error queue /
-> troubleshooting) and 7 (validation / UAT maturity), but breadth (one panel,
-> educational interfaces, in-memory) is unchanged, so re-scoring is not warranted
-> on that basis alone. Current evidence is **164 passing tests across eight
-> suites**, **41/41 requirements** with passing automated coverage (the v1.1
-> recovery UATs, UAT-011 - UAT-018, manually executed and passed; the v1 manual
-> UATs defined, not executed), and **five** clean demo scenarios. A notable maturity
+> been designed, approved, implemented, and validated. The addition strengthens dimensions 6 (error queue /
+> troubleshooting) and 7 (validation / UAT maturity), while panel breadth and educational interfaces are unchanged; the demo remains in-memory, while the analyst lab now persists a local database. Current evidence (November 14) is **688 passed and one platform skip (689 cases across 17 test modules)**, **52/52 requirements** with passing automated coverage (the v1.1
+> recovery UATs, UAT-011 - UAT-018, executed by Codex and passed, with a same-agent replay; the v1 manual UATs and UAT-019 defined, not manually executed; the ten lab requirements have no manual UAT), and **five** clean demo scenarios. A notable maturity
 > signal: the recovery behavior was specified in a **frozen, pre-implementation
 > design record** and proven against two human-approved invariants. Provenance is
-> stated plainly - the recovery safety design and decisions were the owner's,
-> the implementation was done with an AI assistant under bounded instructions,
-> and the owner reviewed and accepted the validation evidence; it is not
+> stated plainly - the recovery safety design and decisions were the owner's; it is not
 > presented as unaided work, certified HL7/FHIR, regulatory validation,
 > production-ready software, or Epic build experience.
 
@@ -39,24 +34,24 @@ A standout portfolio project for a lab/interface analyst track. It reads like
 someone who understands the *work* - order-to-result lifecycle, validation
 gating, HL7/FHIR interface mapping in both directions, an error queue that
 behaves, auditability, and a real validation/traceability package - and who is
-scrupulously honest about what it is and is not. The main ceiling on the score
-is breadth (one panel, educational interfaces, in-memory only), all of which is
+scrupulously honest about what it is and is not. The main limit on the assessment
+is breadth (one panel, educational interfaces, an in-memory demo with a file-backed analyst lab), all of which is
 disclosed rather than hidden.
 
-## Scorecard
+## Dimensions and rationales
 
-| # | Dimension | Score | One-line rationale |
-|---|---|---|---|
-| 1 | First impression / README clarity | 9 | Scoped, disclaimered, with layout, run steps, and a validation index; you know what it is in 30 seconds. |
-| 2 | Clinical workflow relevance | 8 | Realistic AML/MDS FISH lifecycle with cutoff-aware interpretation; single panel + illustrative cutoffs (by design). |
-| 3 | LIS / interface analyst relevance | 9 | Accessioning, result entry, validation gating, audit, analyst SQL worklists, and both interface directions - squarely the job. |
-| 4 | SQL / data-model credibility | 9 | Real PK/FK/CHECK/UNIQUE constraints, enumerated statuses, indexes, upsert semantics; raw SQL, no ORM. |
-| 5 | HL7 / FHIR-style interface credibility | 8 | Segment-accurate ORU (MSH/PID/OBR/SPM/OBX) + a proper FHIR Bundle, single-snapshot consistency, MSH-11=T; honestly "style, not certified". |
-| 6 | Error queue / troubleshooting credibility | 9 | Every message stored, all-or-nothing filing, clear reasons, OPEN status, an analyst runbook that reads like real triage, and a controlled recovery service (immutable original, idempotent, transaction-safe). |
-| 7 | Validation / UAT maturity | 9 | 41 traced requirements, a requirements-to-test matrix, 18 UAT scripts, risk assessment, known-issues, and a frozen pre-implementation design record with two human-approved invariants - unusually mature for a portfolio. |
-| 8 | Portfolio honesty / no overclaiming | 10 | Repeated Epic/Beaker boundary, "what it does NOT prove", synthetic-data notices, training flags. Best-in-class. |
-| 9 | Ease of demo | 9 | `python -m src.demo_run` (stdlib only), one dev dep, deterministic in-memory DB, five scenarios, an approximately six-minute script. |
-| 10 | Resume / interview usefulness | 9 | Ready-made bullets, talking points, and a clear answer to "is this Epic experience?". |
+| # | Dimension | One-line rationale |
+|---|---|---|
+| 1 | First impression / README clarity | Scoped, disclaimered, with layout, run steps, and a validation index; you know what it is in 30 seconds. |
+| 2 | Clinical workflow relevance | Realistic AML/MDS FISH lifecycle with cutoff-aware interpretation; single panel + illustrative cutoffs (by design). |
+| 3 | LIS / interface analyst relevance | Accessioning, result entry, validation gating, audit, analyst SQL worklists, and both interface directions - squarely the job. |
+| 4 | SQL / data-model credibility | Real PK/FK/CHECK/UNIQUE constraints, enumerated statuses, indexes, upsert semantics; raw SQL, no ORM. |
+| 5 | HL7 / FHIR-style interface credibility | Segment-accurate ORU (MSH/PID/OBR/SPM/OBX) + a proper FHIR Bundle, single-snapshot consistency, MSH-11=T; honestly "style, not certified". |
+| 6 | Error queue / troubleshooting credibility | Every message stored, filing subject to KI-04 (oversized counts can leave partial results, a RECEIVED message and no queue item; reconciliation detects it), clear reasons, OPEN status, an analyst runbook that reads like real triage, and a controlled recovery service (immutable original, idempotent, transaction-safe). |
+| 7 | Validation / UAT maturity | 52 traced requirements, a requirements-to-test matrix, 19 UAT scripts (the ten lab requirements have no manual UAT), risk assessment, known-issues, and a frozen pre-implementation design record with two human-approved invariants - unusually mature for a portfolio. |
+| 8 | Portfolio honesty / no overclaiming | Repeated Epic/Beaker boundary, "what it does NOT prove", synthetic-data notices, training flags. Best-in-class. |
+| 9 | Ease of demo | `python -m src.demo_run` (stdlib only), one dev dep, deterministic in-memory DB, five scenarios, an approximately six-minute script. |
+| 10 | Resume / interview usefulness | Ready-made bullets, talking points, and a clear answer to "is this Epic experience?". |
 
 ## Strengths
 
@@ -65,15 +60,11 @@ disclosed rather than hidden.
   systems, and "no PHI" notices appear everywhere. A reviewer's biggest fear
   with a "Beaker-adjacent" project - overclaiming - is pre-empted.
 - **It behaves like a lab system, not a toy.** Finalization is *blocked* on any
-  ERROR (including a cutoff-aware missed-abnormal), outbound export is
-  finalized-only, and inbound filing is all-or-nothing so a bad message never
-  half-updates an order. These are the exact integrity instincts the role wants.
+  ERROR (including a cutoff-aware missed-abnormal), outbound export is finalized-only (KI-05 remains in direct finalization calls; the command line refuses already-finalized or cancelled orders), and recognized inbound validation failures are rejected before filing; KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects that condition. These are the exact integrity instincts the role wants.
 - **The data model does real work.** Constraints live in the schema
   (`cells_abnormal <= cells_scored`, `UNIQUE (order_id, probe_id)`), not just in
-  Python - so bad data can't exist, not merely get caught late.
-- **The error queue is the differentiator.** Storing every inbound message and
-  routing failures with a specific, human-readable reason (plus a runbook on how
-  to resolve them) is precisely interface-analyst thinking.
+  Python - so those invalid cell counts or duplicate order/probe results can't exist, not merely get caught late.
+- **The error queue is the differentiator.** Recognized inbound validation failures enter the error queue with a reason. KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects that condition.
 - **Controlled recovery with real safety design.** The v1.1 service turns the
   error queue from a dead-letter box into a safe, idempotent workflow: the
   original message is immutable, only a new message can be filed, `request_id`
@@ -84,8 +75,7 @@ disclosed rather than hidden.
 - **A genuine validation package.** Requirements -> code -> test -> UAT
   traceability, a risk register, and a self-authored known-issues list signal
   someone who can work with QA and auditors.
-- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 176 passing
-  tests, a 5-scenario demo, and a timed demo script.
+- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 688 passing tests and one platform skip (689 cases across 17 test modules, November 14), a 5-scenario demo, and a timed demo script.
 
 ## Weaknesses
 
@@ -95,20 +85,19 @@ disclosed rather than hidden.
   repetitions, or conformance validation; the FHIR/HL7 are "shaped like", not
   certified. Honestly stated, but it is not production interface-engine
   experience (Rhapsody/Cloverleaf/Mirth).
-- **In-memory only.** No persistence story, migrations, concurrency, or auth;
+- **In-memory demo; persistent analyst lab.** No migration tooling, multi-user concurrency, or auth;
   `actor` fields are free-text, not authenticated identities. (Recovery is
-  verified file-backed for durability, but the demo remains in-memory.)
+  verified file-backed for durability, and the lab uses a local SQLite file across commands, while the demo remains in-memory.)
 - **Recovery is educational, not engine-grade.** The v1.1 recovery service is
   synchronous, headless, and single-process - no scheduler, worker, async queue,
   UI, or API. It demonstrates the safety design, not a production recovery
   subsystem. Honestly stated in `known-issues.md`.
-- **Resolved follow-ups:** KI-01 is closed by result-level tests for all six
-  analyst queries, KI-03 is closed by the v1.1 controlled recovery service, and
+- **Resolved follow-ups:** KI-01 is closed by result-level tests for the six original analyst queries (the lab adds a seventh), KI-03 is closed by the v1.1 controlled recovery service, and
   CI makes the test/demo evidence one-click verifiable.
 
 ## Red flags
 
-**None material.** This is a clean, honest repo. The only real risk is *verbal*
+**Known technical limits: KI-04 partial filing and KI-05 direct finalization.** This is a clean, honest repo. An additional risk is *verbal*
 overclaiming in an interview - saying "I have Beaker/Epic experience" instead of
 "I built a synthetic simulator to learn the domain Beaker lives in." The repo's
 own `portfolio-review.md` already scripts the correct, honest answer, which is
@@ -140,8 +129,7 @@ Prioritized; none are blockers.
 order-to-result and interface work that a Beaker-style analyst does. It takes an
 AML/MDS FISH order through specimen accessioning, per-probe results, validation,
 and finalization, then generates outbound HL7 and FHIR-style messages and
-ingests inbound instrument results - matching them to orders and routing bad
-ones to an interface error queue with clear reasons, then recovering them safely
+ingests inbound instrument results - matching them to orders and routing recognized validation failures to an interface error queue with clear reasons (KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects it), then recovering them safely
 through a controlled retry / corrected-re-drive service. It is all synthetic
 data, it is educational rather than a certified interface engine, and it is
 Beaker-adjacent learning, not Epic experience."
@@ -154,35 +142,29 @@ Beaker-adjacent learning, not Epic experience."
 2. **(0:20-0:50) The workflow and the gates.** Order -> accession -> per-probe
    results -> validation -> finalize. "Two integrity gates: validation blocks
    finalize on any error, including a cutoff-aware missed-abnormal; and outbound
-   export only works on a finalized order."
+   export only works on a finalized order. KI-05 still affects direct finalization calls; the command line refuses already-finalized or cancelled orders."
 3. **(0:50-1:20) Interfaces both ways.** Outbound HL7 ORU + FHIR
    DiagnosticReport from one snapshot so they agree; inbound ORU matched to an
-   open order by accession. "Filing is all-or-nothing, so a partly-bad message
-   never half-updates an order."
+   open order by accession. "Recognized validation failures are rejected before filing. KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects that condition."
 4. **(1:20-1:45) The error queue and recovery.** "Every inbound message is
-   stored; failures go to an error queue with a specific reason. From there a
+   stored; recognized validation failures go to an error queue with a specific reason. From there a
    controlled service recovers them safely - retry an unchanged message or
    re-drive a corrected one, with the original kept immutable, idempotency by
    request_id, and transaction-safe outcomes: a handled failure rolls back the
    filing side effects and commits a FAILED attempt with the queue left OPEN,
-   while an unexpected error rolls back the whole request. Nothing is silently
-   dropped or half-updated."
-5. **(1:45-2:00) Prove it.** "41 requirements each trace to a function or schema
-   constraint, a test, and a UAT script; 176 tests pass across eight suites; the
+   while an unexpected error rolls back the whole request. Those recovery safeguards do not make initial ingestion all-or-nothing: KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects that condition."
+5. **(1:45-2:00) Prove it.** "52 requirements each trace to a function or schema constraint and a test; R-001 through R-042 also map to UAT (the ten lab requirements have no manual UAT); 688 tests passed, with one platform skip (689 cases across 17 test modules, November 14); the
    demo runs five scenarios end-to-end; and the recovery behavior was frozen in a
-   design record before I wrote a line of it. I wrote the limitations down myself,
-   and I'm clear that the recovery build was done with an AI assistant under my
-   approved design, not unaided."
+   design record before I wrote a line of it. I wrote the limitations down myself."
 
 ## Suggested resume bullet
 
 > Built **CytoBridge**, a synthetic LIS + HL7/FHIR interface simulator (Python,
 > SQLite, raw SQL) that models an AML/MDS FISH order end-to-end - accessioning,
 > per-probe results, cutoff-aware validation, finalization, and audit - with
-> outbound HL7/FHIR generation, inbound ORU ingestion routed through an interface
-> error queue, and a controlled, idempotent error-queue recovery service
-> (immutable original, transaction-safe rollback); 41 traceable requirements and
-> 176 passing tests. (Synthetic data; educational, Beaker-adjacent - not Epic
+> outbound HL7/FHIR generation, inbound ORU ingestion with recognized validation failures routed through an interface error queue (subject to KI-04: partial results, a RECEIVED message and no queue item; reconciliation detects it), and a controlled, idempotent error-queue recovery service
+> (immutable original, transaction-safe rollback); 52 traceable requirements and
+> 688 passing tests and one platform skip (689 cases across 17 test modules, November 14). (Synthetic data; educational, Beaker-adjacent - not Epic
 > build experience.)
 
 ## Suggested LinkedIn project description
@@ -192,20 +174,18 @@ Beaker-adjacent learning, not Epic experience."
 > A synthetic, analyst-first laboratory information system that models a
 > cytogenetics/FISH workflow end-to-end: order and specimen accessioning,
 > structured per-probe results, cutoff-aware validation that blocks
-> finalization on errors, and a full audit trail. It generates outbound HL7
+> finalization on errors (KI-05 remains in direct finalization calls; the command line refuses already-finalized or cancelled orders), and audit evidence linked to inbound and recovery filings (not every database state change creates an audit event). It generates outbound HL7
 > ORU and FHIR DiagnosticReport-style messages from finalized orders and
 > ingests inbound instrument results, matching them to open orders by
-> accession and routing invalid or unmatched messages to an interface error
-> queue with clear, actionable reasons - then recovers them through a
+> accession and routing recognized validation failures to an interface error queue with clear, actionable reasons (KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects it) - then recovers them through a
 > controlled, idempotent retry / corrected-re-drive service that keeps the
-> original message immutable and every operation transaction-safe.
+> original message immutable and recovery operations transaction-safe.
 >
 > Built with Python and SQLite (raw SQL, no ORM) and backed by a real
 > validation package - numbered requirements, a requirements-to-test
-> traceability matrix, UAT scripts, a risk assessment, and 176 passing tests.
+> traceability matrix, UAT scripts, a risk assessment, and 688 passing tests and one platform skip (689 cases across 17 test modules, November 14).
 > The recovery behavior was specified in a frozen, pre-implementation design
-> record and implemented with an AI assistant under bounded, owner-approved
-> instructions.
+> record.
 >
 > All data is synthetic (no PHI). This is educational, HL7/FHIR-*style* work
 > and is **Beaker-adjacent learning, not Epic build experience** - it
