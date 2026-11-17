@@ -29,7 +29,7 @@ validation evidence, and troubleshooting documentation.
 > checks and Austin's sign-off provide the project evidence; an AI self-review
 > is not represented as independent review.
 
-**Verified state (this codebase):** 176 passing pytest tests across eight suites,
+**Verified state (this codebase):** 177 passing pytest tests across eight suites,
 five end-to-end demonstration scenarios, and 41/41 requirements with result-level
 automated coverage that passes today, plus 18 manual UAT definitions. The v1.1
 recovery UATs (UAT-011 - UAT-018, including both UAT-015 subcases) were manually
@@ -312,7 +312,7 @@ recovery service.
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # 176 tests
+python -m pytest -q                   # 177 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python
