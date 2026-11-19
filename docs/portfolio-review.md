@@ -41,7 +41,7 @@ running it:
 - **Auditability.** Inbound filings and recovery operations have audit evidence linked to their messages; not every database state change creates an audit event.
 - **Analyst SQL.** Seven worklist queries (pending review, STAT aging, turnaround,
   validation error rate, audit lookup, open interface errors, analyst queue worklist).
-- **Testing and traceability discipline.** 688 passing `pytest` tests and one platform skip (689 cases across 17 test modules, November 14) plus a requirements -> code -> test
+- **Testing and traceability discipline.** 691 passing `pytest` tests and one platform skip (692 cases across 18 test modules, November 19) plus a requirements -> code -> test
   [traceability matrix](../validation/traceability-matrix.md) covering all 52 requirements (R-001 through R-042 also map to UAT; the ten lab requirements have no manual UAT), a [validation summary](../validation/validation-summary.md), a
   [risk assessment](../validation/risk-assessment.md), and an honest
   [known-issues](../validation/known-issues.md) list. The v1.1 recovery behavior
@@ -128,7 +128,7 @@ Pick the ones that fit the role; keep the synthetic/educational framing.
   the project owner).
 - Authored a **validation package**: 52 traceable requirements, a
   requirements-to-test **traceability matrix**, 19 **UAT scripts**, risk
-  assessment, and known-issues log; **688 passing automated tests and one platform skip** (689 cases across 17 test modules, November 14).
+  assessment, and known-issues log; **691 passing automated tests and one platform skip** (692 cases across 18 test modules, November 19).
 
 ## Interview talking points
 

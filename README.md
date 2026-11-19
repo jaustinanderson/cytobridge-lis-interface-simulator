@@ -29,7 +29,7 @@ validation evidence, and troubleshooting documentation.
 > checks and Austin's sign-off provide the project evidence; an AI self-review
 > is not represented as independent review.
 
-**Verified state (this codebase):** 689 pytest cases (688 passed, 1 platform skip on macOS) across seventeen suites,
+**Verified state (this codebase):** 692 pytest cases (691 passed, 1 platform skip on macOS) across eighteen suites,
 five end-to-end demonstration scenarios, seven executable analyst-lab incident
 exercises, and 52/52 requirements with result-level automated coverage that
 passes today, plus 19 manual UAT definitions. The v1.1
@@ -37,7 +37,7 @@ recovery UATs (UAT-011 - UAT-018, including both UAT-015 subcases) were manually
 executed and passed on 2026-07-25 - see the
 [recovery UAT execution report](validation/v1.1-recovery-uat-execution-report.md).
 UAT-001 - UAT-010 remain defined but not manually executed. GitHub Actions
-verifies Python 3.11 and 3.12. CytoBridge v1.1 (controlled error-queue
+verifies Python 3.11, 3.12, 3.13 and 3.14. CytoBridge v1.1 (controlled error-queue
 recovery) is complete.
 
 ## Scope (v1)
@@ -389,11 +389,11 @@ recovery service.
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # 689 tests
+python -m pytest -q                   # 692 tests
 ```
 
 GitHub Actions runs the full test suite and demonstration scenarios on Python
-3.11 and 3.12 for every push and pull request.
+3.11, 3.12, 3.13 and 3.14 for every push and pull request.
 
 ## Repository maintenance
 

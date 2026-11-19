@@ -28,11 +28,11 @@ Validation is layered:
    plus `R-042` (ISCN subset) and `R-043`-`R-052` (analyst lab) in [`requirements.md`](requirements.md),
    and `R-020`-`R-041` (v1.1 controlled recovery) in the frozen
    [`v1.1-requirements.md`](v1.1-requirements.md).
-2. **Automated tests** - `pytest` across **seventeen** suites (`test_workflow.py`,
+2. **Automated tests** - `pytest` across **eighteen** suites (`test_workflow.py`,
    `test_validation.py`, `test_outbound_interfaces.py`,
    `test_inbound_interfaces.py`, `test_queries.py`, `test_recovery_schema.py`,
    `test_failure_classification.py`, `test_recovery_service.py`,
-   `test_iscn_parser.py`, and the eight
+   `test_iscn_parser.py`, and the nine
    `test_analyst_*.py` suites).
 3. **Manual UAT** - 19 analyst-style acceptance scripts (`UAT-001`-`UAT-019`)
    in [`uat-test-scripts.md`](uat-test-scripts.md). UAT-011-UAT-018 (including
@@ -58,7 +58,7 @@ Validation is layered:
 
 | Metric | Result |
 |---|---|
-| Automated tests | **688 passed, 1 platform skip on macOS** (`pytest`, seventeen suites) |
+| Automated tests | **691 passed, 1 platform skip on macOS** (`pytest`, eighteen suites) |
 | Requirements traced | 52 / 52 mapped to code + test; the 42 v1/v1.1/ISCN requirements also map to a UAT |
 | Requirements with automated coverage passing | 52 / 52 |
 | Manual UAT | 19 / 19 defined; UAT-011-UAT-018 **executed and passed** (2026-07-25, [evidence](v1.1-recovery-uat-execution-report.md)); UAT-001-UAT-010 and UAT-019 not manually executed |
@@ -197,7 +197,7 @@ and assessed in [`risk-assessment.md`](risk-assessment.md).
 
 ```bash
 pip install -r requirements-dev.txt   # pytest only
-python -m pytest -q                   # -> 688 passed, 1 platform skip on macOS
+python -m pytest -q                   # -> 691 passed, 1 platform skip on macOS
 python -m src.demo_run                 # -> 5 scenarios, exit 0
 mkdir lab-work && python -m src.analyst exercise run-all --workdir lab-work/all   # -> 7 verified
 ```
