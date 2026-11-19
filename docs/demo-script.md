@@ -118,7 +118,7 @@ hiring manager or interviewer. Timed for ~6 minutes. Each step has a **show**
 ## 5:30-6:00 - Validation summary (close)
 
 - **Show:** `validation/validation-summary.md` results table.
-- **Say:** "The bottom line: 688 automated tests passed, with one platform skip (689 cases across 17 test modules, November 14), all 52
+- **Say:** "The bottom line: 691 automated tests passed, with one platform skip (692 cases across 18 test modules, November 19), all 52
   requirements are traced to code and passing automated coverage within the
   synthetic scope, the demo runs clean through five scenarios, and of the 19
   UAT scripts the eight recovery ones were executed by Codex and passed, with a same-agent replay. And I

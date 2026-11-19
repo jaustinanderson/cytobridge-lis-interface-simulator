@@ -29,6 +29,7 @@ development session. Each session was developed on its own branch and merged to
 | P3-005 + finalization | v1.1 recovery UAT execution and finalization | UAT-011-UAT-018 executed and passed (incl. UAT-015A/B); AF-2026-010 - AF-2026-012 recorded; governance simplified; v1.1 declared complete | 2026-07-25/26; evidence in `v1.1-recovery-uat-execution-report.md` |
 | P4-001 | Educational ISCN karyotype subset | `parse_iscn` accepts a documented karyotype subset and rejects the rest as unsupported or malformed; R-042; UAT-019 defined | Authorized 2026-10-24 under Austin's delegation to joint Claude/Codex judgment |
 | Issue #43 | Analyst investigation and recovery lab | Headless `python -m src.analyst` CLI over the existing services; case trace, reconciliation findings, non-mutating recovery preview, seven executable incident exercises, portable case evidence; R-043 - R-052 | Authorized by Austin in issue #43 |
+| PR #47 | Analyst exit code at shutdown; CI on 3.13/3.14 | `python -m src.analyst` keeps exit 6 when stdout still fails at interpreter shutdown; CI matrix adds Python 3.13 and 3.14 | Follow-up to the PR #46 review finding |
 
 ---
 
@@ -435,11 +436,39 @@ not manual UAT and do not demonstrate Austin's mastery. All data is synthetic.
 
 ---
 
+## PR #47 - Analyst exit code when stdout fails at shutdown
+
+**Why:** an automated review of PR #46 found that on Linux with Python 3.14,
+`python -m src.analyst ... > /dev/full` exited 120 instead of the documented 6
+(INTERNAL). The CLI reported the output failure and returned 6, but the failed
+bytes stayed buffered in `sys.stdout`; interpreter shutdown retried the flush,
+failed again, and replaced the exit code. CI ran only Python 3.11 and 3.12, so
+the failure was not visible there.
+
+**What changed:**
+- `src/analyst/__main__.py` - when `main()` returns INTERNAL, the process
+  entrypoint tries one flush; if stdout still fails, it detaches `sys.stdout`
+  before exiting with the original code. Embedded callers of `main()` keep
+  their stream unchanged.
+- `tests/test_analyst_shutdown.py` - real child processes with a synthetic
+  ENOSPC stream (text and JSON output), a normal successful run, and an
+  embedded caller.
+- `.github/workflows/ci.yml` - the test matrix adds Python 3.13 and 3.14, so
+  the existing `/dev/full` subprocess test now runs on the interpreter where
+  the failure was found.
+- Validation package, README and portfolio documents - current test counts
+  (692 cases across eighteen suites).
+
+**Scope:** no schema, taxonomy, recovery-semantics, core workflow, frozen-file,
+runtime-dependency or permission change. All data is synthetic.
+
+---
+
 ## Change-control principles used
 
 - **One session/task = one branch = one PR**, never committed straight to `main`.
 - **Tests accompany behavior** - every code session and v1.1 task added matching
-  coverage; the current suite has 689 test cases (688 passed, 1 platform skip on macOS) across seventeen suites,
+  coverage; the current suite has 692 test cases (691 passed, 1 platform skip on macOS) across eighteen suites,
   including result assertions for all analyst SQL views, the full controlled
   recovery service, the ISCN subset parser, and the analyst lab.
 - **Scope guardrails** honored every session and task (no UI/Docker/ORM/new

@@ -22,7 +22,7 @@ A self-review of the CytoBridge LIS Interface Simulator from the perspective of 
 > **v1.1 follow-up assessment (2026-07):** the "what would you build next" item -
 > a controlled error-queue resolve/re-drive workflow (former KI-03) - has since
 > been designed, approved, implemented, and validated. The addition strengthens dimensions 6 (error queue /
-> troubleshooting) and 7 (validation / UAT maturity), while panel breadth and educational interfaces are unchanged; the demo remains in-memory, while the analyst lab now persists a local database. Current evidence (November 14) is **688 passed and one platform skip (689 cases across 17 test modules)**, **52/52 requirements** with passing automated coverage (the v1.1
+> troubleshooting) and 7 (validation / UAT maturity), while panel breadth and educational interfaces are unchanged; the demo remains in-memory, while the analyst lab now persists a local database. Current evidence (November 19) is **691 passed and one platform skip (692 cases across 18 test modules)**, **52/52 requirements** with passing automated coverage (the v1.1
 > recovery UATs, UAT-011 - UAT-018, executed by Codex and passed, with a same-agent replay; the v1 manual UATs and UAT-019 defined, not manually executed; the ten lab requirements have no manual UAT), and **five** clean demo scenarios. A notable maturity
 > signal: the recovery behavior was specified in a **frozen, pre-implementation
 > design record** and proven against two human-approved invariants. Provenance is
@@ -75,7 +75,7 @@ disclosed rather than hidden.
 - **A genuine validation package.** Requirements -> code -> test -> UAT
   traceability, a risk register, and a self-authored known-issues list signal
   someone who can work with QA and auditors.
-- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 688 passing tests and one platform skip (689 cases across 17 test modules, November 14), a 5-scenario demo, and a timed demo script.
+- **Frictionless to evaluate.** Stdlib + SQLite, one dev dependency, 691 passing tests and one platform skip (692 cases across 18 test modules, November 19), a 5-scenario demo, and a timed demo script.
 
 ## Weaknesses
 
@@ -153,7 +153,7 @@ Beaker-adjacent learning, not Epic experience."
    request_id, and transaction-safe outcomes: a handled failure rolls back the
    filing side effects and commits a FAILED attempt with the queue left OPEN,
    while an unexpected error rolls back the whole request. Those recovery safeguards do not make initial ingestion all-or-nothing: KI-04 can leave partial results, a RECEIVED message and no queue item; reconciliation detects that condition."
-5. **(1:45-2:00) Prove it.** "52 requirements each trace to a function or schema constraint and a test; R-001 through R-042 also map to UAT (the ten lab requirements have no manual UAT); 688 tests passed, with one platform skip (689 cases across 17 test modules, November 14); the
+5. **(1:45-2:00) Prove it.** "52 requirements each trace to a function or schema constraint and a test; R-001 through R-042 also map to UAT (the ten lab requirements have no manual UAT); 691 tests passed, with one platform skip (692 cases across 18 test modules, November 19); the
    demo runs five scenarios end-to-end; and the recovery behavior was frozen in a
    design record before I wrote a line of it. I wrote the limitations down myself."
 
@@ -164,7 +164,7 @@ Beaker-adjacent learning, not Epic experience."
 > per-probe results, cutoff-aware validation, finalization, and audit - with
 > outbound HL7/FHIR generation, inbound ORU ingestion with recognized validation failures routed through an interface error queue (subject to KI-04: partial results, a RECEIVED message and no queue item; reconciliation detects it), and a controlled, idempotent error-queue recovery service
 > (immutable original, transaction-safe rollback); 52 traceable requirements and
-> 688 passing tests and one platform skip (689 cases across 17 test modules, November 14). (Synthetic data; educational, Beaker-adjacent - not Epic
+> 691 passing tests and one platform skip (692 cases across 18 test modules, November 19). (Synthetic data; educational, Beaker-adjacent - not Epic
 > build experience.)
 
 ## Suggested LinkedIn project description
@@ -183,7 +183,7 @@ Beaker-adjacent learning, not Epic experience."
 >
 > Built with Python and SQLite (raw SQL, no ORM) and backed by a real
 > validation package - numbered requirements, a requirements-to-test
-> traceability matrix, UAT scripts, a risk assessment, and 688 passing tests and one platform skip (689 cases across 17 test modules, November 14).
+> traceability matrix, UAT scripts, a risk assessment, and 691 passing tests and one platform skip (692 cases across 18 test modules, November 19).
 > The recovery behavior was specified in a frozen, pre-implementation design
 > record.
 >
